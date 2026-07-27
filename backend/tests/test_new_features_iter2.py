@@ -31,7 +31,7 @@ def api():
 @pytest.fixture(scope="session")
 def token(api):
     r = api.post(f"{BASE_URL}/api/auth/login",
-                 json={"username": "Admin", "password": "admin"})
+                 json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": os.environ.get("ADMIN_PASSWORD", "admin")})
     assert r.status_code == 200, r.text
     return r.json()["token"]
 

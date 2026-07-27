@@ -27,6 +27,7 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
   const [paramCoin, setParamCoin] = useState(''); // '' = Global, else per-coin override
   const [sessionScope, setSessionScope] = useState('global'); // 'global' or strategy_id
   const [busy, setBusy] = useState(false);
+  const [defDirty, setDefDirty] = useState(false);
   const importParamsRef = React.useRef(null);
   const ALL_COINS = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","AVAXUSDT","DOTUSDT","POLUSDT","GOLD","SILVER","OIL"];
 
@@ -120,6 +121,41 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
     setSettings({ ...settings, strategy_timeframes: tfs });
     saveSettings({ strategy_timeframes: tfs });
     toast.success(`Timeframe ${tf} gespeichert – gilt für Signale, Paper & Live`);
+  };
+
+  // ---- Custom/Discovery-Strategien: Regeln & Indikator-Perioden dauerhaft anpassen ----
+  const updateDefinition = (strategyId, mut) => {
+    setStrategies(prev => prev.map(s => (s.id === strategyId
+      ? { ...s, definition: mut({ ...(s.definition || {}) }) } : s)));
+    setDefDirty(true);
+  };
+
+  const updateDefRuleValue = (strategyId, side, idx, value) =>
+    updateDefinition(strategyId, def => ({
+      ...def,
+      [side]: (def[side] || []).map((r, i) => (i === idx ? { ...r, value } : r)),
+    }));
+
+  const updateDefIndicator = (strategyId, key, value) =>
+    updateDefinition(strategyId, def => ({
+      ...def, indicators: { ...(def.indicators || {}), [key]: value },
+    }));
+
+  const saveDefinition = async (strategyId) => {
+    if (!isAdmin()) { toast.error('Admin-Login erforderlich'); return; }
+    const s = strategies.find(x => x.id === strategyId);
+    if (!s?.definition) return;
+    try {
+      const res = await fetch(`${API_URL}/api/strategies/custom`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(s.definition),
+      });
+      const d = await res.json();
+      if (!res.ok) { toast.error(d.detail || 'Speichern fehlgeschlagen'); return; }
+      setDefDirty(false);
+      toast.success('Strategie-Regeln gespeichert – gilt für Signale, Paper & Live');
+    } catch { toast.error('Verbindungsfehler'); }
   };
 
   const updateStrategyParam = (strategyId, paramKey, value) => {
@@ -430,6 +466,78 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
                       );
                     })}
                   </div>
+
+                  {activeStrategy.is_custom && activeStrategy.definition && (
+                    <div data-testid="custom-def-editor" style={{ marginTop: 16 }}>
+                      <div className="param-label" style={{ color: '#B388FF', marginBottom: 8 }}>
+                        REGELN &amp; INDIKATOR-PERIODEN (Custom/Discovery · dauerhaft)
+                        {defDirty && <span className="param-custom-badge" style={{ marginLeft: 8 }}>NICHT GESPEICHERT</span>}
+                      </div>
+                      <div className="params-list">
+                        {(activeStrategy.definition.long_rules || []).map((r, i) => (
+                          <div key={`L${i}`} className="param-item" data-testid={`def-rule-long-${i}`}>
+                            <div className="param-info">
+                              <div className="param-label" style={{ color: '#30D158' }}>
+                                LONG: {r.label || `${r.indicator} ${r.op}`}
+                              </div>
+                            </div>
+                            <div className="param-input-wrapper">
+                              {typeof r.value === 'number' ? (
+                                <input type="number" step="any" className="param-input" value={r.value}
+                                  onChange={e => updateDefRuleValue(activeStrategy.id, 'long_rules', i,
+                                    e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                  data-testid={`def-rule-long-input-${i}`} />
+                              ) : (
+                                <input type="text" className="param-input" value={String(r.value)} disabled
+                                  title="Indikator-Vergleich – im Strategie-Builder änderbar" />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {(activeStrategy.definition.short_rules || []).map((r, i) => (
+                          <div key={`S${i}`} className="param-item" data-testid={`def-rule-short-${i}`}>
+                            <div className="param-info">
+                              <div className="param-label" style={{ color: '#FF6482' }}>
+                                SHORT: {r.label || `${r.indicator} ${r.op}`}
+                              </div>
+                            </div>
+                            <div className="param-input-wrapper">
+                              {typeof r.value === 'number' ? (
+                                <input type="number" step="any" className="param-input" value={r.value}
+                                  onChange={e => updateDefRuleValue(activeStrategy.id, 'short_rules', i,
+                                    e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                  data-testid={`def-rule-short-input-${i}`} />
+                              ) : (
+                                <input type="text" className="param-input" value={String(r.value)} disabled
+                                  title="Indikator-Vergleich – im Strategie-Builder änderbar" />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {Object.entries(activeStrategy.definition.indicators || {}).map(([k, v]) => (
+                          typeof v === 'number' ? (
+                            <div key={k} className="param-item" data-testid={`def-ind-${k}`}>
+                              <div className="param-info">
+                                <div className="param-label">{k}</div>
+                                <div className="param-description">Indikator-Periode/Einstellung</div>
+                              </div>
+                              <div className="param-input-wrapper">
+                                <input type="number" step="any" className="param-input" value={v}
+                                  onChange={e => updateDefIndicator(activeStrategy.id, k,
+                                    e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                  data-testid={`def-ind-input-${k}`} />
+                              </div>
+                            </div>
+                          ) : null
+                        ))}
+                      </div>
+                      <button className="btn" onClick={() => saveDefinition(activeStrategy.id)}
+                        disabled={!defDirty} data-testid="save-definition-btn"
+                        style={{ marginTop: 8 }}>
+                        {defDirty ? '💾 Regeln speichern' : 'Regeln gespeichert'}
+                      </button>
+                    </div>
+                  )}
 
                   <button 
                     className="btn btn-reset"

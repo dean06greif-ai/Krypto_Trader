@@ -19,7 +19,7 @@ DB_NAME = os.environ.get('DB_NAME', 'test_database')
 @pytest.fixture(scope="module")
 def token():
     r = requests.post(f"{BASE_URL}/api/auth/login",
-                      json={"username": "Admin", "password": "admin"})
+                      json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": os.environ.get("ADMIN_PASSWORD", "admin")})
     assert r.status_code == 200
     return r.json()["token"]
 

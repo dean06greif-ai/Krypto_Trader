@@ -746,16 +746,40 @@ class AutoTradeManager:
         if cfg.get("require_all_rules") and signal.get("rules_total") \
                 and (signal.get("rules_met_count") or 0) < signal["rules_total"]:
             return None
-        # only one open trade per symbol
-        existing = await self.db.auto_trades.find_one({"symbol": symbol, "status": "open"})
-        if existing:
-            return None
+        # Offene-Trades-Limit pro Coin.
+        # KI-Trader ("ai_trader"): bis zu max_trades_per_coin (1–5, per Panel-
+        # Dropdown einstellbar) gleichzeitig offene Trades pro Coin.
+        # Alle anderen Strategien: strikt EIN offener Trade pro Coin.
+        if strategy_id == "ai_trader":
+            ai_cfg = await self.db.settings.find_one({"_id": "ai_trader_config"}) or {}
+            max_per_coin = max(1, min(5, int(ai_cfg.get("max_trades_per_coin", 1) or 1)))
+            open_count = await self.db.auto_trades.count_documents(
+                {"symbol": symbol, "status": "open", "strategy_id": "ai_trader"})
+            if open_count >= max_per_coin:
+                return None
+        else:
+            existing = await self.db.auto_trades.find_one({"symbol": symbol, "status": "open"})
+            if existing:
+                return None
 
         side = signal["type"]
         entry = float(signal.get("entry_price") or 0)
         if entry <= 0:
             return None
         sl, tp1, tpf, risk, atr = self._levels(cfg, side, entry, candles, signal)
+
+        # KI Trader: optional die von der KI berechneten Levels direkt nutzen
+        # (use_ai_levels in der KI-Config). Live-Mark-Price-Guards unten greifen weiterhin.
+        if signal.get("use_ai_levels"):
+            try:
+                _sl = float(signal.get("stop_loss") or 0)
+                _tp1 = float(signal.get("take_profit_1") or 0)
+                _tpf = float(signal.get("take_profit_full") or 0)
+                if _sl > 0 and _tp1 > 0 and _tpf > 0:
+                    sl, tp1, tpf = _sl, _tp1, _tpf
+                    risk = abs(entry - sl) or risk
+            except (TypeError, ValueError):
+                pass
 
         # Auto-Leverage: Hebel so setzen, dass die Liquidation den konfigurierten
         # Abstand hinter dem Stop-Loss hat (sonst fester Hebel aus der Config)
@@ -927,6 +951,8 @@ class AutoTradeManager:
             "profit_secured": False,
             "strategy_id": signal.get("strategy_id"),
             "strategy_name": signal.get("strategy_name"),
+            "signal_id": signal.get("id"),
+            "decision_id": signal.get("decision_id"),
             "opened_at": datetime.now(timezone.utc).isoformat(),
             "trade_date": signal.get("trade_date"),
             "events": ([f"OPEN {side} @ {entry} (Entry-Fee {entry_fee} USDT)"]

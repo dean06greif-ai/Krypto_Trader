@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from typing import Callable, Dict, List, Optional
 
+from services import gpu_accel
 from services.technical_indicators import TechnicalIndicators as TI
 from strategies.custom_strategy import INDICATORS
 
@@ -107,7 +108,7 @@ class FastSeries:
             out[es == 0] = np.nan
             return out
         if key[0] == "sma":
-            return pd.Series(self.close).rolling(key[1]).mean().to_numpy()
+            return gpu_accel.rolling_mean(self.close, key[1])
         if key[0] == "ha_color":
             ha = TI.calculate_heikin_ashi(self.candles)
             return np.array([1.0 if h.get("is_green") else 0.0 for h in ha])
@@ -151,8 +152,8 @@ class FastSeries:
             return out
         if key[0] in ("stoch_k", "stoch_d"):
             kp, dp = key[1], key[2]
-            hi = pd.Series(self.high).rolling(kp).max().to_numpy()
-            lo = pd.Series(self.low).rolling(kp).min().to_numpy()
+            hi = gpu_accel.rolling_max(self.high, kp)
+            lo = gpu_accel.rolling_min(self.low, kp)
             rng = hi - lo
             with np.errstate(invalid="ignore", divide="ignore"):
                 k = np.where(rng == 0, 50.0, (self.close - lo) / np.where(rng == 0, 1, rng) * 100)

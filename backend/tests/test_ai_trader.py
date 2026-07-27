@@ -16,8 +16,8 @@ import requests
 import pytest
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://neural-daytrader.preview.emergentagent.com").rstrip("/")
-ADMIN_USER = "Admin"
-ADMIN_PASS = "admin"
+ADMIN_USER = os.environ.get("ADMIN_USER", "Admin")
+ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin")
 
 
 @pytest.fixture(scope="module")

@@ -126,6 +126,7 @@ async def _fetch_range(session, symbol: str, start_ms: int, end_ms: int,
     import aiohttp
     from services.backtester import BINANCE_URL, JobCancelled  # avoid cyclic top-level
 
+    t0 = time.perf_counter()
     out: List[Dict] = []
     cur = start_ms
     span = max(end_ms - start_ms, 1)
@@ -157,6 +158,8 @@ async def _fetch_range(session, symbol: str, start_ms: int, end_ms: int,
         if len(data) < 1000:
             break
         await asyncio.sleep(0.06)
+    DOWNLOAD_STATS["candles"] += len(out)
+    DOWNLOAD_STATS["seconds"] += time.perf_counter() - t0
     return out
 
 
@@ -260,3 +263,57 @@ def stats() -> Dict:
 
 def clear():
     _MEM.clear()
+
+
+# ---- Download-Zähler (für Benchmark-Statistik: Cache- vs. Netz-Kerzen) ----
+DOWNLOAD_STATS = {"candles": 0, "seconds": 0.0}
+
+
+def download_stats() -> Dict:
+    return dict(DOWNLOAD_STATS)
+
+
+# ---- Public Helfer für Daten-Verwaltung (lokaler Worker & Server) ----
+def cached_meta(symbol: str) -> Optional[Dict]:
+    """Metadaten des In-Memory-Eintrags (Anzahl, Zeitspanne) – None wenn leer."""
+    entry = _MEM.get(symbol)
+    if not entry or not entry["candles"]:
+        return None
+    c = entry["candles"]
+    return {"candles": len(c), "first_ts": c[0]["timestamp"], "last_ts": c[-1]["timestamp"]}
+
+
+def persist_symbol(symbol: str) -> bool:
+    """In-Memory-Kerzen eines Symbols explizit auf Platte sichern."""
+    entry = _MEM.get(symbol)
+    if not entry or not entry["candles"]:
+        return False
+    _save_disk(symbol, entry["candles"])
+    return True
+
+
+def remove_symbol(symbol: str):
+    """Symbol aus RAM- und Disk-Cache entfernen."""
+    _MEM.pop(symbol, None)
+    path = _disk_path(symbol)
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError as e:
+        logger.warning(f"candle_cache remove {symbol}: {e}")
+
+
+def list_disk_symbols() -> List[Dict]:
+    """Alle auf Platte gespeicherten Symbole mit Dateigröße/Änderungszeit."""
+    out = []
+    if not os.path.isdir(CACHE_DIR):
+        return out
+    for fn in sorted(os.listdir(CACHE_DIR)):
+        if fn.endswith(".pkl.gz"):
+            p = os.path.join(CACHE_DIR, fn)
+            try:
+                out.append({"symbol": fn[:-7], "bytes": os.path.getsize(p),
+                            "mtime": os.path.getmtime(p)})
+            except OSError:
+                continue
+    return out

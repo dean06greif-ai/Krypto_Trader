@@ -374,6 +374,16 @@ def simulate_pair(strategy, candles: List[Dict], symbol: str, settings: Dict,
                 qty = capital * lev_t / entry
                 entry_fee = entry * qty * fee_pct
                 liq = entry * (1 - liq_dist_t) if side == "LONG" else entry * (1 + liq_dist_t)
+                # Liquidations-Schutz (wie im Live-Trading): Der Stop-Loss wird
+                # immer VOR dem Liquidationspreis platziert. Liegt der berechnete
+                # SL hinter der Liquidation, wird er knapp davor gesetzt –
+                # dadurch kann ein Trade nie liquidiert werden, solange der SL greift.
+                if side == "LONG" and sl <= liq:
+                    sl = liq + (entry - liq) * 0.05
+                    risk = abs(entry - sl)
+                elif side == "SHORT" and sl >= liq:
+                    sl = liq - (liq - entry) * 0.05
+                    risk = abs(entry - sl)
                 open_t = {
                     "side": side, "entry": entry, "sl": sl, "tp1": tp1, "tpf": tpf,
                     "liq": liq, "liquidated": False, "lev": round(lev_t, 2),
@@ -508,6 +518,296 @@ def _range_ms(s, end_of_day=False):
         return None
 
 
+def _effective_strategy(strat, sid: str, scfg: Dict):
+    """Pro-Backtest Definition-Override für Custom-/Discovery-Strategien."""
+    if scfg.get("definition") and getattr(strat, "IS_CUSTOM", False):
+        try:
+            from strategies.custom_strategy import CustomStrategy
+            return CustomStrategy({**strat.definition, **scfg["definition"], "id": sid})
+        except Exception as e:
+            logger.warning(f"definition override failed {sid}: {e}")
+    return strat
+
+
+def _pair_trade_cfg(cfg: Dict, scfg: Dict) -> Dict:
+    """Pro-Strategie Trade-Config (TP/SL, Zeitfenster etc.) über Basis-Config."""
+    pair_cfg = dict(cfg)
+    for ck in TRADE_CFG_KEYS:
+        if scfg.get(ck) is not None:
+            pair_cfg[ck] = scfg[ck]
+    return pair_cfg
+
+
+def _pair_settings(settings: Dict, sid: str, scfg: Dict) -> Dict:
+    """Pro-Strategie Indikator-Parameter überschreiben."""
+    if scfg.get("params"):
+        sp = dict(settings.get("strategy_params", {}))
+        sp[sid] = {**sp.get(sid, {}), **scfg["params"]}
+        return {**settings, "strategy_params": sp}
+    return settings
+
+
+async def _simulate_all_sequential(job, strategy_ids, symbols, days, cfg, registry,
+                                   settings, strategy_configs, default_timeframe,
+                                   start_ms, end_ms, cancelled):
+    """Bisheriger sequenzieller Pfad (Logik unverändert, nur ausgelagert)."""
+    from services import fast_sim
+
+    total_units = max(len(symbols) * (1 + len(strategy_ids)), 1)
+    done_units = 0
+    per_pair = []
+    export_trades: List[Dict] = []
+    export_candles: Dict[str, List[Dict]] = {}
+    strat_tf: Dict[str, str] = {}
+    bench = {"data_seconds": 0.0, "sim_seconds": 0.0, "cpu_seconds": 0.0,
+             "workers": 1, "pairs": 0, "sim_candles": 0, "raw_candles": 0}
+
+    async with aiohttp.ClientSession() as session:
+        for sym in symbols:
+            if cancelled():
+                raise JobCancelled()
+            job["phase"] = f"Lade Daten: {sym}"
+            _t = time.perf_counter()
+            history = await fetch_history(session, sym, days, job=job)
+            bench["data_seconds"] += time.perf_counter() - _t
+            bench["raw_candles"] += len(history)
+            if start_ms or end_ms:
+                history = [c for c in history
+                           if (not start_ms or c["timestamp"] >= start_ms)
+                           and (not end_ms or c["timestamp"] <= end_ms)]
+            done_units += 1
+            job["progress"] = round(done_units / total_units * 100)
+            if len(history) <= 100:
+                done_units += len(strategy_ids)
+                job["progress"] = round(done_units / total_units * 100)
+                continue
+
+            tf_cache: Dict[str, List[Dict]] = {}
+            fs_cache: Dict[str, "fast_sim.FastSeries"] = {}
+            for sid in strategy_ids:
+                if cancelled():
+                    raise JobCancelled()
+                strat = registry.get(sid)
+                if not strat:
+                    done_units += 1
+                    continue
+                scfg = strategy_configs.get(sid) or {}
+                strat = _effective_strategy(strat, sid, scfg)
+                tf = resolve_timeframe(strat, sid, scfg, settings, default_timeframe)
+                strat_tf[sid] = tf
+                if tf not in tf_cache:
+                    tf_cache[tf] = aggregate_candles(history, tf)
+                candles = tf_cache[tf]
+                pair_cfg = _pair_trade_cfg(cfg, scfg)
+                eff_settings = _pair_settings(settings, sid, scfg)
+                # Schneller Pfad für Custom-Strategien
+                provider = None
+                use_fast = bool(cfg.get("use_fast_path", True))
+                if not use_fast:
+                    pass  # Legacy-Pfad erzwungen (RAM-Schonung / Verifikation)
+                elif getattr(strat, "IS_CUSTOM", False):
+                    try:
+                        if tf not in fs_cache:
+                            fs_cache[tf] = fast_sim.FastSeries(candles)
+                        provider = fast_sim.build_signal_provider(strat.definition,
+                                                                  fs_cache[tf])
+                    except Exception as e:
+                        logger.warning(f"fast_sim fallback {sid}: {e}")
+                        provider = None
+                else:
+                    # Fast-Path für Built-ins (opt-in via vectorized_signals);
+                    # kein Fehler -> automatischer Legacy-Fallback.
+                    try:
+                        if tf not in fs_cache:
+                            fs_cache[tf] = fast_sim.FastSeries(candles)
+                        provider = fast_sim.build_builtin_signal_provider(
+                            strat, fs_cache[tf], eff_settings, sym)
+                    except Exception as e:
+                        logger.warning(f"builtin fast_sim fallback {sid}: {e}")
+                        provider = None
+                job["phase"] = f"Simuliere {getattr(strat, 'STRATEGY_NAME', sid)} auf {sym} ({tf})"
+                base = round(done_units / total_units * 100)
+                nxt = round((done_units + 1) / total_units * 100)
+
+                def cb(i, m, _base=base, _next=nxt):
+                    job["progress"] = _base + round((i / m) * (_next - _base))
+
+                _t = time.perf_counter()
+                res = await asyncio.to_thread(simulate_pair, strat, candles, sym,
+                                              eff_settings, pair_cfg, cb, True,
+                                              cancelled, provider)
+                _dur = time.perf_counter() - _t
+                bench["sim_seconds"] += _dur
+                bench["cpu_seconds"] += _dur
+                bench["pairs"] += 1
+                bench["sim_candles"] += len(candles)
+                all_trades = res.pop("all_trades", [])
+                if len(export_trades) < MAX_EXPORT_TRADES:
+                    for t in all_trades:
+                        export_trades.append({"strategy_id": sid,
+                                              "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
+                                              "symbol": sym, "timeframe": tf, **t})
+                per_pair.append({"strategy_id": sid,
+                                 "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
+                                 "symbol": sym, "timeframe": tf,
+                                 "candles": len(candles), **res})
+                done_units += 1
+                job["progress"] = round(done_units / total_units * 100)
+
+            # Kerzen-Export (mit Limit, damit große Läufe nicht am RAM sterben)
+            stored = sum(len(v) for v in export_candles.values())
+            for tf, cds in tf_cache.items():
+                if stored + len(cds) <= MAX_EXPORT_CANDLES:
+                    export_candles[f"{sym}|{tf}"] = cds
+                    stored += len(cds)
+            del history, tf_cache, fs_cache
+            gc.collect()
+
+    return per_pair, export_trades, export_candles, strat_tf, bench
+
+
+async def _simulate_all_parallel(job, strategy_ids, symbols, days, cfg, registry,
+                                 settings, strategy_configs, default_timeframe,
+                                 start_ms, end_ms, cancelled, workers: int):
+    """Multi-Core-Pfad (lokaler Worker, SIM_WORKERS>1): alle (Strategie, Coin)-
+    Paare parallel im Prozess-Pool. Gleiche simulate_pair-/Fast-Path-Logik wie
+    sequenziell -> identische Ergebnisse, gleiche Export-Reihenfolge."""
+    from services import parallel_sim
+
+    per_pair: List[Dict] = []
+    export_trades: List[Dict] = []
+    export_candles: Dict[str, List[Dict]] = {}
+    strat_tf: Dict[str, str] = {}
+    bench = {"data_seconds": 0.0, "sim_seconds": 0.0, "cpu_seconds": 0.0,
+             "workers": workers, "pairs": 0, "sim_candles": 0, "raw_candles": 0}
+
+    # Phase 1: Daten laden (netzwerk-gebunden, wie bisher sequenziell + Cache)
+    all_hist: Dict[str, List[Dict]] = {}
+    _t = time.perf_counter()
+    async with aiohttp.ClientSession() as session:
+        for i, sym in enumerate(symbols):
+            if cancelled():
+                raise JobCancelled()
+            job["phase"] = f"Lade Daten: {sym}"
+            history = await fetch_history(session, sym, days, job=job)
+            bench["raw_candles"] += len(history)
+            if start_ms or end_ms:
+                history = [c for c in history
+                           if (not start_ms or c["timestamp"] >= start_ms)
+                           and (not end_ms or c["timestamp"] <= end_ms)]
+            if len(history) > 100:
+                all_hist[sym] = history
+            job["progress"] = round((i + 1) / max(len(symbols), 1) * 25)
+    bench["data_seconds"] = time.perf_counter() - _t
+
+    # Phase 2: Paare vorbereiten + Timeframe-Aggregationen (einmal pro sym|tf)
+    agg: Dict[str, List[Dict]] = {}
+    pairs = []  # (sid, strat, sym, tf, key, eff_settings, pair_cfg)
+    for sym in symbols:
+        if sym not in all_hist:
+            continue
+        for sid in strategy_ids:
+            strat = registry.get(sid)
+            if not strat:
+                continue
+            scfg = strategy_configs.get(sid) or {}
+            strat = _effective_strategy(strat, sid, scfg)
+            tf = resolve_timeframe(strat, sid, scfg, settings, default_timeframe)
+            strat_tf[sid] = tf
+            key = f"{sym}|{tf}"
+            if key not in agg:
+                agg[key] = aggregate_candles(all_hist[sym], tf)
+            pairs.append((sid, strat, sym, tf, key,
+                          _pair_settings(settings, sid, scfg),
+                          _pair_trade_cfg(cfg, scfg)))
+    del all_hist
+    gc.collect()
+    if not pairs:
+        return per_pair, export_trades, export_candles, strat_tf, bench
+
+    # Phase 3: Prozess-Pool – alle Paare parallel
+    use_fast = bool(cfg.get("use_fast_path", True))
+    pool = parallel_sim.make_pool(agg, workers)
+    loop = asyncio.get_running_loop()
+    _t = time.perf_counter()
+    try:
+        futs = [loop.run_in_executor(pool, parallel_sim.sim_pair_task_timed,
+                                     parallel_sim.strategy_spec(strat), key, sym,
+                                     eff_s, pcfg, True, use_fast)
+                for sid, strat, sym, tf, key, eff_s, pcfg in pairs]
+        total = len(futs)
+        job["phase"] = f"Simuliere {total} Paare auf {workers} Kernen"
+        pending = set(futs)
+        while pending:
+            if cancelled():
+                raise JobCancelled()
+            done, pending = await asyncio.wait(pending, timeout=0.5)
+            done_n = total - len(pending)
+            job["progress"] = 25 + round(done_n / total * 74)
+            job["phase"] = f"Simuliere Paare: {done_n}/{total} fertig ({workers} Kerne)"
+        results = [f.result() for f in futs]  # Submit-Reihenfolge = stabile Exporte
+    finally:
+        parallel_sim.close_pool(pool, kill=cancelled())
+    bench["sim_seconds"] = time.perf_counter() - _t
+
+    # Phase 4: Ergebnisse einsammeln (gleiche Struktur wie sequenziell)
+    for (sid, strat, sym, tf, key, _s, _c), (res, dur) in zip(pairs, results):
+        bench["cpu_seconds"] += dur
+        if res.get("_error"):
+            logger.warning(f"parallel sim {sid}/{sym} failed: {res['_error']}")
+            continue
+        bench["pairs"] += 1
+        bench["sim_candles"] += len(agg[key])
+        all_trades = res.pop("all_trades", [])
+        if len(export_trades) < MAX_EXPORT_TRADES:
+            for t in all_trades:
+                export_trades.append({"strategy_id": sid,
+                                      "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
+                                      "symbol": sym, "timeframe": tf, **t})
+        per_pair.append({"strategy_id": sid,
+                         "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
+                         "symbol": sym, "timeframe": tf,
+                         "candles": len(agg[key]), **res})
+    stored = 0
+    for key, cds in agg.items():
+        if stored + len(cds) <= MAX_EXPORT_CANDLES:
+            export_candles[key] = cds
+            stored += len(cds)
+    return per_pair, export_trades, export_candles, strat_tf, bench
+
+
+def _build_benchmark(bench: Dict, t_start: float, dl_before: Dict, dl_after: Dict,
+                     execution: str) -> Dict:
+    """Laufzeit-Statistik eines Laufs: Cache- vs. Download-Kerzen, Multi-Core-
+    Speedup und geschätzte Zeitersparnis durch lokale/gecachte Daten."""
+    downloaded = max(dl_after.get("candles", 0) - dl_before.get("candles", 0), 0)
+    dl_seconds = max(dl_after.get("seconds", 0.0) - dl_before.get("seconds", 0.0), 0.0)
+    raw = max(bench.get("raw_candles", 0), 0)
+    cached = max(raw - downloaded, 0)
+    # Download-Rate: gemessen wenn genug geladen wurde, sonst typischer Binance-Wert
+    rate = downloaded / dl_seconds if (downloaded > 2000 and dl_seconds > 0.5) else 2500.0
+    sim = bench.get("sim_seconds", 0.0)
+    cpu = bench.get("cpu_seconds", 0.0)
+    speedup = round(cpu / sim, 2) if (sim > 0.05 and cpu > 0) else 1.0
+    return {
+        "execution": execution,
+        "workers": bench.get("workers", 1),
+        "total_seconds": round(time.perf_counter() - t_start, 2),
+        "data_seconds": round(bench.get("data_seconds", 0.0), 2),
+        "sim_seconds": round(sim, 2),
+        "cpu_seconds": round(cpu, 2),
+        "parallel_speedup": max(speedup, 1.0),
+        "pairs": bench.get("pairs", 0),
+        "evaluations": bench.get("evaluations"),
+        "sim_candles": bench.get("sim_candles", 0),
+        "raw_candles": raw,
+        "downloaded_candles": downloaded,
+        "cached_candles": cached,
+        "cache_ratio": round(cached / raw * 100, 1) if raw else 0.0,
+        "est_cache_saved_seconds": round(cached / rate, 1) if cached else 0.0,
+    }
+
+
 async def run_backtest(job_id: str, strategy_ids: List[str], symbols: List[str],
                        days: int, cfg: Dict, registry, settings: Dict, db=None,
                        strategy_configs: Dict = None, default_timeframe: str = None,
@@ -521,123 +821,31 @@ async def run_backtest(job_id: str, strategy_ids: List[str], symbols: List[str],
         return bool(job.get("cancel"))
 
     try:
-        from services import fast_sim
-
-        total_units = max(len(symbols) * (1 + len(strategy_ids)), 1)
-        done_units = 0
-        per_pair = []
-        export_trades: List[Dict] = []
-        export_candles: Dict[str, List[Dict]] = {}
-        strat_tf: Dict[str, str] = {}
-
-        async with aiohttp.ClientSession() as session:
-            for sym in symbols:
-                if cancelled():
-                    raise JobCancelled()
-                job["phase"] = f"Lade Daten: {sym}"
-                history = await fetch_history(session, sym, days, job=job)
-                if start_ms or end_ms:
-                    history = [c for c in history
-                               if (not start_ms or c["timestamp"] >= start_ms)
-                               and (not end_ms or c["timestamp"] <= end_ms)]
-                done_units += 1
-                job["progress"] = round(done_units / total_units * 100)
-                if len(history) <= 100:
-                    done_units += len(strategy_ids)
-                    job["progress"] = round(done_units / total_units * 100)
-                    continue
-
-                tf_cache: Dict[str, List[Dict]] = {}
-                fs_cache: Dict[str, "fast_sim.FastSeries"] = {}
-                for sid in strategy_ids:
-                    if cancelled():
-                        raise JobCancelled()
-                    strat = registry.get(sid)
-                    if not strat:
-                        done_units += 1
-                        continue
-                    scfg = strategy_configs.get(sid) or {}
-                    # Pro-Backtest Definition-Override für Custom-/Discovery-Strategien
-                    # (Regeln + Indikator-Perioden im ⚙-Panel bearbeitbar)
-                    if scfg.get("definition") and getattr(strat, "IS_CUSTOM", False):
-                        try:
-                            from strategies.custom_strategy import CustomStrategy
-                            strat = CustomStrategy({**strat.definition,
-                                                    **scfg["definition"], "id": sid})
-                        except Exception as e:
-                            logger.warning(f"definition override failed {sid}: {e}")
-                    tf = resolve_timeframe(strat, sid, scfg, settings, default_timeframe)
-                    strat_tf[sid] = tf
-                    if tf not in tf_cache:
-                        tf_cache[tf] = aggregate_candles(history, tf)
-                    candles = tf_cache[tf]
-                    # Pro-Strategie Trade-Config (TP/SL, Zeitfenster etc.) über Basis-Config
-                    pair_cfg = dict(cfg)
-                    for ck in TRADE_CFG_KEYS:
-                        if scfg.get(ck) is not None:
-                            pair_cfg[ck] = scfg[ck]
-                    # Pro-Strategie Indikator-Parameter überschreiben
-                    eff_settings = settings
-                    if scfg.get("params"):
-                        sp = dict(settings.get("strategy_params", {}))
-                        sp[sid] = {**sp.get(sid, {}), **scfg["params"]}
-                        eff_settings = {**settings, "strategy_params": sp}
-                    # Schneller Pfad für Custom-Strategien
-                    provider = None
-                    use_fast = bool(cfg.get("use_fast_path", True))
-                    if not use_fast:
-                        pass  # Legacy-Pfad erzwungen (RAM-Schonung / Verifikation)
-                    elif getattr(strat, "IS_CUSTOM", False):
-                        try:
-                            if tf not in fs_cache:
-                                fs_cache[tf] = fast_sim.FastSeries(candles)
-                            provider = fast_sim.build_signal_provider(strat.definition,
-                                                                      fs_cache[tf])
-                        except Exception as e:
-                            logger.warning(f"fast_sim fallback {sid}: {e}")
-                            provider = None
-                    else:
-                        # Fast-Path für Built-ins (opt-in via vectorized_signals);
-                        # kein Fehler -> automatischer Legacy-Fallback.
-                        try:
-                            if tf not in fs_cache:
-                                fs_cache[tf] = fast_sim.FastSeries(candles)
-                            provider = fast_sim.build_builtin_signal_provider(
-                                strat, fs_cache[tf], eff_settings, sym)
-                        except Exception as e:
-                            logger.warning(f"builtin fast_sim fallback {sid}: {e}")
-                            provider = None
-                    job["phase"] = f"Simuliere {getattr(strat, 'STRATEGY_NAME', sid)} auf {sym} ({tf})"
-                    base = round(done_units / total_units * 100)
-                    nxt = round((done_units + 1) / total_units * 100)
-
-                    def cb(i, m, _base=base, _next=nxt):
-                        job["progress"] = _base + round((i / m) * (_next - _base))
-
-                    res = await asyncio.to_thread(simulate_pair, strat, candles, sym,
-                                                  eff_settings, pair_cfg, cb, True,
-                                                  cancelled, provider)
-                    all_trades = res.pop("all_trades", [])
-                    if len(export_trades) < MAX_EXPORT_TRADES:
-                        for t in all_trades:
-                            export_trades.append({"strategy_id": sid,
-                                                  "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
-                                                  "symbol": sym, "timeframe": tf, **t})
-                    per_pair.append({"strategy_id": sid,
-                                     "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
-                                     "symbol": sym, "timeframe": tf,
-                                     "candles": len(candles), **res})
-                    done_units += 1
-                    job["progress"] = round(done_units / total_units * 100)
-
-                # Kerzen-Export (mit Limit, damit große Läufe nicht am RAM sterben)
-                stored = sum(len(v) for v in export_candles.values())
-                for tf, cds in tf_cache.items():
-                    if stored + len(cds) <= MAX_EXPORT_CANDLES:
-                        export_candles[f"{sym}|{tf}"] = cds
-                        stored += len(cds)
-                del history, tf_cache, fs_cache
-                gc.collect()
+        # Multi-Core nur wenn SIM_WORKERS gesetzt (lokaler Worker); sonst
+        # bisheriger sequenzieller Pfad (Server/Cloud unverändert).
+        from services import candle_cache as _cc
+        t_start = time.perf_counter()
+        dl_before = _cc.download_stats()
+        try:
+            from services import parallel_sim
+            workers = parallel_sim.workers_configured()
+        except Exception:
+            workers = 1
+        if workers > 1:
+            per_pair, export_trades, export_candles, strat_tf, bench = \
+                await _simulate_all_parallel(job, strategy_ids, symbols, days, cfg,
+                                             registry, settings, strategy_configs,
+                                             default_timeframe, start_ms, end_ms,
+                                             cancelled, workers)
+        else:
+            per_pair, export_trades, export_candles, strat_tf, bench = \
+                await _simulate_all_sequential(job, strategy_ids, symbols, days, cfg,
+                                               registry, settings, strategy_configs,
+                                               default_timeframe, start_ms, end_ms,
+                                               cancelled)
+        benchmark = _build_benchmark(bench, t_start, dl_before,
+                                     _cc.download_stats(),
+                                     job.get("execution") or "cloud")
 
         # aggregate per strategy
         per_strategy: Dict[str, Dict] = {}
@@ -692,6 +900,7 @@ async def run_backtest(job_id: str, strategy_ids: List[str], symbols: List[str],
             "per_pair": per_pair,
             "per_strategy": sorted(per_strategy.values(), key=lambda x: -x["pnl"]),
             "best_per_symbol": best_per_symbol,
+            "benchmark": benchmark,
             "finished_at": datetime.now(timezone.utc).isoformat(),
         }
         job["result"] = result

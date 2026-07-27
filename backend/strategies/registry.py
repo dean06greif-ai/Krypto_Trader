@@ -67,6 +67,15 @@ class StrategyRegistry:
         self.register(strat)
         self._custom_ids.add(strat.STRATEGY_ID)
 
+    def list_custom_definitions(self) -> List[Dict]:
+        """Definitionen aller Custom-Strategien (z.B. für den lokalen Worker)."""
+        out = []
+        for cid in self._custom_ids:
+            s = self._strategies.get(cid)
+            if s is not None and getattr(s, "definition", None):
+                out.append(s.definition)
+        return out
+
     def remove_custom(self, strategy_id: str):
         if strategy_id in self._custom_ids:
             self._strategies.pop(strategy_id, None)

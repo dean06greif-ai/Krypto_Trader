@@ -23,7 +23,7 @@ def api_client():
 @pytest.fixture(scope="session")
 def admin_token(api_client):
     r = api_client.post(f"{BASE_URL}/api/auth/login",
-                        json={"username": "Admin", "password": "admin"})
+                        json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": os.environ.get("ADMIN_PASSWORD", "admin")})
     assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
     data = r.json()
     assert "token" in data and isinstance(data["token"], str) and len(data["token"]) > 20
@@ -78,7 +78,7 @@ class TestStrategies:
 class TestAuth:
     def test_login_success(self, api_client):
         r = api_client.post(f"{BASE_URL}/api/auth/login",
-                            json={"username": "Admin", "password": "admin"})
+                            json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": os.environ.get("ADMIN_PASSWORD", "admin")})
         assert r.status_code == 200
         d = r.json()
         assert d.get("user") in ("Admin", None) or d.get("user")
@@ -86,7 +86,7 @@ class TestAuth:
 
     def test_login_wrong_pw(self, api_client):
         r = api_client.post(f"{BASE_URL}/api/auth/login",
-                            json={"username": "Admin", "password": "wrong"})
+                            json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": "wrong"})
         assert r.status_code == 401
 
 

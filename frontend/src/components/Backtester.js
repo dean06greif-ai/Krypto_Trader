@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Play, Trophy, ClockCounterClockwise, Gear, DownloadSimple, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { X, Play, Trophy, ClockCounterClockwise, Gear, DownloadSimple, ArrowCounterClockwise, Cloud, Desktop } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders, isAdmin } from '../auth';
 import SafeOverlay from './SafeOverlay';
+import LocalWorkerPanel from './LocalWorkerPanel';
+import BenchmarkBar from './BenchmarkBar';
 import EquityChart from './EquityChart';
 import TIMEFRAMES from '../constants/timeframes';
 import './Backtester.css';
@@ -10,7 +12,8 @@ import './BacktesterExtra.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const DAY_OPTIONS = [1, 2, 3, 5, 7, 14, 30, 60, 90, 180, 360, 540, 720, 900, 1080, 1440];
+const DAY_OPTIONS = [1, 2, 3, 5, 7, 14, 30, 60, 90, 180, 360, 540, 720, 900, 1080, 1440,
+  1800, 2160, 2520, 2880, 3240, 3600, 3960, 4320, 4680, 5040, 5400];
 
 const BE_MODES = [
   { v: 'tp1', l: 'Bei TP1 → SL auf Break-Even + Gebühren' },
@@ -64,18 +67,8 @@ export default function Backtester({ onClose }) {
   const [dateFrom, setDateFrom] = useState(saved.dateFrom || '');
   const [dateTo, setDateTo] = useState(saved.dateTo || '');
   const [capital, setCapital] = useState(saved.capital ?? 100);
-  const [leverage, setLeverage] = useState(saved.leverage ?? 10);
   const [fee, setFee] = useState(saved.fee ?? 0.06);
-  const [psEnabled, setPsEnabled] = useState(!!saved.psEnabled);
-  const [beMode, setBeMode] = useState(saved.beMode || 'tp1');
-  const [beTriggerCrv, setBeTriggerCrv] = useState(saved.beTriggerCrv ?? 1.0);
-  const [beTriggerPct, setBeTriggerPct] = useState(saved.beTriggerPct ?? 30);
   const [requireAll, setRequireAll] = useState(!!saved.requireAll);
-  const [sessions, setSessions] = useState(saved.sessions || '');
-  const [autoLev, setAutoLev] = useState(!!saved.autoLev);
-  const [autoLevMode, setAutoLevMode] = useState(saved.autoLevMode || 'liq_pct');
-  const [autoLevValue, setAutoLevValue] = useState(saved.autoLevValue ?? 0.5);
-  const [autoLevMax, setAutoLevMax] = useState(saved.autoLevMax ?? 50);
   const [stratCfgs, setStratCfgs] = useState({});
   const [openCfg, setOpenCfg] = useState(null);
   const [job, setJob] = useState(null);
@@ -87,6 +80,9 @@ export default function Backtester({ onClose }) {
   const [applyMode, setApplyMode] = useState('paper');
   const [applyCoins, setApplyCoins] = useState([]);
   const [applying, setApplying] = useState(false);
+  const [execution, setExecution] = useState(saved.execution || 'cloud');
+  const [lwOnline, setLwOnline] = useState(false);
+  const [showLW, setShowLW] = useState(false);
   const pollRef = useRef(null);
   const importRef = useRef(null);
 
@@ -94,14 +90,21 @@ export default function Backtester({ onClose }) {
   useEffect(() => {
     try {
       localStorage.setItem(STATE_KEY, JSON.stringify({
-        selStrats, selCoins, days, dateMode, dateFrom, dateTo, capital, leverage,
-        fee, psEnabled, beMode, beTriggerCrv, beTriggerPct, requireAll, sessions,
-        autoLev, autoLevMode, autoLevValue, autoLevMax, fastPath,
+        selStrats, selCoins, days, dateMode, dateFrom, dateTo, capital,
+        fee, requireAll, fastPath, execution,
       }));
     } catch { /* ignore */ }
-  }, [selStrats, selCoins, days, dateMode, dateFrom, dateTo, capital, leverage,
-    fee, psEnabled, beMode, beTriggerCrv, beTriggerPct, requireAll, sessions,
-    autoLev, autoLevMode, autoLevValue, autoLevMax, fastPath]);
+  }, [selStrats, selCoins, days, dateMode, dateFrom, dateTo, capital,
+    fee, requireAll, fastPath, execution]);
+
+  // ---- Lokaler Worker: Online-Status für die Ausführungs-Auswahl ----
+  useEffect(() => {
+    const check = () => fetch(`${API_URL}/api/localworker/status`).then(r => r.json())
+      .then(d => setLwOnline(!!d.online)).catch(() => setLwOnline(false));
+    check();
+    const iv = setInterval(check, 10000);
+    return () => clearInterval(iv);
+  }, []);
 
   const loadRam = () => {
     fetch(`${API_URL}/api/system/ram`).then(r => r.json()).then(setRam).catch(() => {});
@@ -254,9 +257,7 @@ export default function Backtester({ onClose }) {
   const exportSettings = () => {
     const data = {
       type: 'backtest_settings', version: 1, exported_at: new Date().toISOString(),
-      global: { days, dateMode, dateFrom, dateTo, capital, leverage, fee, psEnabled,
-        beMode, beTriggerCrv, beTriggerPct, requireAll, sessions, fastPath,
-        autoLev, autoLevMode, autoLevValue, autoLevMax },
+      global: { days, dateMode, dateFrom, dateTo, capital, fee, requireAll, fastPath },
       strategy_configs: stratCfgs, selected_strategies: selStrats, selected_coins: selCoins,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -282,19 +283,9 @@ export default function Backtester({ onClose }) {
         if (g.dateFrom !== undefined) setDateFrom(g.dateFrom || '');
         if (g.dateTo !== undefined) setDateTo(g.dateTo || '');
         if (g.capital) setCapital(g.capital);
-        if (g.leverage) setLeverage(g.leverage);
         if (g.fee !== undefined) setFee(g.fee);
-        setPsEnabled(!!g.psEnabled);
-        if (g.beMode) setBeMode(g.beMode);
-        if (g.beTriggerCrv) setBeTriggerCrv(g.beTriggerCrv);
-        if (g.beTriggerPct) setBeTriggerPct(g.beTriggerPct);
         setRequireAll(!!g.requireAll);
-        setSessions(g.sessions || '');
         if (g.fastPath !== undefined) setFastPath(!!g.fastPath);
-        setAutoLev(!!g.autoLev);
-        if (g.autoLevMode) setAutoLevMode(g.autoLevMode);
-        if (g.autoLevValue !== undefined) setAutoLevValue(g.autoLevValue);
-        if (g.autoLevMax !== undefined) setAutoLevMax(g.autoLevMax);
         if (d.strategy_configs) { setStratCfgs(d.strategy_configs); persistCfgs(d.strategy_configs); }
         if (Array.isArray(d.selected_strategies)) setSelStrats(d.selected_strategies);
         if (Array.isArray(d.selected_coins)) setSelCoins(d.selected_coins);
@@ -312,17 +303,13 @@ export default function Backtester({ onClose }) {
     try {
       const cfgS = cleanCfg(stratCfgs[applyFor] || {});
       const config = {
-        max_capital: capital, leverage, fee_percent: fee,
-        be_mode: cfgS.be_mode || beMode, be_trigger_crv: cfgS.be_trigger_crv ?? beTriggerCrv,
-        be_trigger_profit_pct: cfgS.be_trigger_profit_pct ?? beTriggerPct,
-        require_all_rules: requireAll, profit_secure_enabled: cfgS.profit_secure_enabled ?? psEnabled,
-        auto_leverage_enabled: cfgS.auto_leverage_enabled ?? autoLev,
-        auto_lev_mode: cfgS.auto_lev_mode ?? autoLevMode,
-        auto_lev_value: cfgS.auto_lev_value ?? autoLevValue,
-        auto_lev_max: cfgS.auto_lev_max ?? autoLevMax,
-        ...['tp1_crv', 'tp_full_crv', 'tp1_close_percent', 'sl_mode', 'sl_fixed_percent',
+        max_capital: capital, fee_percent: fee,
+        require_all_rules: requireAll,
+        ...['leverage', 'tp1_crv', 'tp_full_crv', 'tp1_close_percent', 'sl_mode', 'sl_fixed_percent',
           'sl_lookback', 'tp_mode', 'tp1_percent', 'tp_full_percent',
-          'profit_secure_trigger_pct', 'profit_lock_pct'].reduce((o, k) => {
+          'be_mode', 'be_trigger_crv', 'be_trigger_profit_pct',
+          'profit_secure_enabled', 'profit_secure_trigger_pct', 'profit_lock_pct',
+          'auto_leverage_enabled', 'auto_lev_mode', 'auto_lev_value', 'auto_lev_max'].reduce((o, k) => {
           if (cfgS[k] !== undefined) o[k] = cfgS[k];
           return o;
         }, {}),
@@ -343,6 +330,11 @@ export default function Backtester({ onClose }) {
     if (!isAdmin()) { toast.error('Admin-Login erforderlich'); return; }
     if (!selStrats.length || !selCoins.length) { toast.error('Mind. 1 Strategie und 1 Coin wählen'); return; }
     if (dateMode === 'custom' && !dateFrom) { toast.error('Von-Datum wählen'); return; }
+    if (execution === 'local' && !lwOnline) {
+      toast.error('Kein lokaler Worker verbunden – Worker starten oder Cloud wählen');
+      setShowLW(true);
+      return;
+    }
     const strategyConfigs = {};
     selStrats.forEach(sid => {
       const c = cleanCfg(stratCfgs[sid]);
@@ -357,15 +349,11 @@ export default function Backtester({ onClose }) {
           strategy_ids: selStrats, symbols: selCoins, days,
           date_from: dateMode === 'custom' ? dateFrom : undefined,
           date_to: dateMode === 'custom' ? (dateTo || undefined) : undefined,
-          max_capital: capital, leverage, fee_percent: fee,
-          profit_secure_enabled: psEnabled,
-          be_mode: beMode, be_trigger_crv: beTriggerCrv, be_trigger_profit_pct: beTriggerPct,
+          max_capital: capital, fee_percent: fee,
           require_all_rules: requireAll,
-          auto_leverage_enabled: autoLev, auto_lev_mode: autoLevMode,
-          auto_lev_value: autoLevValue, auto_lev_max: autoLevMax,
           use_fast_path: fastPath,
-          sessions: sessions.trim() || undefined,
           strategy_configs: strategyConfigs,
+          execution,
         }),
       });
       const d = await res.json();
@@ -406,6 +394,11 @@ export default function Backtester({ onClose }) {
               <option value="">Standard ({s.timeframe || '1m'})</option>
               {TIMEFRAMES.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
             </select>
+          </label>
+          <label>Hebel (fest)
+            <input type="number" min={1} max={125} placeholder="10" value={cfg.leverage ?? ''}
+              onChange={e => updateCfg(s.id, 'leverage', e.target.value === '' ? '' : parseInt(e.target.value))}
+              data-testid={`bt-cfg-leverage-${s.id}`} />
           </label>
           <label>TP1 bei CRV
             <input type="number" step={0.1} placeholder="1.0" value={cfg.tp1_crv ?? ''}
@@ -482,7 +475,7 @@ export default function Backtester({ onClose }) {
             </label>
           )}
           <label>Zeitfenster (nur diese Strategie)
-            <input type="text" placeholder="z.B. 09:00-12:00 · leer = global" value={cfg.sessions ?? ''}
+            <input type="text" placeholder="z.B. 09:00-12:00 · leer = 24h" value={cfg.sessions ?? ''}
               onChange={e => updateCfg(s.id, 'sessions', e.target.value)}
               data-testid={`bt-cfg-sessions-${s.id}`} />
           </label>
@@ -619,7 +612,7 @@ export default function Backtester({ onClose }) {
 
         <div className="bt-setup">
           <div className="bt-col">
-            <div className="bt-label">STRATEGIEN <span className="btc-hint-inline">(⚙ = TP/SL, Timeframe & Parameter pro Strategie)</span></div>
+            <div className="bt-label">STRATEGIEN <span className="btc-hint-inline">(⚙ = Trade-Einstellungen: Hebel, Auto-Leverage, TP/SL, Break-Even, Gewinnsicherung, Zeitfenster & Parameter – kommen aus der Strategie)</span></div>
             <div className="bt-chips">
               {strategies.map(s => (
                 <span key={s.id} className="btc-chipwrap">
@@ -685,57 +678,9 @@ export default function Backtester({ onClose }) {
           <label>Kapital (USDT)
             <input type="number" min={1} value={capital} onChange={e => setCapital(parseFloat(e.target.value) || 100)} data-testid="bt-capital" />
           </label>
-          <label>Hebel {autoLev && <span style={{ color: '#B388FF' }}>(AUTO)</span>}
-            <input type="number" min={1} max={125} value={leverage} disabled={autoLev}
-              onChange={e => setLeverage(parseInt(e.target.value) || 10)} data-testid="bt-leverage" />
-          </label>
-          <label className="bt-check" title="Hebel automatisch pro Trade: Liquidationspreis liegt den gewählten Abstand HINTER dem Stop-Loss">
-            <input type="checkbox" checked={autoLev} onChange={e => setAutoLev(e.target.checked)} data-testid="bt-auto-lev" />
-            Auto-Leverage
-          </label>
-          {autoLev && (
-            <>
-              <label>Auto-Lev Modus
-                <select value={autoLevMode} onChange={e => setAutoLevMode(e.target.value)} data-testid="bt-auto-lev-mode">
-                  <option value="liq_pct">Liq. X% hinter Stop</option>
-                  <option value="liq_ticks">Liq. X Ticks hinter Stop</option>
-                </select>
-              </label>
-              <label>{autoLevMode === 'liq_ticks' ? 'Abstand (Ticks)' : 'Abstand (%)'}
-                <input type="number" step={autoLevMode === 'liq_ticks' ? 1 : 0.05} min={0}
-                  value={autoLevValue} onChange={e => setAutoLevValue(parseFloat(e.target.value) || 0)}
-                  data-testid="bt-auto-lev-value" />
-              </label>
-              <label>Max. Hebel
-                <input type="number" min={1} max={125} value={autoLevMax}
-                  onChange={e => setAutoLevMax(parseInt(e.target.value) || 50)} data-testid="bt-auto-lev-max" />
-              </label>
-            </>
-          )}
           <label>Gebühr % / Fill
             <input type="number" step={0.01} value={fee} onChange={e => setFee(parseFloat(e.target.value) || 0)} data-testid="bt-fee" />
           </label>
-          <label className="bt-check">
-            <input type="checkbox" checked={psEnabled} onChange={e => setPsEnabled(e.target.checked)} data-testid="bt-profit-secure" />
-            Gewinnsicherung
-          </label>
-          <label>Break-Even
-            <select value={beMode} onChange={e => setBeMode(e.target.value)} data-testid="bt-be-mode">
-              {BE_MODES.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
-            </select>
-          </label>
-          {beMode === 'crv' && (
-            <label>BE ab CRV (R)
-              <input type="number" step={0.1} min={0.1} value={beTriggerCrv}
-                onChange={e => setBeTriggerCrv(parseFloat(e.target.value) || 1)} data-testid="bt-be-crv" />
-            </label>
-          )}
-          {beMode === 'profit_pct' && (
-            <label>BE ab Gewinn %
-              <input type="number" step={5} min={1} value={beTriggerPct}
-                onChange={e => setBeTriggerPct(parseFloat(e.target.value) || 30)} data-testid="bt-be-pct" />
-            </label>
-          )}
           <label className="bt-check" title="Trades nur wenn ALLE Regeln der Strategie erfüllt sind (kein 3/5-Regeln-Trade)">
             <input type="checkbox" checked={requireAll} onChange={e => setRequireAll(e.target.checked)} data-testid="bt-require-all" />
             Nur 100% Regel-Treffer
@@ -744,14 +689,30 @@ export default function Backtester({ onClose }) {
             <input type="checkbox" checked={fastPath} onChange={e => setFastPath(e.target.checked)} data-testid="bt-fast-path" />
             Fast-Path (schnell)
           </label>
-          <label className="bt-session-field">Zeitfenster (global, leer = 24h)
-            <input type="text" placeholder="z.B. 09:00-12:00,15:00-22:00" value={sessions}
-              onChange={e => setSessions(e.target.value)} data-testid="bt-sessions" />
-          </label>
+          <div className="bt-exec" data-testid="bt-execution-toggle">
+            <span className="bt-exec-label">Ausführung</span>
+            <button className={`bt-exec-btn ${execution === 'cloud' ? 'on' : ''}`}
+              onClick={() => setExecution('cloud')} data-testid="bt-exec-cloud"
+              title="Berechnung auf dem Server (wie bisher)">
+              <Cloud size={13} weight="bold" /> Cloud
+            </button>
+            <button className={`bt-exec-btn ${execution === 'local' ? 'on' : ''}`}
+              onClick={() => setExecution('local')} data-testid="bt-exec-local"
+              title="Berechnung auf deinem PC über den lokalen Worker – identische Ergebnisse, nutzt lokal gespeicherte Kerzendaten">
+              <Desktop size={13} weight="bold" /> Lokal
+              <span className={`bt-exec-dot ${lwOnline ? 'on' : ''}`} data-testid="bt-exec-dot" />
+            </button>
+            <button className="bt-exec-manage" onClick={() => setShowLW(true)}
+              title="Lokale Ausführung verwalten: Worker, Einstellungen & Marktdaten"
+              data-testid="bt-exec-manage">
+              <Gear size={13} weight="bold" />
+            </button>
+          </div>
           <button className="bt-run" onClick={run} disabled={running} data-testid="bt-run">
             <Play size={15} weight="fill" /> {running ? 'Läuft...' : 'Backtest starten'}
           </button>
         </div>
+        {showLW && <LocalWorkerPanel onClose={() => setShowLW(false)} />}
 
         <div className="bt-tools" data-testid="bt-tools">
           <span className="bt-ram" data-testid="bt-ram-info">
@@ -774,6 +735,8 @@ export default function Backtester({ onClose }) {
             <div className="bt-progress-bar"><div style={{ width: `${job.progress || 0}%` }} /></div>
             <div className="bt-progress-row">
               <div className="bt-progress-text" data-testid="bt-progress-text">
+                {(job.execution === 'local' || job.params?.execution === 'local') &&
+                  <span className="bt-exec-tag" data-testid="bt-local-tag">💻 Lokal</span>}
                 {job.phase} · {job.progress || 0}%
                 {job.eta_seconds != null && <span className="bt-eta"> · Restzeit {fmtEta(job.eta_seconds)}</span>}
               </div>
@@ -790,6 +753,7 @@ export default function Backtester({ onClose }) {
 
         {result && (
           <>
+            {result.benchmark && <BenchmarkBar b={result.benchmark} testid="bt-benchmark" />}
             <div className="bt-section-title">
               <Trophy size={15} weight="fill" style={{ color: '#FFD700' }} />
               GESAMT-RANKING ({result.date_from ? `${result.date_from} bis ${result.date_to || 'heute'}` : `${result.days} Tage`} · Kapital {result.config?.max_capital} USDT · {result.config?.auto_leverage_enabled ? 'Auto-Hebel' : `${result.config?.leverage}x`} · Gebühren inkl.)
@@ -871,8 +835,8 @@ export default function Backtester({ onClose }) {
                   ))}
                 </div>
                 <div className="bt-hint" style={{ marginTop: 8 }}>
-                  Übernommen werden: Kapital, Hebel/Auto-Leverage, Gebühren, TP/SL-Modus, Break-Even,
-                  Gewinnsicherung &amp; Regel-Einstellungen aus diesem Backtest-Setup.
+                  Übernommen werden: Kapital, Gebühren sowie die Strategie-Einstellungen
+                  (Hebel/Auto-Leverage, TP/SL-Modus, Break-Even, Gewinnsicherung) dieser Strategie.
                 </div>
                 <button className="bt-run" style={{ marginTop: 10 }} onClick={applyToTrading}
                   disabled={applying} data-testid="bt-apply-confirm">

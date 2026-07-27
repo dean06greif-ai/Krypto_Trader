@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash, FloppyDisk, PencilSimple, ArrowCounterClockwise, DownloadSimple, UploadSimple } from '@phosphor-icons/react';
+import { X, Plus, Trash, FloppyDisk, PencilSimple, ArrowCounterClockwise, DownloadSimple, UploadSimple, Copy } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders, isAdmin } from '../auth';
 import SafeOverlay from './SafeOverlay';
@@ -160,6 +160,19 @@ const StrategyBuilder = ({ strategies, enabledIds, onClose, onChanged }) => {
   };
 
   // ---- Komplettes Strategie-Backup: Download & Wiederherstellung ----
+  const duplicateStrategy = async (s) => {
+    if (!isAdmin()) { toast.error('Admin-Login erforderlich'); return; }
+    try {
+      const res = await fetch(`${API_URL}/api/strategies/${s.id}/duplicate`, {
+        method: 'POST', headers: jsonHeaders(), body: '{}',
+      });
+      const d = await res.json();
+      if (!res.ok) { toast.error(d.detail || 'Duplizieren fehlgeschlagen'); return; }
+      toast.success(`Kopie erstellt: ${d.name}`);
+      onChanged && onChanged();
+    } catch { toast.error('Verbindungsfehler'); }
+  };
+
   const exportStrategy = async (s) => {
     try {
       const res = await fetch(`${API_URL}/api/strategies/${s.id}/export`);
@@ -279,6 +292,11 @@ const StrategyBuilder = ({ strategies, enabledIds, onClose, onChanged }) => {
                   <button className="sb-edit" onClick={() => exportStrategy(s)} data-testid={`export-strategy-${s.id}`} title="Komplette Strategie als Backup-Datei herunterladen (Regeln, Parameter, Trade-Einstellungen)">
                     <DownloadSimple size={15} />
                   </button>
+                  {s.is_custom && (
+                    <button className="sb-edit" onClick={() => duplicateStrategy(s)} data-testid={`duplicate-strategy-${s.id}`} title="Strategie duplizieren – Kopie zum Weiterentwickeln, Original bleibt erhalten">
+                      <Copy size={15} />
+                    </button>
+                  )}
                   {s.is_custom && (
                     <button className="sb-edit" onClick={() => startEdit(s)} data-testid={`edit-strategy-${s.id}`} title="Bearbeiten">
                       <PencilSimple size={15} />

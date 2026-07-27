@@ -28,7 +28,7 @@ def api():
 @pytest.fixture(scope="session")
 def admin_token(api):
     r = api.post(f"{BASE_URL}/api/auth/login",
-                 json={"username": "Admin", "password": "admin"}, timeout=TIMEOUT)
+                 json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": os.environ.get("ADMIN_PASSWORD", "admin")}, timeout=TIMEOUT)
     assert r.status_code == 200, r.text
     tok = r.json().get("token")
     assert tok
@@ -45,7 +45,7 @@ def admin(api, admin_token):
 class TestAuth:
     def test_login_success(self, api):
         r = api.post(f"{BASE_URL}/api/auth/login",
-                     json={"username": "Admin", "password": "admin"}, timeout=TIMEOUT)
+                     json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": os.environ.get("ADMIN_PASSWORD", "admin")}, timeout=TIMEOUT)
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data.get("token"), str) and len(data["token"]) > 20
@@ -53,7 +53,7 @@ class TestAuth:
 
     def test_login_wrong_password(self, api):
         r = api.post(f"{BASE_URL}/api/auth/login",
-                     json={"username": "Admin", "password": "nope"}, timeout=TIMEOUT)
+                     json={"username": os.environ.get("ADMIN_USER", "Admin"), "password": "nope"}, timeout=TIMEOUT)
         assert r.status_code == 401
 
 
