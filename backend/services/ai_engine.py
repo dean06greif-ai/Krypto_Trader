@@ -184,8 +184,19 @@ class AIEngine:
 
     @property
     def key(self) -> Optional[str]:
-        """API-Key des aktuell konfigurierten Providers (primärer Key)."""
-        return ai_providers.primary_key(self.config.get("provider", "gemini"))
+        """API-Key des aktuell konfigurierten Providers (primärer Key).
+
+        Fällt auf den Key eines beliebigen konfigurierten Providers zurück –
+        die Modell-Kette (services/ai_roles.chain) nutzt ohnehin alle Provider
+        mit Key als letzte Fallback-Stufe. So blockiert eine Voreinstellung für
+        einen Provider ohne Key den Betrieb nicht."""
+        direct = ai_providers.primary_key(self.config.get("provider", "gemini"))
+        if direct:
+            return direct
+        for prov, has_key in ai_providers.available_providers().items():
+            if has_key:
+                return ai_providers.primary_key(prov)
+        return None
 
     @staticmethod
     def _provider_key(provider: str) -> Optional[str]:
@@ -656,6 +667,35 @@ class AIEngine:
                 parts.append(deep)
         except Exception:
             pass
+        # KI-Ökosystem: Forschungs-Analyst, ML-Labor, Markt-Beobachter, Gedächtnis
+        try:
+            from services.ai_research import research_analyst
+            research = await research_analyst.context_text()
+            if research:
+                parts.append(research)
+        except Exception as e:
+            logger.warning(f"AI research block failed: {e}")
+        try:
+            from services.ai_ml_lab import ml_lab
+            ml = await ml_lab.context_text()
+            if ml:
+                parts.append(ml)
+        except Exception as e:
+            logger.warning(f"AI ml block failed: {e}")
+        try:
+            from services.ai_market_observer import market_observer
+            obs = await market_observer.context_text()
+            if obs:
+                parts.append(obs)
+        except Exception as e:
+            logger.warning(f"AI observer block failed: {e}")
+        try:
+            from services.ai_memory import memory
+            mem = await memory.context_text(kinds=["idea", "ml_finding"], per_kind=3)
+            if mem:
+                parts.append("=== KI-GEDÄCHTNIS (jüngstes Team-Wissen) ===\n" + mem)
+        except Exception as e:
+            logger.warning(f"AI memory block failed: {e}")
         try:
             from services.ai_news_watcher import news_watcher
             nw = await news_watcher.context_text()
@@ -1437,6 +1477,18 @@ class AIEngine:
             directives = await self._user_directives()
             open_trades = await self._open_trades_text()
             lessons = await self.learning.lessons_text() if self.learning else "(keine)"
+            research_block = ""
+            try:
+                from services.ai_research import research_analyst
+                research_block = await research_analyst.context_text()
+            except Exception:
+                pass
+            ml_block = ""
+            try:
+                from services.ai_ml_lab import ml_lab
+                ml_block = await ml_lab.context_text()
+            except Exception:
+                pass
             from services.ai_news_watcher import news_watcher
             nw_block = await news_watcher.context_text() or "(keine relevanten Ereignisse)"
             berlin = self.scanner.berlin_now().strftime("%d.%m.%Y %H:%M")
@@ -1449,7 +1501,9 @@ class AIEngine:
                 f"=== NEWS-WÄCHTER EREIGNISSE ===\n{nw_block}\n\n"
                 f"=== PERFORMANCE ALLER STRATEGIEN DER PLATTFORM (lerne daraus) ===\n{perf}\n\n"
                 f"=== GELERNTE LEKTIONEN ===\n{lessons}\n\n"
-                f"=== ANWEISUNGEN DES TRADERS ===\n{directives}\n\n"
+                + (f"{research_block}\n\n" if research_block else "")
+                + (f"{ml_block}\n\n" if ml_block else "")
+                + f"=== ANWEISUNGEN DES TRADERS ===\n{directives}\n\n"
                 f"=== OFFENE POSITIONEN ===\n{open_trades}\n\n"
                 "Erstelle jetzt die tiefe Marktanalyse als JSON."
             )
@@ -1537,6 +1591,24 @@ class AIEngine:
                     await self._check_deep_schedule()
                 except Exception as de:
                     logger.error(f"AI deep schedule error: {de}")
+
+                # KI-Ökosystem: Markt-Beobachter (Datensammlung), Forschungs-Analyst
+                # (Backtest-/Optimizer-Auswertung) und ML-Labor (Optuna/XGBoost).
+                # Alle drei laufen unabhängig von der Analyse-Engine weiter.
+                for name, mod_attr in (("market observer", "ai_market_observer.market_observer"),
+                                       ("research analyst", "ai_research.research_analyst"),
+                                       ("ml lab", "ai_ml_lab.ml_lab")):
+                    try:
+                        mod_name, obj_name = mod_attr.split(".")
+                        mod = __import__(f"services.{mod_name}", fromlist=[obj_name])
+                        await getattr(mod, obj_name).tick()
+                    except Exception as ex:
+                        logger.error(f"AI {name} tick error: {ex}")
+                try:
+                    from services.ai_memory import memory
+                    await memory.housekeeping()
+                except Exception as me:
+                    logger.error(f"AI memory housekeeping error: {me}")
 
                 if not self.config.get("enabled") or not self.key:
                     self.next_run = None

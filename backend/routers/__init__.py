@@ -1,6 +1,6 @@
 """Alle API-Router. Neue Bereiche hier registrieren."""
 from routers import auth, general, ws, analytics, strategies, backtest, optimizer, \
-    autotrade, control, ai, local_worker, macro, dynamic, regime_lab
+    autotrade, control, ai, ai_lab, local_worker, macro, dynamic, regime_lab
 
 ALL_ROUTERS = [
     auth.router,
@@ -13,6 +13,7 @@ ALL_ROUTERS = [
     autotrade.router,
     control.router,
     ai.router,
+    ai_lab.router,
     local_worker.router,
     macro.router,
     dynamic.router,

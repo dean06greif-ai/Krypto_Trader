@@ -138,6 +138,15 @@ async def ai_roles_update(updates: Dict, _: bool = Depends(require_admin)):
     return {"status": "success", "roles": roles}
 
 
+@router.post("/api/ai/roles/{role}/reset")
+async def ai_role_reset(role: str, _: bool = Depends(require_admin)):
+    """Rolle auf die empfohlene Voreinstellung zurücksetzen."""
+    if role not in ROLE_LABELS:
+        raise HTTPException(status_code=404, detail="Rolle unbekannt")
+    roles = await role_manager.reset_role(ai_engine.db, role)
+    return {"status": "success", "roles": roles}
+
+
 @router.post("/api/ai/deep-analyze")
 async def ai_deep_analyze(_: bool = Depends(require_admin)):
     """Manuell eine Tiefenanalyse (deep_analyst-Rolle) starten."""

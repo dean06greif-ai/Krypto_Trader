@@ -1,16 +1,21 @@
 """KI-Rollen-Verwaltung ("KI-Team").
 
 Das KI-Ökosystem besteht aus spezialisierten Rollen, die zusammenarbeiten:
-  - analyst      : regelmäßige Markt-Analysen (bestehender Analyse-Loop)
-  - deep_analyst : sehr tiefe Analysen zu konfigurierbaren Uhrzeiten
-  - news_watcher : überwacht News + Wirtschaftskalender 24/7
-  - chat         : beantwortet User-Anfragen im KI-Chat
-  - learner      : Lernläufe (Lektionen aus echten Ergebnissen)
-  - summarizer   : Tages-Zusammenfassung um Mitternacht
+  - analyst          : regelmäßige Markt-Analysen (bestehender Analyse-Loop)
+  - deep_analyst     : sehr tiefe Analysen zu konfigurierbaren Uhrzeiten
+  - research_analyst : wertet Backtests/Optimizer/Regime-Lab aus und gibt das
+                       gewonnene Wissen an das Team weiter
+  - market_observer  : sammelt laufend den gemessenen Marktzustand (Trainingsdaten)
+  - news_watcher     : überwacht News + Wirtschaftskalender 24/7
+  - chat             : beantwortet User-Anfragen im KI-Chat
+  - learner          : Lernläufe (Lektionen aus echten Ergebnissen)
+  - summarizer       : Tages-Zusammenfassung um Mitternacht
 
 Jede Rolle kann ein eigenes Modell, aktive Handelszeiten (Europe/Berlin) und
-ein Fallback-Modell haben. Ohne eigene Konfiguration erbt die Rolle das
-Haupt-Modell der Engine (=> volle Rückwärtskompatibilität).
+ein Fallback-Modell haben. Für jede Rolle ist ein sinnvolles, kostengünstiges
+Modell VOREINGESTELLT (ROLE_PRESETS) – sobald der Trader im UI eine eigene Wahl
+trifft, wird diese dauerhaft respektiert (`user_configured`). Rollen ohne
+Voreinstellung erben das Haupt-Modell der Engine.
 """
 import logging
 import re
@@ -27,10 +32,42 @@ BERLIN_TZ = ZoneInfo("Europe/Berlin")
 ROLE_LABELS = {
     "analyst": "Analyst – regelmäßige Analysen",
     "deep_analyst": "Tiefen-Analyst – geplante Deep-Analysen",
+    "research_analyst": "Forschungs-Analyst – Backtests, Optimizer & Regime-Lab auswerten",
+    "market_observer": "Markt-Beobachter – sammelt Marktzustände als Trainingsdaten",
     "news_watcher": "News-Wächter – News + Wirtschaftskalender 24/7",
     "chat": "Chat-Assistent – User-Anfragen",
     "learner": "Lern-Modul – Lektionen aus Ergebnissen",
     "summarizer": "Tages-Reporter – Mitternachts-Zusammenfassung",
+}
+
+# Voreinstellungen: pro Rolle das beste preis-/leistungsstarke Modell aus dem
+# bestehenden Katalog (services/ai_providers.ALLOWED_MODELS) inkl. Fallback-KI.
+# Im UI jederzeit änderbar – eine eigene Auswahl überschreibt die Voreinstellung.
+ROLE_PRESETS: Dict[str, Dict] = {
+    # Läuft am häufigsten -> schnell & günstig, starker Fallback
+    "analyst": {"provider": "gemini", "model": "gemini-3.5-flash",
+                "fallback_provider": "groq", "fallback_model": "llama-3.3-70b-versatile"},
+    # Wenige Läufe pro Tag -> stärkstes verfügbares Modell
+    "deep_analyst": {"provider": "openrouter",
+                     "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+                     "fallback_provider": "gemini", "fallback_model": "gemini-3.1-pro-preview"},
+    # Muss große Datenmengen sauber auswerten -> starkes Reasoning-Modell
+    "research_analyst": {"provider": "github", "model": "openai/gpt-4.1",
+                         "fallback_provider": "openrouter",
+                         "fallback_model": "nvidia/nemotron-3-super-120b-a12b:free"},
+    # Reine Datensammlung, LLM nur optional -> günstigstes Modell
+    "market_observer": {"provider": "groq", "model": "llama-3.1-8b-instant",
+                        "fallback_provider": "gemini", "fallback_model": "gemini-3.1-flash-lite"},
+    # 24/7-Betrieb -> billigstes Modell, schneller Fallback
+    "news_watcher": {"provider": "gemini", "model": "gemini-3.1-flash-lite",
+                     "fallback_provider": "groq", "fallback_model": "llama-3.1-8b-instant"},
+    "chat": {"provider": "gemini", "model": "gemini-3.5-flash",
+             "fallback_provider": "cerebras", "fallback_model": "gpt-oss-120b"},
+    # Qualität zahlt sich aus (Lektionen wirken dauerhaft)
+    "learner": {"provider": "github", "model": "openai/gpt-4.1",
+                "fallback_provider": "groq", "fallback_model": "llama-3.3-70b-versatile"},
+    "summarizer": {"provider": "gemini", "model": "gemini-3.1-flash-lite",
+                   "fallback_provider": "mistral", "fallback_model": "mistral-small-latest"},
 }
 
 # Basis-Felder jeder Rolle. provider/model = None => erbt Haupt-Modell.
@@ -41,15 +78,25 @@ _BASE_ROLE = {
     "active_hours": None,           # {"start": "08:00", "end": "22:00"} Berlin oder None (=immer)
     "fallback_provider": None,      # greift außerhalb active_hours oder wenn Primär komplett scheitert
     "fallback_model": None,
+    "user_configured": False,       # True, sobald der Trader die Rolle selbst konfiguriert hat
 }
 
 DEFAULT_ROLES_CONFIG: Dict[str, Dict] = {
-    "analyst": dict(_BASE_ROLE),
-    "deep_analyst": {**_BASE_ROLE, "schedule_times": ["08:00", "20:00"]},
-    "news_watcher": {**_BASE_ROLE, "interval_min": 15, "auto_analysis": True},
-    "chat": dict(_BASE_ROLE),
-    "learner": dict(_BASE_ROLE),
-    "summarizer": dict(_BASE_ROLE),
+    "analyst": {**_BASE_ROLE, **ROLE_PRESETS["analyst"]},
+    "deep_analyst": {**_BASE_ROLE, **ROLE_PRESETS["deep_analyst"],
+                     "schedule_times": ["08:00", "20:00"]},
+    "research_analyst": {**_BASE_ROLE, **ROLE_PRESETS["research_analyst"],
+                         "schedule_times": ["06:30", "18:30"],
+                         "interval_hours": 12,
+                         "auto_on_new_results": True,
+                         "trigger_after_results": 1},
+    "market_observer": {**_BASE_ROLE, **ROLE_PRESETS["market_observer"],
+                        "interval_min": 15, "llm_summary": False},
+    "news_watcher": {**_BASE_ROLE, **ROLE_PRESETS["news_watcher"],
+                     "interval_min": 15, "auto_analysis": True},
+    "chat": {**_BASE_ROLE, **ROLE_PRESETS["chat"]},
+    "learner": {**_BASE_ROLE, **ROLE_PRESETS["learner"]},
+    "summarizer": {**_BASE_ROLE, **ROLE_PRESETS["summarizer"]},
 }
 
 _TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
@@ -91,8 +138,18 @@ class AIRoleManager:
             if doc:
                 doc.pop("_id", None)
                 for role, cfg in doc.items():
-                    if role in self.config and isinstance(cfg, dict):
-                        self.config[role].update(self._sanitize(role, cfg))
+                    if role not in self.config or not isinstance(cfg, dict):
+                        continue
+                    clean = self._sanitize(role, cfg)
+                    # Voreinstellungen nur überschreiben, wenn der Trader die
+                    # Rolle selbst konfiguriert hat (oder – Altbestand – ein
+                    # eigenes Modell gespeichert ist).
+                    owned = bool(cfg.get("user_configured")) or bool(cfg.get("model"))
+                    if not owned:
+                        for k in ("provider", "model", "fallback_provider", "fallback_model"):
+                            clean.pop(k, None)
+                    clean["user_configured"] = owned
+                    self.config[role].update(clean)
         except Exception as e:
             logger.warning(f"AI roles load failed: {e}")
 
@@ -123,26 +180,53 @@ class AIRoleManager:
             else:
                 out["fallback_provider"] = None
                 out["fallback_model"] = None
-        if role == "deep_analyst" and "schedule_times" in updates:
+        if role in ("deep_analyst", "research_analyst") and "schedule_times" in updates:
             times = [t for t in (updates["schedule_times"] or []) if _valid_time(t)]
             out["schedule_times"] = sorted(set(times))[:6]
-        if role == "news_watcher":
-            if "interval_min" in updates:
+        if role == "research_analyst":
+            if "interval_hours" in updates:
                 try:
-                    out["interval_min"] = max(5, min(120, int(updates["interval_min"])))
-                except Exception:
+                    out["interval_hours"] = max(1, min(168, int(updates["interval_hours"])))
+                except (TypeError, ValueError):
                     pass
-            if "auto_analysis" in updates:
-                out["auto_analysis"] = bool(updates["auto_analysis"])
+            if "auto_on_new_results" in updates:
+                out["auto_on_new_results"] = bool(updates["auto_on_new_results"])
+            if "trigger_after_results" in updates:
+                try:
+                    out["trigger_after_results"] = max(1, min(50, int(updates["trigger_after_results"])))
+                except (TypeError, ValueError):
+                    pass
+        if role in ("news_watcher", "market_observer") and "interval_min" in updates:
+            try:
+                out["interval_min"] = max(5, min(120, int(updates["interval_min"])))
+            except (TypeError, ValueError):
+                pass
+        if role == "market_observer" and "llm_summary" in updates:
+            out["llm_summary"] = bool(updates["llm_summary"])
+        if role == "news_watcher" and "auto_analysis" in updates:
+            out["auto_analysis"] = bool(updates["auto_analysis"])
         return out
 
     async def update(self, db, updates: Dict) -> Dict:
         for role, cfg in (updates or {}).items():
             if role in self.config and isinstance(cfg, dict):
-                self.config[role].update(self._sanitize(role, cfg))
+                clean = self._sanitize(role, cfg)
+                if any(k in clean for k in ("provider", "model", "fallback_provider",
+                                            "fallback_model")):
+                    clean["user_configured"] = True
+                self.config[role].update(clean)
         await db.settings.update_one(
             {"_id": "ai_roles_config"},
             {"$set": {r: dict(c) for r, c in self.config.items()}}, upsert=True)
+        return self.snapshot()
+
+    async def reset_role(self, db, role: str) -> Dict:
+        """Rolle auf die Voreinstellung zurücksetzen (UI: 'Voreinstellung')."""
+        if role in DEFAULT_ROLES_CONFIG:
+            self.config[role] = dict(DEFAULT_ROLES_CONFIG[role])
+            await db.settings.update_one(
+                {"_id": "ai_roles_config"},
+                {"$set": {role: dict(self.config[role])}}, upsert=True)
         return self.snapshot()
 
     def snapshot(self) -> Dict:
@@ -157,7 +241,10 @@ class AIRoleManager:
 
         Primär = Rollen-Modell (oder Haupt-Modell der Engine) + Provider-interne
         Fallbacks. Außerhalb der aktiven Handelszeiten übernimmt direkt die
-        Fallback-KI. Die Fallback-KI hängt immer als letzte Stufe an der Kette."""
+        Fallback-KI. Die Fallback-KI hängt immer als letzte Stufe an der Kette.
+        Zuletzt werden alle Provider angehängt, für die überhaupt ein API-Key
+        gesetzt ist – so bleibt eine Rolle auch dann arbeitsfähig, wenn ihre
+        Voreinstellung einen Provider ohne Key nutzt."""
         cfg = self.role_cfg(role)
         provider = cfg.get("provider") or engine_cfg.get("provider", "gemini")
         model = cfg.get("model") or (engine_cfg.get("model")
@@ -173,11 +260,21 @@ class AIRoleManager:
 
         active = in_active_hours(cfg.get("active_hours"), now)
         chain = (fallback + primary) if (not active and fallback) else (primary + fallback)
+        chain = chain + self._available_chain()
         seen, out = set(), []
         for pm in chain:
             if pm not in seen:
                 seen.add(pm)
                 out.append(pm)
+        return out
+
+    @staticmethod
+    def _available_chain() -> List[Tuple[str, str]]:
+        """Letzte Rettung: alle Provider mit gesetztem API-Key."""
+        out: List[Tuple[str, str]] = []
+        for prov, has_key in ai_providers.available_providers().items():
+            if has_key:
+                out.extend(ai_providers.same_provider_chain(prov, None))
         return out
 
 

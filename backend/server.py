@@ -66,6 +66,22 @@ async def lifespan(app: FastAPI):
     ai_engine.setup(db=app.mongodb, scanner=scanner, signal_cb=emit_ai_signal,
                     toggle_check=toggle_enabled, symbols=list(ALL_SYMBOLS))
     await ai_engine.load_config()
+    # ---- KI-Ökosystem: Gedächtnis, Forschungs-Analyst, ML-Labor, Markt-Beobachter ----
+    from services.ai_memory import memory as ai_memory
+    from services.ai_research import research_analyst
+    from services.ai_ml_lab import ml_lab
+    from services.ai_market_observer import market_observer
+    ai_memory.setup(app.mongodb)
+    research_analyst.setup(ai_engine)
+    ml_lab.setup(ai_engine)
+    market_observer.setup(ai_engine)
+    await research_analyst.load_state()
+    await ml_lab.load_state()
+    try:
+        await app.mongodb.ai_knowledge.create_index([("kind", 1), ("ts", -1)])
+        await app.mongodb.ai_market_snapshots.create_index([("symbol", 1), ("ts", -1)])
+    except Exception as e:
+        logger.warning(f"AI lab index creation failed: {e}")
     _ens = list(scanner.settings.get("enabled_strategies") or [])
     if "ai_trader" not in _ens and "ai_trader" not in scanner.settings.get("deleted_strategies", []):
         _ens.append("ai_trader")

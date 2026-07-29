@@ -356,6 +356,18 @@ class AILearning:
                 f"- [Gewicht: {l.get('weight_label', 'mittel')}] {l.get('title')}: {l.get('detail')}"
                 for l in old) or "(keine)"
             directives = await self.engine._user_directives(10)
+            research_txt = ""
+            try:
+                from services.ai_research import research_analyst
+                research_txt = await research_analyst.context_text()
+            except Exception:
+                pass
+            ml_txt = ""
+            try:
+                from services.ai_ml_lab import ml_lab
+                ml_txt = await ml_lab.context_text()
+            except Exception:
+                pass
             max_lessons = int(self.engine.config.get("max_lessons", 10))
             autonomy = self.engine.config.get("autonomy", "suggest")
             autonomy_block = ""
@@ -369,7 +381,9 @@ class AILearning:
                 f"=== PERFORMANCE-STATISTIK (letzte {stats.get('lookback_days')} Tage) ===\n{stats_txt}\n\n"
                 f"=== LETZTE GESCHLOSSENE TRADES (chronologisch) ===\n{outcomes_txt}\n\n"
                 f"=== BISHERIGE LEKTIONEN ===\n{old_txt}\n\n"
-                f"=== AKTUELLE TRADER-DIREKTIVEN ===\n{directives}\n\n"
+                + (f"{research_txt}\n\n" if research_txt else "")
+                + (f"{ml_txt}\n\n" if ml_txt else "")
+                + f"=== AKTUELLE TRADER-DIREKTIVEN ===\n{directives}\n\n"
                 f"Gespeichert sind aktuell {len(old)} von maximal {max_lessons} Lektionen. "
                 "Gib NEUE oder geschärfte Lektionen zurück (bestehende bleiben automatisch "
                 "erhalten) und liste in removed_lessons nur, was die Daten klar widerlegen."

@@ -1,0 +1,42 @@
+{
+  "summary": "Full end-to-end verification of the new KI-Ökosystem (KI-Labor, KI-Team) plus regression of KI Trader. Backend: 26 API tests + 27 offline unit tests -> all green. Frontend: KI-Trader panel opens after Admin login (Admin / Dean06Greif!/Admin), KI-Labor & KI-Team panels reachable with all four tabs (research/ml/memory/market), role cards for research_analyst + market_observer with role-specific fields, real user route for /api/ai/research/run (LLM: mistral/mistral-small-latest, status=ok), /api/ai/ml/train (Optuna+XGBoost pipeline runs, cv_auc ~0.5 on demo data as expected, importances + best_params returned), /api/ai/observer/run (produces 22 snapshots), /api/ai/analyze (22 real LLM decisions), /api/ai/memory/stats?health=true returns 200 despite Supabase 'ai_knowledge' table missing (Mongo fallback works, warning surfaced in UI). Role reset flow: model change -> Reset button appears -> click restores preset and toast 'Voreinstellung wiederhergestellt'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Backend accepts empty username as long as ADMIN_USER matches the truthy check ('not user or user == ADMIN_USER or not user'); harmless but semantically overly permissive."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AI Team / role selects", "issues": ["React dev-warning: '<span> cannot be a child of <option>' (hydration warning from a role model dropdown that renders a <span> tag inside <option> for the preset badge). Not a functional bug but should be cleaned up."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_lab_api.py",
+    "/app/backend/tests/test_ai_lab.py",
+    "/app/test_reports/pytest/ai_lab_api.xml"
+  ],
+  "action_items": [
+    "Optional: remove <span> inside <option> in role model select to silence React hydration warning.",
+    "Optional: tighten /api/auth/login username check (require non-empty username when ADMIN_USER is configured)."
+  ],
+  "critical_code_review_comments": [
+    "ai_roles.py: chain() properly falls back to _available_chain when the preset provider has no key – verified by test_chain_appends_available_providers; the OpenRouter+Mistral-only setup works.",
+    "ai_memory.py + ai_lab.py: memory endpoints tolerate missing Supabase table (PGRST205) and keep the Mongo primary storage functional – verified live (39 entries) and matched by UI 'Supabase nicht erreichbar' banner.",
+    "ai_ml_lab.py: train pipeline validates end-to-end (cv_auc, importances, best_params returned) even at n_trials=3; explanation via LLM is optional and gracefully missing on cheap runs.",
+    "routers/ai_lab.py: dataset endpoint returns 500 on load_training_data errors – acceptable, but consider a structured JSON error (currently raises HTTPException with truncated string).",
+    "ai_lab.py memory_stats uses `memory.health() if health else memory.stats()` – both paths were tested and return 200 even when Supabase is unreachable (great)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_lab_api.py"
+  ],
+  "success_rate": {"backend": "100% (26/26 API + 27/27 offline)", "frontend": "100% (all critical flows working)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (as documented in /app/memory/test_credentials.md)",
+  "seed_data_creation": "None – used the existing demo seed (backend/scripts/seed_ai_lab_demo.py: 1 backtest, 1 optimizer run, 90 AI decisions, 90 market snapshots).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_ai_lab_api.py is now the authoritative integration test for the new KI ecosystem endpoints. It covers /api/ai/lab/status, research (data/report/run + admin gate), ml (status/dataset/predict/train n_trials=3/settings/auth gate), observer (status/run/snapshots), memory (stats?health=true, entries – asserts NO 500 when Supabase table missing), roles (contains research_analyst+market_observer with preset, update sets user_configured=true, reset restores preset), and KI Trader regression (analyze/status/insights/learn). LLM tests use ~60-90s timeouts (mistral fallback). Full run ~65s.",
+  "rca_of_the_issue": "N/A – no bugs found. Three initial test failures were my mis-shaped assertions (research/data returns nested {digests, counts}; lab/status.kinds is a dict of {code: label}; /api/ai/analyze.decisions is a count-int, not a list) and were fixed in the test file."
+}

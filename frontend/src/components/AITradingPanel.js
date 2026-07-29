@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Robot, PaperPlaneRight, X, Trash, ArrowsClockwise, Lightning, CaretDown, CaretUp, Newspaper, PushPin, Brain, GraduationCap, CheckCircle, XCircle, Sliders, Coins } from '@phosphor-icons/react';
+import { Robot, PaperPlaneRight, X, Trash, ArrowsClockwise, Lightning, CaretDown, CaretUp, Newspaper, PushPin, Brain, GraduationCap, CheckCircle, XCircle, Sliders, Coins, Flask, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';
+import AILabPanel from './AILabPanel';
 import './AITradingPanel.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -38,6 +39,8 @@ const MODEL_OPTIONS = [
 const ROLE_DEFS = [
   { key: 'analyst', label: 'Analyst', desc: 'Regelmäßige Markt-Analysen (Haupt-Loop)' },
   { key: 'deep_analyst', label: 'Tiefen-Analyst', desc: 'Sehr tiefe Analysen zu festen Uhrzeiten' },
+  { key: 'research_analyst', label: 'Forschungs-Analyst', desc: 'Wertet Backtests, Optimizer & Regime-Lab aus und lehrt das Team' },
+  { key: 'market_observer', label: 'Markt-Beobachter', desc: 'Sammelt laufend Marktzustände als Trainingsdaten' },
   { key: 'news_watcher', label: 'News-Wächter', desc: 'News + Wirtschaftskalender 24/7' },
   { key: 'chat', label: 'Chat-Assistent', desc: 'Beantwortet deine Anfragen im Chat' },
   { key: 'learner', label: 'Lern-Modul', desc: 'Lektionen aus echten Ergebnissen' },
@@ -82,6 +85,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
   // KI-Team (Rollen-Konfiguration)
   const [roles, setRoles] = useState(null);
   const [showTeam, setShowTeam] = useState(false);
+  const [showLab, setShowLab] = useState(false);
   const [deepRunning, setDeepRunning] = useState(false);
   // "Coin-Fokus"-Bereich ein-/ausklappbar (Standard: eingeklappt, persistiert in localStorage)
   const [showChatFocus, setShowChatFocus] = useState(() => {
@@ -104,21 +108,28 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
   const toggleLearn = () => {
     setShowLearn(prev => {
       const next = !prev;
-      if (next) { loadInsights(); setShowSetup(false); setShowTeam(false); closeChatFocus(); }
+      if (next) { loadInsights(); setShowSetup(false); setShowTeam(false); setShowLab(false); closeChatFocus(); }
       return next;
     });
   };
   const toggleSetup = () => {
     setShowSetup(prev => {
       const next = !prev;
-      if (next) { setShowLearn(false); setShowTeam(false); closeChatFocus(); }
+      if (next) { setShowLearn(false); setShowTeam(false); setShowLab(false); closeChatFocus(); }
       return next;
     });
   };
   const toggleTeam = () => {
     setShowTeam(prev => {
       const next = !prev;
-      if (next) { setShowLearn(false); setShowSetup(false); closeChatFocus(); }
+      if (next) { setShowLearn(false); setShowSetup(false); setShowLab(false); closeChatFocus(); }
+      return next;
+    });
+  };
+  const toggleLab = () => {
+    setShowLab(prev => {
+      const next = !prev;
+      if (next) { setShowLearn(false); setShowSetup(false); setShowTeam(false); closeChatFocus(); }
       return next;
     });
   };
@@ -309,6 +320,18 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
       if (!res.ok) { toast.error(res.status === 401 ? 'Admin-Login erforderlich' : 'Fehler'); return; }
       const data = await res.json();
       setRoles(data.roles || null);
+    } catch (e) { toast.error('Verbindungsfehler'); }
+  };
+
+  const resetRole = async (roleKey) => {
+    try {
+      const res = await fetch(`${API_URL}/api/ai/roles/${roleKey}/reset`, {
+        method: 'POST', headers: authHeaders(),
+      });
+      if (!res.ok) { toast.error(res.status === 401 ? 'Admin-Login erforderlich' : 'Fehler'); return; }
+      const data = await res.json();
+      setRoles(data.roles || null);
+      toast.success('Voreinstellung wiederhergestellt');
     } catch (e) { toast.error('Verbindungsfehler'); }
   };
 
@@ -665,6 +688,14 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
           >
             <Robot size={12} weight="bold" /> KI-Team
           </button>
+          <button
+            className={`ai-setup-toggle ${showLab ? 'active' : ''}`}
+            onClick={toggleLab}
+            title="Forschungs-Analyst, ML-Labor (Optuna/XGBoost), KI-Gedächtnis & Markt-Beobachter"
+            data-testid="ai-lab-toggle"
+          >
+            <Flask size={12} weight="bold" /> KI-Labor
+          </button>
           <button className="ai-setup-toggle" onClick={toggleSetup} data-testid="ai-setup-toggle">
             Setup {showSetup ? <CaretUp size={12} /> : <CaretDown size={12} />}
           </button>
@@ -705,6 +736,9 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
             )}
           </div>
         )}
+
+        {/* KI-Labor (Forschung, ML, Gedächtnis, Markt) */}
+        {showLab && <AILabPanel />}
 
         {/* Setup (collapsible) */}
         {showSetup && (
@@ -821,6 +855,16 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                   <div className="ai-role-head">
                     <span className="ai-role-name">{rd.label}</span>
                     <span className="ai-role-desc">{rd.desc}</span>
+                    {rc.user_configured === false && (
+                      <span className="ai-role-preset" title="Empfohlene Voreinstellung – noch nicht von dir geändert">Voreinstellung</span>
+                    )}
+                    {rc.user_configured && (
+                      <button className="ai-role-reset" onClick={() => resetRole(rd.key)}
+                        title="Auf die empfohlene Voreinstellung zurücksetzen"
+                        data-testid={`ai-role-reset-${rd.key}`}>
+                        <ArrowCounterClockwise size={12} weight="bold" />
+                      </button>
+                    )}
                     <label className="ai-setup-check ai-role-enabled">
                       <input type="checkbox" checked={rc.enabled !== false}
                         onChange={e => saveRole(rd.key, { enabled: e.target.checked })}
@@ -883,18 +927,54 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                         ))}
                       </select>
                     </label>
-                    {rd.key === 'deep_analyst' && (
-                      <label title="Uhrzeiten (Berlin), zu denen täglich automatisch eine Tiefenanalyse läuft">
+                    {(rd.key === 'deep_analyst' || rd.key === 'research_analyst') && (
+                      <label title="Uhrzeiten (Berlin), zu denen die Rolle täglich automatisch läuft">
                         <span>Geplante Zeiten</span>
                         <input type="text" className="ai-role-times"
                           defaultValue={(rc.schedule_times || []).join(', ')}
-                          placeholder="08:00, 20:00"
+                          placeholder={rd.key === 'deep_analyst' ? '08:00, 20:00' : '06:30, 18:30'}
                           onBlur={e => {
                             const times = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
-                            saveRole('deep_analyst', { schedule_times: times });
+                            saveRole(rd.key, { schedule_times: times });
                           }}
-                          data-testid="ai-role-deep-times" />
+                          data-testid={`ai-role-times-${rd.key}`} />
                       </label>
+                    )}
+                    {rd.key === 'research_analyst' && (
+                      <>
+                        <label title="Spätestens nach dieser Zeit läuft eine neue Forschungs-Auswertung">
+                          <span>Max. Abstand</span>
+                          <select value={rc.interval_hours || 12}
+                            onChange={e => saveRole('research_analyst', { interval_hours: Number(e.target.value) })}
+                            data-testid="ai-role-research-interval">
+                            {[4, 8, 12, 24, 48].map(v => <option key={v} value={v}>{v} h</option>)}
+                          </select>
+                        </label>
+                        <label className="ai-setup-check" title="Automatisch auswerten, sobald neue Backtest-/Optimizer-/Regime-Lab-Ergebnisse fertig sind">
+                          <span>Auto bei neuen Ergebnissen</span>
+                          <input type="checkbox" checked={rc.auto_on_new_results !== false}
+                            onChange={e => saveRole('research_analyst', { auto_on_new_results: e.target.checked })}
+                            data-testid="ai-role-research-auto" />
+                        </label>
+                      </>
+                    )}
+                    {rd.key === 'market_observer' && (
+                      <>
+                        <label title="Wie oft der Marktzustand aller Coins gemessen und gespeichert wird">
+                          <span>Scan-Intervall</span>
+                          <select value={rc.interval_min || 15}
+                            onChange={e => saveRole('market_observer', { interval_min: Number(e.target.value) })}
+                            data-testid="ai-role-observer-interval">
+                            {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{v} min</option>)}
+                          </select>
+                        </label>
+                        <label className="ai-setup-check" title="Zusätzlich eine kurze KI-Einschätzung des Marktzustands erzeugen (verbraucht LLM-Budget)">
+                          <span>KI-Einschätzung</span>
+                          <input type="checkbox" checked={rc.llm_summary === true}
+                            onChange={e => saveRole('market_observer', { llm_summary: e.target.checked })}
+                            data-testid="ai-role-observer-llm" />
+                        </label>
+                      </>
                     )}
                     {rd.key === 'news_watcher' && (
                       <>
@@ -1008,8 +1088,8 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
           </div>
         )}
 
-        {/* Chat + Input – im Lernen-Tab komplett ausgeblendet */}
-        {!showLearn && (
+        {/* Chat + Input – im Lernen- und KI-Labor-Tab komplett ausgeblendet */}
+        {!showLearn && !showLab && (
         <>
         <div className="ai-chat-area" data-testid="ai-chat-area" ref={chatAreaRef} onScroll={onChatScroll}>
           {(() => {

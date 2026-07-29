@@ -569,3 +569,17 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+
+/* KI-Team: Voreinstellungs-Badge + Reset (KI-Ökosystem-Erweiterung) */
+.ai-role-preset {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: #00a8ff; border: 1px solid rgba(0, 168, 255, 0.35);
+  border-radius: 4px; padding: 1px 5px; margin-left: 6px;
+}
+.ai-role-reset {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #7c839c; border-radius: 6px; padding: 2px 5px; margin-left: 6px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.ai-role-reset:hover { color: #00a8ff; border-color: rgba(0, 168, 255, 0.45); }
