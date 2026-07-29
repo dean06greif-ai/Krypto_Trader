@@ -400,3 +400,89 @@ def test_supabase_config_strips_rest_suffix(monkeypatch):
     cfg = supabase_config()
     assert cfg["base"] == "https://abc.supabase.co"
     assert cfg["table"]
+
+
+# ---------------- Trade-Manager: Limits & Preis-Auflösung ----------------
+from services import ai_trade_manager as tmgr          # noqa: E402
+from services import ai_closed_loop as cloop           # noqa: E402
+from services.bitunix_trade import AutoTradeManager   # noqa: E402
+
+
+def _trade(**over):
+    t = {"id": "BTCUSDT-1", "symbol": "BTCUSDT", "side": "LONG", "mode": "paper",
+         "entry": 100.0, "qty": 1.0, "qty_remaining": 1.0, "leverage": 10.0,
+         "sl": 99.0, "tp1": 102.0, "tpf": 104.0, "ai_actions": 0,
+         "ai_last_action_ts": 0, "margin_used": 10.0}
+    t.update(over)
+    return t
+
+
+def test_check_limits_allows_and_blocks():
+    s = dict(tmgr.DEFAULT_SETTINGS)
+    assert tmgr.check_limits(_trade(), "hold", None, s)[0] is True
+    assert tmgr.check_limits(_trade(), "close", None, s)[0] is True
+    assert tmgr.check_limits(_trade(), "unknown", None, s)[0] is False
+    # Aktions-Limit
+    assert tmgr.check_limits(_trade(ai_actions=99), "close", None, s)[0] is False
+    # Cooldown
+    import time as _t
+    assert tmgr.check_limits(_trade(ai_last_action_ts=_t.time()), "close", None, s)[0] is False
+    # Hebel-Grenze
+    assert tmgr.check_limits(_trade(), "set_leverage", 999, s)[0] is False
+    assert tmgr.check_limits(_trade(), "set_leverage", 20, s)[0] is True
+    # Margin-Regeln
+    assert tmgr.check_limits(_trade(), "add_margin", 5, s)[0] is True
+    assert tmgr.check_limits(_trade(), "add_margin", 999, s)[0] is False
+    assert tmgr.check_limits(_trade(), "remove_margin", 50, s)[0] is False
+    # partial_close Bereich
+    assert tmgr.check_limits(_trade(), "partial_close", 50, s)[0] is True
+    assert tmgr.check_limits(_trade(), "partial_close", 150, s)[0] is False
+    # Margin-Sperre
+    s_off = {**s, "allow_margin": False}
+    assert tmgr.check_limits(_trade(), "add_margin", 5, s_off)[0] is False
+
+
+def test_resolve_price_absolute_and_pct():
+    assert tmgr.resolve_price("adjust_sl", 98.5, None, "LONG", 100) == 98.5
+    assert tmgr.resolve_price("adjust_sl", None, 1.0, "LONG", 100) == 99.0
+    assert tmgr.resolve_price("adjust_sl", None, 1.0, "SHORT", 100) == 101.0
+    assert tmgr.resolve_price("adjust_tp", None, 2.0, "LONG", 100) == 102.0
+    assert tmgr.resolve_price("adjust_tp", None, 2.0, "SHORT", 100) == 98.0
+    assert tmgr.resolve_price("adjust_tp", None, None, "LONG", 100) is None
+
+
+def test_trades_text_contains_key_numbers():
+    txt = tmgr.trades_text([_trade(events=["OPEN LONG @ 100"])], {"BTCUSDT": 101.0})
+    assert "BTCUSDT LONG" in txt and "Hebel 10.0x" in txt and "uPnL" in txt
+    assert "keine offenen Trades" in tmgr.trades_text([], {})
+
+
+def test_liq_price_moves_with_leverage():
+    high = AutoTradeManager.liq_price_for("LONG", 100.0, 20)
+    low = AutoTradeManager.liq_price_for("LONG", 100.0, 5)
+    assert low < high < 100          # weniger Hebel => Liquidation weiter weg
+    assert AutoTradeManager.liq_price_for("SHORT", 100.0, 10) > 100
+
+
+# ---------------- Closed Loop: Kandidatenwahl ----------------
+def test_pick_candidate_prefers_optimizer_run():
+    runs = [{"created_at": "2026-06-02T00:00:00+00:00",
+             "result": {"strategy_id": "ema_pullback_scalping", "symbols": ["BTCUSDT"],
+                        "timeframe": "5m"}}]
+    bts = [{"created_at": "2026-06-01T00:00:00+00:00",
+            "params": {"symbols": ["ETHUSDT"]},
+            "result": {"per_strategy": [{"strategy_id": "rsi_only", "pnl": 5}]}}]
+    cand = cloop.pick_candidate(runs, bts)
+    assert cand["strategy_id"] == "ema_pullback_scalping"
+    cand2 = cloop.pick_candidate([], bts)
+    assert cand2["strategy_id"] == "rsi_only" and cand2["symbols"] == ["ETHUSDT"]
+    assert cloop.pick_candidate([], []) is None
+
+
+def test_closed_loop_defaults_off():
+    assert cloop.DEFAULT_SETTINGS["enabled"] is False
+
+
+def test_trade_manager_role_registered():
+    assert "trade_manager" in ai_roles.ROLE_LABELS
+    assert ai_roles.DEFAULT_ROLES_CONFIG["trade_manager"]["model"]

@@ -344,6 +344,21 @@ class BitunixTradeClient:
         return await self._post(
             "/api/v1/futures/tpsl/modify_position_tp_sl_order", body)
 
+    async def adjust_position_margin(self, symbol, amount: float,
+                                     position_id: Optional[str] = None,
+                                     side: Optional[str] = None):
+        """Margin einer ISOLIERTEN Position anpassen.
+        amount > 0 = Margin hinzufügen, amount < 0 = Margin entnehmen.
+        Bitunix: POST /api/v1/futures/account/adjust_position_margin"""
+        b_symbol = self.to_bitunix_symbol(symbol)
+        body: Dict = {"symbol": b_symbol, "marginCoin": "USDT",
+                      "amount": f"{float(amount):.6f}".rstrip("0").rstrip(".")}
+        if position_id:
+            body["positionId"] = position_id
+        elif side:
+            body["side"] = str(side).upper()
+        return await self._post("/api/v1/futures/account/adjust_position_margin", body)
+
     async def set_leverage(self, symbol, leverage, margin_mode="ISOLATION"):
         b_symbol = self.to_bitunix_symbol(symbol)
         return await self._post("/api/v1/futures/account/change_leverage",
@@ -784,6 +799,15 @@ class AutoTradeManager:
         lev_used = effective_leverage(cfg, entry, sl) if cfg.get("auto_leverage_enabled") \
             else float(cfg["leverage"])
 
+        # ---- KI-Custom-Trade: Hebel/Kapitalanteil dürfen pro Trade vorgegeben
+        # werden (services/ai_trade_manager.py). Immer innerhalb der Limits der
+        # Coin-Config – max_capital und der Live/Paper-Modus bleiben tabu.
+        try:
+            ai_lev = float(signal.get("ai_leverage") or 0)
+            if ai_lev > 0:
+                lev_used = max(1.0, min(125.0, ai_lev))
+        except (TypeError, ValueError):
+            pass
         mode = eff_mode
         # Instrumente ohne Bitunix-Kontrakt (z.B. Forex) können nicht live
         # geordert werden -> automatisch als Paper-Trade simulieren.
@@ -793,6 +817,12 @@ class AutoTradeManager:
             mode = "paper"
         # ---- Kapital-Zuweisung: Gesamt-Exposure des Bots begrenzen ----
         capital = float(cfg["max_capital"])
+        try:
+            ai_cap_pct = float(signal.get("ai_capital_pct") or 0)
+            if 5.0 <= ai_cap_pct <= 100.0:
+                capital = round(capital * ai_cap_pct / 100, 6)
+        except (TypeError, ValueError):
+            pass
         alloc_note = None
         try:
             alloc_cap = await self.allocated_capital(mode)
@@ -1249,3 +1279,169 @@ class AutoTradeManager:
             "closed_at": datetime.now(timezone.utc).isoformat(),
             "events": (t.get("events", []) + [f"MANUAL CLOSE @ {price} (Fee {round(fee, 6)})"])[-20:]}})
         return {"result": result, "realized_pnl": realized}
+
+    # ------------------------------------------------------------------
+    # Trade-Steuerung im laufenden Trade (Teil-Close, SL/TP, Margin, Hebel).
+    # Wird von der manuellen Bedienung UND vom KI-Trade-Manager
+    # (services/ai_trade_manager.py) genutzt – eine Quelle für die Logik.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def liq_price_for(side: str, entry: float, leverage: float,
+                      mmr_percent: float = 0.5) -> float:
+        """Liquidationspreis für Entry/Hebel (gleiche Formel wie beim Öffnen)."""
+        mmr = float(mmr_percent) / 100
+        liq_dist = max(1.0 / max(float(leverage), 0.01) - mmr, 0.0005)
+        return round(entry * (1 - liq_dist) if side == "LONG"
+                     else entry * (1 + liq_dist), 6)
+
+    async def _open_trade(self, trade_id: str) -> Optional[Dict]:
+        return await self.db.auto_trades.find_one({"id": trade_id, "status": "open"})
+
+    async def partial_close(self, trade_id: str, percent: float,
+                            price: Optional[float] = None) -> Optional[Dict]:
+        """Teilweise schließen (percent = 1..99 der RESTMENGE)."""
+        t = await self._open_trade(trade_id)
+        if not t:
+            return None
+        pct = max(1.0, min(99.0, float(percent)))
+        qty_rem = float(t.get("qty_remaining", t["qty"]))
+        price = float(price or await self._current_mark(t["symbol"]) or t["entry"])
+        qty = round(qty_rem * pct / 100, 8)
+        if qty <= 0:
+            return {"error": "Menge zu klein"}
+        fee = qty * price * (float(t.get("fee_percent", 0.06)) / 100)
+        pnl = ((price - t["entry"]) if t["side"] == "LONG" else (t["entry"] - price)) * qty
+        realized = round(float(t.get("realized_pnl", 0.0)) + pnl - fee, 6)
+        left = round(qty_rem - qty, 8)
+        if t["mode"] == "live":
+            await self._live_partial_close(t, qty)
+        await self.db.auto_trades.update_one({"id": trade_id}, {"$set": {
+            "qty_remaining": left, "realized_pnl": realized,
+            "fees_paid": round(float(t.get("fees_paid", 0.0)) + fee, 6),
+            "events": (t.get("events", []) +
+                       [f"PARTIAL CLOSE {pct:.0f}% ({qty}) @ {price} "
+                        f"(PnL {round(pnl - fee, 4)})"])[-20:]}})
+        return {"closed_qty": qty, "qty_remaining": left, "price": price,
+                "realized_pnl": realized}
+
+    async def adjust_levels(self, trade_id: str, sl: Optional[float] = None,
+                            tp1: Optional[float] = None,
+                            tpf: Optional[float] = None) -> Optional[Dict]:
+        """SL / TP1 / Final-TP im laufenden Trade verschieben."""
+        t = await self._open_trade(trade_id)
+        if not t:
+            return None
+        price = float(await self._current_mark(t["symbol"]) or t["entry"])
+        long_side = t["side"] == "LONG"
+        updates: Dict = {}
+        events: List[str] = []
+        if sl is not None:
+            sl = float(sl)
+            if (long_side and sl >= price) or (not long_side and sl <= price):
+                return {"error": f"SL {sl} liegt auf der falschen Seite des Preises {price}"}
+            updates["sl"] = round(sl, 8)
+            events.append(f"SL {t.get('sl')} -> {round(sl, 8)}")
+            if t["mode"] == "live":
+                await self._live_move_sl(t, sl, float(t.get("qty_remaining", t["qty"])))
+        for key, val in (("tp1", tp1), ("tpf", tpf)):
+            if val is None:
+                continue
+            val = float(val)
+            if (long_side and val <= price) or (not long_side and val >= price):
+                return {"error": f"{key.upper()} {val} liegt auf der falschen "
+                                 f"Seite des Preises {price}"}
+            updates[key] = round(val, 8)
+            events.append(f"{key.upper()} {t.get(key)} -> {round(val, 8)}")
+        if not updates:
+            return {"error": "Keine Level angegeben"}
+        updates["events"] = (t.get("events", []) + ["ADJUST " + ", ".join(events)])[-20:]
+        await self.db.auto_trades.update_one({"id": trade_id}, {"$set": updates})
+        return {"sl": updates.get("sl", t.get("sl")), "tp1": updates.get("tp1", t.get("tp1")),
+                "tpf": updates.get("tpf", t.get("tpf")), "price": price}
+
+    async def _free_capital_ok(self, trade: Dict, extra_margin: float) -> bool:
+        """Zusätzliche Margin nur aus dem freien Kapital-Kontingent (Paper & Live)."""
+        try:
+            alloc = await self.allocated_capital(trade.get("mode", "paper"))
+            if alloc is None:
+                return True
+            used = await self.used_margin(trade.get("mode", "paper"))
+            return (alloc - used) >= float(extra_margin)
+        except Exception as e:
+            logger.warning(f"_free_capital_ok failed: {e}")
+            return True
+
+    async def adjust_margin(self, trade_id: str, amount: float) -> Optional[Dict]:
+        """Margin hinzufügen (amount > 0) oder entnehmen (amount < 0).
+        Positionsgröße bleibt gleich -> effektiver Hebel und Liquidationspreis
+        verschieben sich entsprechend."""
+        t = await self._open_trade(trade_id)
+        if not t:
+            return None
+        amount = float(amount)
+        if amount == 0:
+            return {"error": "Betrag 0"}
+        qty_rem = float(t.get("qty_remaining", t["qty"]))
+        notional = qty_rem * float(t["entry"])
+        lev_now = float(t.get("leverage", 1) or 1)
+        margin_now = notional / max(lev_now, 0.01)
+        new_margin = margin_now + amount
+        if new_margin < notional / 125:
+            return {"error": "Margin zu klein (max. Hebel 125x erreicht)"}
+        if new_margin > notional:
+            new_margin = notional          # Hebel 1x ist das Minimum
+        new_lev = round(notional / new_margin, 2)
+        if amount > 0 and not await self._free_capital_ok(t, amount):
+            return {"error": "Zu wenig freies Kapital für zusätzliche Margin"}
+        live_note = ""
+        if t["mode"] == "live" and self.client.configured():
+            try:
+                res = await self.client.adjust_position_margin(
+                    t["symbol"], amount, position_id=t.get("bitunix_position_id"),
+                    side=t["side"])
+                if not (isinstance(res, dict) and res.get("code") == 0):
+                    return {"error": f"Börse hat Margin-Anpassung abgelehnt: {res}"}
+            except Exception as e:
+                return {"error": f"Margin-Anpassung fehlgeschlagen: {str(e)[:160]}"}
+            live_note = " (Börse bestätigt)"
+        liq = self.liq_price_for(t["side"], float(t["entry"]), new_lev)
+        await self.db.auto_trades.update_one({"id": trade_id}, {"$set": {
+            "leverage": new_lev, "margin_used": round(new_margin, 4),
+            "liq_price": liq,
+            "events": (t.get("events", []) +
+                       [f"MARGIN {'+' if amount > 0 else ''}{round(amount, 4)} USDT{live_note}: "
+                        f"Hebel {lev_now}x -> {new_lev}x, Liq {liq}"])[-20:]}})
+        return {"margin": round(new_margin, 4), "leverage": new_lev, "liq_price": liq}
+
+    async def adjust_leverage(self, trade_id: str, leverage: float) -> Optional[Dict]:
+        """Hebel im laufenden Trade ändern – Positionsgröße bleibt erhalten,
+        die gebundene Margin ändert sich."""
+        t = await self._open_trade(trade_id)
+        if not t:
+            return None
+        new_lev = max(1.0, min(125.0, float(leverage)))
+        qty_rem = float(t.get("qty_remaining", t["qty"]))
+        notional = qty_rem * float(t["entry"])
+        lev_now = float(t.get("leverage", 1) or 1)
+        if abs(new_lev - lev_now) < 0.01:
+            return {"error": "Hebel unverändert"}
+        extra = notional / new_lev - notional / max(lev_now, 0.01)
+        if extra > 0 and not await self._free_capital_ok(t, extra):
+            return {"error": "Zu wenig freies Kapital für den niedrigeren Hebel "
+                             f"(zusätzlich {round(extra, 2)} USDT Margin nötig)"}
+        if t["mode"] == "live" and self.client.configured():
+            try:
+                res = await self.client.set_leverage(t["symbol"], int(round(new_lev)))
+                if not (isinstance(res, dict) and res.get("code") == 0):
+                    return {"error": f"Börse hat Hebeländerung abgelehnt: {res}"}
+            except Exception as e:
+                return {"error": f"Hebeländerung fehlgeschlagen: {str(e)[:160]}"}
+        liq = self.liq_price_for(t["side"], float(t["entry"]), new_lev)
+        await self.db.auto_trades.update_one({"id": trade_id}, {"$set": {
+            "leverage": round(new_lev, 2), "margin_used": round(notional / new_lev, 4),
+            "liq_price": liq,
+            "events": (t.get("events", []) +
+                       [f"HEBEL {lev_now}x -> {round(new_lev, 2)}x "
+                        f"(Margin {round(notional / new_lev, 2)} USDT, Liq {liq})"])[-20:]}})
+        return {"leverage": round(new_lev, 2), "margin": round(notional / new_lev, 4),
+                "liq_price": liq}

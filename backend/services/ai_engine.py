@@ -1597,7 +1597,8 @@ class AIEngine:
                 # Alle drei laufen unabhängig von der Analyse-Engine weiter.
                 for name, mod_attr in (("market observer", "ai_market_observer.market_observer"),
                                        ("research analyst", "ai_research.research_analyst"),
-                                       ("ml lab", "ai_ml_lab.ml_lab")):
+                                       ("ml lab", "ai_ml_lab.ml_lab"),
+                                       ("trade manager", "ai_trade_manager.trade_manager")):
                     try:
                         mod_name, obj_name = mod_attr.split(".")
                         mod = __import__(f"services.{mod_name}", fromlist=[obj_name])

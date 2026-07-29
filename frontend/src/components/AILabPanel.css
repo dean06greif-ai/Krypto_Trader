@@ -127,3 +127,14 @@
 .ai-lab-table td { padding: 5px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); color: #c8cde0; }
 .ai-lab-table td.pos { color: #00e5a0; }
 .ai-lab-table td.neg { color: #ff5b6a; }
+
+/* Trade-Steuerung: kompakte Aktionsknöpfe in der Tabelle */
+.ai-lab-trade-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.ai-lab-trade-actions button {
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #c8cde0; border-radius: 6px; padding: 2px 7px; font-size: 10.5px;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.ai-lab-trade-actions button:hover { color: #00a8ff; border-color: rgba(0, 168, 255, 0.5); }
+.ai-lab-trade-actions button.danger { color: #ff8b96; border-color: rgba(255, 91, 106, 0.35); }
+.ai-lab-trade-actions button.danger:hover { color: #fff; background: rgba(255, 91, 106, 0.25); }

@@ -34,6 +34,7 @@ ROLE_LABELS = {
     "deep_analyst": "Tiefen-Analyst – geplante Deep-Analysen",
     "research_analyst": "Forschungs-Analyst – Backtests, Optimizer & Regime-Lab auswerten",
     "market_observer": "Markt-Beobachter – sammelt Marktzustände als Trainingsdaten",
+    "trade_manager": "Trade-Manager – eröffnet und steuert Trades (SL/TP, Margin, Hebel, Teil-Close)",
     "news_watcher": "News-Wächter – News + Wirtschaftskalender 24/7",
     "chat": "Chat-Assistent – User-Anfragen",
     "learner": "Lern-Modul – Lektionen aus Ergebnissen",
@@ -58,6 +59,9 @@ ROLE_PRESETS: Dict[str, Dict] = {
     # Reine Datensammlung, LLM nur optional -> günstigstes Modell
     "market_observer": {"provider": "groq", "model": "llama-3.1-8b-instant",
                         "fallback_provider": "gemini", "fallback_model": "gemini-3.1-flash-lite"},
+    # Trade-Steuerung: muss zuverlässig rechnen -> solides Modell, schneller Fallback
+    "trade_manager": {"provider": "gemini", "model": "gemini-3.5-flash",
+                      "fallback_provider": "groq", "fallback_model": "llama-3.3-70b-versatile"},
     # 24/7-Betrieb -> billigstes Modell, schneller Fallback
     "news_watcher": {"provider": "gemini", "model": "gemini-3.1-flash-lite",
                      "fallback_provider": "groq", "fallback_model": "llama-3.1-8b-instant"},
@@ -92,6 +96,7 @@ DEFAULT_ROLES_CONFIG: Dict[str, Dict] = {
                          "trigger_after_results": 1},
     "market_observer": {**_BASE_ROLE, **ROLE_PRESETS["market_observer"],
                         "interval_min": 15, "llm_summary": False},
+    "trade_manager": {**_BASE_ROLE, **ROLE_PRESETS["trade_manager"]},
     "news_watcher": {**_BASE_ROLE, **ROLE_PRESETS["news_watcher"],
                      "interval_min": 15, "auto_analysis": True},
     "chat": {**_BASE_ROLE, **ROLE_PRESETS["chat"]},

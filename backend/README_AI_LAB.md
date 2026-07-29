@@ -83,3 +83,66 @@ cd backend && python -m pytest tests/test_ai_lab.py -q     # 27 Tests, offline
 python scripts/seed_ai_lab_demo.py                         # Demo-Daten (Dev)
 python scripts/seed_ai_lab_demo.py --clean                 # Demo-Daten entfernen
 ```
+
+---
+
+# Erweiterung 2: KI-Trade-Steuerung & Closed Loop
+
+## KI-Trade-Steuerung (`services/ai_trade_manager.py`, Rolle `trade_manager`)
+
+Die KI darf Trades eigenständig eröffnen und im laufenden Trade steuern. Alle
+Aktionen laufen über EINE Quelle (`services/bitunix_trade.AutoTradeManager`) und
+gelten identisch für Paper und Live:
+
+| Aktion | Wirkung |
+|---|---|
+| `close` | Trade vorzeitig komplett schließen |
+| `partial_close` | Teilmenge schließen (1–99 % der Restmenge) |
+| `adjust_sl` | SL verschieben (absoluter Preis oder `pct` = Abstand zum Kurs) |
+| `adjust_tp` | TP1 oder Final-TP verschieben (`target: tp1｜tpf`) |
+| `add_margin` | Margin hinzufügen → Hebel sinkt, Liquidation rückt weg |
+| `remove_margin` | Margin entnehmen → Hebel steigt |
+| `set_leverage` | Hebel ändern, Positionsgröße bleibt erhalten |
+| `hold` | bewusst nichts tun |
+
+Live-Umsetzung: `POST /api/v1/futures/account/adjust_position_margin` (Margin,
+positiv = hinzufügen) bzw. `change_leverage`; Teil-/Vollschließung über den
+bestehenden Flash-Close. Paper-Trades werden identisch nachgerechnet
+(Margin, effektiver Hebel, Liquidationspreis, Gebühren, realisierter PnL).
+
+**Schutzregeln** (`check_limits`, alle im UI einstellbar): max. Aktionen pro
+Trade, Cooldown zwischen Aktionen, Hebel-Obergrenze, Margin-Aufschlag in % der
+Start-Margin, Zusatz-Margin nur aus dem freien Kapital-Kontingent. Kapitalrahmen
+und Live/Paper-Modus bleiben für die KI tabu. Jede Aktion landet in
+`ai_trade_actions`, im Trade-`events`-Verlauf, im KI-Chat und im Gedächtnis.
+
+Eigene Trades: die KI gibt `symbol, side, sl_pct, tp1_pct, tpf_pct, leverage,
+capital_pct` vor; Hebel (1–125x) und Kapitalanteil (5–100 % des konfigurierten
+`max_capital`) werden in `on_signal` geklemmt.
+
+```
+GET  /api/ai/trade/status            Einstellungen + letzte Aktionen
+POST /api/ai/trade/settings          Limits/Schalter                     (Admin)
+POST /api/ai/trade/review            KI prüft jetzt alle offenen Trades   (Admin)
+POST /api/ai/trade/action            Einzelaktion (KI oder manuell)       (Admin)
+POST /api/ai/trade/open              Custom-Trade eröffnen                (Admin)
+```
+
+## Closed Loop (`services/ai_closed_loop.py`) – standardmäßig AUS
+
+Ist der Schalter aktiv, startet der Forschungs-Analyst nach seiner Auswertung
+selbst einen Optimizer-Lauf (Bayes/TPE) für den stärksten Kandidaten
+(letzter Optimizer-Lauf, sonst beste Backtest-Strategie). Das Ergebnis wird als
+**Vorschlag** hinterlegt (Gedächtnis + KI-Chat + `settings/ai_closed_loop`) –
+die Übernahme bleibt bewusst manuell im Optimizer-Panel.
+Grenzen: `max_runs_per_day`, `min_gap_hours`, nie parallel zu einer laufenden
+Optimierung.
+
+```
+GET  /api/ai/closed_loop/status
+POST /api/ai/closed_loop/settings    enabled, max_runs_per_day, min_gap_hours, days, iterations
+POST /api/ai/closed_loop/run         sofort einen Lauf starten            (Admin)
+```
+
+UI: KI-Labor → Tab **„Trade-Steuerung"** (Schalter, Limits, manuelle Aktions-Buttons
+pro offenem Trade, Aktions-Protokoll, Closed-Loop-Schalter).

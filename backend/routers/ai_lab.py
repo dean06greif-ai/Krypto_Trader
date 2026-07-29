@@ -11,11 +11,13 @@ from typing import Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import require_admin
+from services.ai_closed_loop import closed_loop
 from services.ai_engine import ai_engine
 from services.ai_market_observer import market_observer
 from services.ai_memory import memory, KINDS
 from services.ai_ml_lab import ml_lab
 from services.ai_research import research_analyst
+from services.ai_trade_manager import trade_manager
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +32,67 @@ async def lab_status():
         "ml": ml_lab.status(),
         "observer": market_observer.status(),
         "memory": await memory.stats(),
+        "trade_manager": trade_manager.status(),
+        "closed_loop": closed_loop.status(),
         "kinds": KINDS,
     }
+
+
+# ---------------- KI-Trade-Steuerung ----------------
+@router.get("/api/ai/trade/status")
+async def trade_status(limit: int = 20):
+    return {"status": trade_manager.status(),
+            "actions": await trade_manager.recent_actions(limit)}
+
+
+@router.post("/api/ai/trade/settings")
+async def trade_settings(updates: Dict, _: bool = Depends(require_admin)):
+    return {"status": "success", "settings": await trade_manager.update_settings(updates)}
+
+
+@router.post("/api/ai/trade/review")
+async def trade_review(_: bool = Depends(require_admin)):
+    """KI prüft jetzt alle offenen Trades und passt sie an."""
+    return await trade_manager.review(manual=True)
+
+
+@router.post("/api/ai/trade/action")
+async def trade_action(body: Dict, _: bool = Depends(require_admin)):
+    """Einzelne Aktion ausführen – von der KI oder manuell aus dem UI.
+
+    body: {trade_id, action, value?, pct?, target?: tp1|tpf, reason?}
+    Manuelle Aufrufe (source=manuell) umgehen die KI-Limits bewusst."""
+    trade_id = str(body.get("trade_id") or "")
+    action = str(body.get("action") or "")
+    if not trade_id or not action:
+        raise HTTPException(status_code=400, detail="trade_id und action erforderlich")
+    source = str(body.get("source") or "manuell")
+    return await trade_manager.apply_action(
+        trade_id, action, value=body.get("value"), pct=body.get("pct"),
+        target=str(body.get("target") or "tp1"), reason=str(body.get("reason") or ""),
+        source=source, enforce_limits=(source == "ki"))
+
+
+@router.post("/api/ai/trade/open")
+async def trade_open(body: Dict, _: bool = Depends(require_admin)):
+    """Custom-Trade eröffnen (Symbol, Seite, SL/TP in %, Hebel, Kapitalanteil)."""
+    return await trade_manager.open_trade(body, source=str(body.get("source") or "manuell"))
+
+
+# ---------------- Closed Loop (Selbstoptimierung) ----------------
+@router.get("/api/ai/closed_loop/status")
+async def closed_loop_status():
+    return closed_loop.status()
+
+
+@router.post("/api/ai/closed_loop/settings")
+async def closed_loop_settings(updates: Dict, _: bool = Depends(require_admin)):
+    return {"status": "success", "settings": await closed_loop.update_settings(updates)}
+
+
+@router.post("/api/ai/closed_loop/run")
+async def closed_loop_run(_: bool = Depends(require_admin)):
+    return await closed_loop.run_now(trigger="manual")
 
 
 # ---------------- Forschungs-Analyst ----------------

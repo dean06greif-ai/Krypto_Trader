@@ -28,6 +28,7 @@ KINDS = {
     "ml_finding": "ML-Befund (Optuna/XGBoost)",
     "market_observation": "Markt-Beobachtung",
     "lesson": "Lektion aus echten Ergebnissen",
+    "trade_action": "KI-Trade-Steuerung (Aktion an einem Trade)",
     "idea": "Neue Strategie-/Handels-Idee",
 }
 

@@ -41,6 +41,7 @@ const ROLE_DEFS = [
   { key: 'deep_analyst', label: 'Tiefen-Analyst', desc: 'Sehr tiefe Analysen zu festen Uhrzeiten' },
   { key: 'research_analyst', label: 'Forschungs-Analyst', desc: 'Wertet Backtests, Optimizer & Regime-Lab aus und lehrt das Team' },
   { key: 'market_observer', label: 'Markt-Beobachter', desc: 'Sammelt laufend Marktzustände als Trainingsdaten' },
+  { key: 'trade_manager', label: 'Trade-Manager', desc: 'Eröffnet Trades und steuert sie live: SL/TP, Margin, Hebel, Teil-Close' },
   { key: 'news_watcher', label: 'News-Wächter', desc: 'News + Wirtschaftskalender 24/7' },
   { key: 'chat', label: 'Chat-Assistent', desc: 'Beantwortet deine Anfragen im Chat' },
   { key: 'learner', label: 'Lern-Modul', desc: 'Lektionen aus echten Ergebnissen' },
@@ -1001,8 +1002,8 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
           </div>
         )}
 
-        {/* Offene Einstellungs-Vorschläge der KI */}
-        {proposals.length > 0 && (
+        {/* Offene Einstellungs-Vorschläge der KI (im KI-Labor ausgeblendet) */}
+        {proposals.length > 0 && !showLab && (
           <div className="ai-proposals-strip" data-testid="ai-proposals-strip">
             <div className="ai-proposals-title">
               <Sliders size={13} weight="bold" /> Einstellungs-Vorschläge der KI ({proposals.length})

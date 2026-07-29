@@ -375,8 +375,16 @@ class ResearchAnalyst:
             })
             logger.info(f"Forschungs-Analyst fertig ({doc['model']}, {trigger}): "
                         f"{len(insights)} Erkenntnisse, {len(ideas)} Ideen, {stored} im Gedächtnis")
+            # Closed Loop (abschaltbar): validierte Kandidaten selbst nachoptimieren
+            loop_res = None
+            try:
+                from services.ai_closed_loop import closed_loop
+                loop_res = await closed_loop.maybe_run(trigger=f"Forschung ({trigger})")
+            except Exception as e:
+                logger.warning(f"Closed-Loop-Start fehlgeschlagen: {str(e)[:150]}")
             return {"status": "ok", "insights": len(insights), "ideas": len(ideas),
-                    "summary": doc["summary"], "model": doc["model"], "ts": doc["ts"]}
+                    "summary": doc["summary"], "model": doc["model"], "ts": doc["ts"],
+                    "closed_loop": loop_res}
         except Exception as e:
             self.last_error = str(e)[:300]
             logger.error(f"Forschungs-Analyst fehlgeschlagen: {e}")

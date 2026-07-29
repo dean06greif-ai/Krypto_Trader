@@ -22,6 +22,8 @@ const AILabPanel = () => {
   const [busy, setBusy] = useState('');
   const [tab, setTab] = useState('research');
   const [health, setHealth] = useState(null);
+  const [trades, setTrades] = useState([]);
+  const [actions, setActions] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +47,17 @@ const AILabPanel = () => {
     try {
       const d = await fetch(`${API_URL}/api/ai/memory/entries?limit=25`).then(r => r.json());
       setEntries(d.entries || []);
+    } catch (e) { /* silent */ }
+  }, []);
+
+  const loadTrades = useCallback(async () => {
+    try {
+      const [t, a] = await Promise.all([
+        fetch(`${API_URL}/api/autotrade/trades?status=open`).then(r => r.json()),
+        fetch(`${API_URL}/api/ai/trade/status?limit=15`).then(r => r.json()),
+      ]);
+      setTrades(t.trades || []);
+      setActions(a.actions || []);
     } catch (e) { /* silent */ }
   }, []);
 
@@ -82,6 +95,36 @@ const AILabPanel = () => {
   const observer = lab?.observer || {};
   const mem = lab?.memory || {};
   const mlSettings = ml.settings || {};
+  const tm = lab?.trade_manager || {};
+  const tmSettings = tm.settings || {};
+  const cl = lab?.closed_loop || {};
+  const clSettings = cl.settings || {};
+
+  const saveJson = async (path, updates) => {
+    const res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) { toast.error('Admin-Login erforderlich'); return; }
+    load();
+  };
+
+  const tradeAction = async (tradeId, action, extra = {}) => {
+    setBusy(action);
+    try {
+      const res = await fetch(`${API_URL}/api/ai/trade/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ trade_id: tradeId, action, source: 'manuell', ...extra }),
+      });
+      const data = await res.json();
+      if (data.status === 'ok') toast.success(`${action} ausgeführt`);
+      else toast.error(data.detail || 'Aktion abgelehnt');
+      loadTrades();
+    } catch (e) { toast.error('Verbindungsfehler'); }
+    finally { setBusy(''); }
+  };
 
   const saveMl = async (updates) => {
     const res = await fetch(`${API_URL}/api/ai/ml/settings`, {
@@ -147,9 +190,9 @@ const AILabPanel = () => {
       )}
 
       <div className="ai-lab-tabs">
-        {[['research', 'Forschung'], ['ml', 'ML-Modell'], ['memory', 'Gedächtnis'], ['market', 'Markt']].map(([k, label]) => (
+        {[['research', 'Forschung'], ['ml', 'ML-Modell'], ['trades', 'Trade-Steuerung'], ['memory', 'Gedächtnis'], ['market', 'Markt']].map(([k, label]) => (
           <button key={k} className={`ai-lab-tab ${tab === k ? 'active' : ''}`}
-            onClick={() => { setTab(k); if (k === 'memory') loadEntries(); }}
+            onClick={() => { setTab(k); if (k === 'memory') loadEntries(); if (k === 'trades') loadTrades(); }}
             data-testid={`ai-lab-tab-${k}`}>{label}</button>
         ))}
       </div>
@@ -283,6 +326,161 @@ const AILabPanel = () => {
               Noch kein Modell trainiert. Es braucht mindestens 40 abgeschlossene Ergebnisse
               (je 8 Gewinne/Verluste). Danach sucht Optuna die besten Hyperparameter und XGBoost
               lernt, welche Marktbedingungen Gewinne liefern.
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'trades' && (
+        <div className="ai-lab-body" data-testid="ai-lab-trades">
+          <div className="ai-lab-setup">
+            <label className="ai-lab-check" title="KI prüft offene Trades automatisch und passt sie an">
+              <span>KI-Trade-Steuerung</span>
+              <input type="checkbox" checked={tmSettings.enabled !== false}
+                onChange={e => saveJson('/api/ai/trade/settings', { enabled: e.target.checked })}
+                data-testid="ai-tm-enabled-toggle" />
+            </label>
+            <label className="ai-lab-check" title="Darf die KI eigene Trades eröffnen?">
+              <span>Eigene Trades</span>
+              <input type="checkbox" checked={tmSettings.allow_open !== false}
+                onChange={e => saveJson('/api/ai/trade/settings', { allow_open: e.target.checked })}
+                data-testid="ai-tm-open-toggle" />
+            </label>
+            <label className="ai-lab-check" title="Darf die KI Margin hinzufügen/entnehmen und den Hebel ändern?">
+              <span>Margin &amp; Hebel</span>
+              <input type="checkbox" checked={tmSettings.allow_margin !== false}
+                onChange={e => saveJson('/api/ai/trade/settings', { allow_margin: e.target.checked })}
+                data-testid="ai-tm-margin-toggle" />
+            </label>
+            <label>
+              <span>Prüf-Intervall</span>
+              <select value={tmSettings.interval_min || 5}
+                onChange={e => saveJson('/api/ai/trade/settings', { interval_min: Number(e.target.value) })}
+                data-testid="ai-tm-interval-select">
+                {[1, 3, 5, 10, 15, 30].map(v => <option key={v} value={v}>{v} min</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Max. Hebel</span>
+              <select value={tmSettings.max_leverage || 50}
+                onChange={e => saveJson('/api/ai/trade/settings', { max_leverage: Number(e.target.value) })}
+                data-testid="ai-tm-maxlev-select">
+                {[5, 10, 20, 50, 75, 125].map(v => <option key={v} value={v}>{v}x</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Aktionen/Trade</span>
+              <select value={tmSettings.max_actions_per_trade || 8}
+                onChange={e => saveJson('/api/ai/trade/settings', { max_actions_per_trade: Number(e.target.value) })}
+                data-testid="ai-tm-maxactions-select">
+                {[3, 5, 8, 15, 30].map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </label>
+            <button className="ai-action-btn" disabled={!!busy || tm.running_now}
+              onClick={() => post('/api/ai/trade/review', 'Trade-Review')}
+              data-testid="ai-tm-review-btn">
+              <Brain size={13} weight="bold" className={busy === 'Trade-Review' || tm.running_now ? 'spin' : ''} />
+              {tm.running_now ? 'Prüft…' : 'Trades jetzt prüfen'}
+            </button>
+          </div>
+          {tm.last_error && <div className="ai-lab-warn">⚠ {tm.last_error}</div>}
+          <div className="ai-lab-meta">
+            Zuletzt geprüft: <b>{fmt(tm.last_run)}</b> · Cooldown {tmSettings.cooldown_min} min ·
+            {' '}Margin-Aufschlag max. {tmSettings.max_margin_add_pct}% der Start-Margin
+          </div>
+          {tm.last_note && <div className="ai-lab-summary">{tm.last_note}</div>}
+
+          <div className="ai-lab-sub">Offene Trades – manuelle Steuerung</div>
+          {trades.length ? (
+            <table className="ai-lab-table" data-testid="ai-lab-trades-table">
+              <thead>
+                <tr><th>Trade</th><th>Seite</th><th>Entry</th><th>SL</th><th>TP1</th><th>Hebel</th>
+                  <th>Liq</th><th>KI-Aktionen</th><th>Steuerung</th></tr>
+              </thead>
+              <tbody>
+                {trades.map(t => (
+                  <tr key={t.id}>
+                    <td>{t.symbol} <span className="ai-lab-ts">({t.mode})</span></td>
+                    <td className={t.side === 'LONG' ? 'pos' : 'neg'}>{t.side}</td>
+                    <td>{t.entry}</td><td>{t.sl}</td><td>{t.tp1}</td>
+                    <td>{t.leverage}x</td><td>{t.liq_price}</td>
+                    <td>{t.ai_actions || 0}</td>
+                    <td className="ai-lab-trade-actions">
+                      <button onClick={() => tradeAction(t.id, 'partial_close', { value: 50 })}
+                        title="50 % der Restmenge schließen" data-testid={`ai-tm-partial-${t.id}`}>50 %</button>
+                      <button onClick={() => tradeAction(t.id, 'adjust_sl', { pct: 0.3 })}
+                        title="SL auf 0,3 % Abstand nachziehen" data-testid={`ai-tm-sl-${t.id}`}>SL↑</button>
+                      <button onClick={() => tradeAction(t.id, 'add_margin', { value: 10 })}
+                        title="10 USDT Margin hinzufügen" data-testid={`ai-tm-addmargin-${t.id}`}>+M</button>
+                      <button onClick={() => tradeAction(t.id, 'remove_margin', { value: 10 })}
+                        title="10 USDT Margin entnehmen" data-testid={`ai-tm-delmargin-${t.id}`}>−M</button>
+                      <button onClick={() => tradeAction(t.id, 'set_leverage', { value: Math.max(1, (t.leverage || 10) - 2) })}
+                        title="Hebel um 2x senken (Positionsgröße bleibt)" data-testid={`ai-tm-lev-${t.id}`}>Hebel−</button>
+                      <button className="danger" onClick={() => tradeAction(t.id, 'close')}
+                        title="Trade vorzeitig schließen" data-testid={`ai-tm-close-${t.id}`}>Close</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div className="ai-lab-empty">Keine offenen Trades.</div>}
+
+          <div className="ai-lab-sub">Letzte Aktionen</div>
+          {actions.length ? (
+            <ul className="ai-lab-list" data-testid="ai-lab-actions-list">
+              {actions.map(a => (
+                <li key={a.id}>
+                  <span className="ai-lab-kind">{a.action}</span>
+                  <b>{a.symbol} {a.side}</b>
+                  <span className="ai-lab-ts"> · {fmt(a.ts)} · {a.source}{a.ok ? '' : ' · abgelehnt'}</span>
+                  <div className="ai-lab-entry-text">{a.reason || '—'}</div>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="ai-lab-empty">Noch keine Trade-Aktionen protokolliert.</div>}
+
+          <div className="ai-lab-sub">Closed Loop – Selbstoptimierung</div>
+          <div className="ai-lab-setup">
+            <label className="ai-lab-check" title="Nach jeder Forschungs-Auswertung automatisch einen Optimizer-Lauf für den stärksten Kandidaten starten">
+              <span>Closed Loop</span>
+              <input type="checkbox" checked={clSettings.enabled === true}
+                onChange={e => saveJson('/api/ai/closed_loop/settings', { enabled: e.target.checked })}
+                data-testid="ai-cl-enabled-toggle" />
+            </label>
+            <label>
+              <span>Läufe/Tag</span>
+              <select value={clSettings.max_runs_per_day || 2}
+                onChange={e => saveJson('/api/ai/closed_loop/settings', { max_runs_per_day: Number(e.target.value) })}
+                data-testid="ai-cl-runs-select">
+                {[1, 2, 4, 6].map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Mindestabstand</span>
+              <select value={clSettings.min_gap_hours || 6}
+                onChange={e => saveJson('/api/ai/closed_loop/settings', { min_gap_hours: Number(e.target.value) })}
+                data-testid="ai-cl-gap-select">
+                {[1, 3, 6, 12, 24].map(v => <option key={v} value={v}>{v} h</option>)}
+              </select>
+            </label>
+            <button className="ai-action-btn" disabled={!!busy}
+              onClick={() => post('/api/ai/closed_loop/run', 'Closed-Loop-Optimierung')}
+              data-testid="ai-cl-run-btn">
+              <ArrowsClockwise size={13} weight="bold" className={busy === 'Closed-Loop-Optimierung' ? 'spin' : ''} /> Jetzt optimieren
+            </button>
+          </div>
+          <div className="ai-lab-meta">
+            {clSettings.enabled ? 'Aktiv' : 'Aus'} · heute {cl.state?.runs_today || 0}/{clSettings.max_runs_per_day} Läufe ·
+            {' '}zuletzt {fmt(cl.state?.last_run)}
+          </div>
+          {cl.state?.last_result && (
+            <div className="ai-lab-summary" data-testid="ai-lab-cl-result">
+              Letzter Lauf ({cl.state.last_result.strategy_id}):
+              {' '}PnL {cl.state.last_result.metrics?.pnl} · Winrate {cl.state.last_result.metrics?.win_rate}% ·
+              {' '}{cl.state.last_result.passed ? 'Validierung bestanden' : 'Validierung nicht bestanden'}
+              {cl.state.last_result.params && Object.keys(cl.state.last_result.params).length > 0 && (
+                <div className="ai-lab-code">Vorschlag: {Object.entries(cl.state.last_result.params).map(([k, v]) => `${k}=${v}`).join(', ')} – Übernahme im Optimizer-Panel</div>
+              )}
             </div>
           )}
         </div>

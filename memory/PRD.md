@@ -49,6 +49,22 @@
 - **Tests**: `tests/test_ai_lab.py` (27 Offline-Tests) und `tests/test_ai_lab_api.py`
   (26 Integrationstests) – grün; KI-Trader-Regression (analyze/status/insights/learn/chat) grün.
 
+## Umgesetzt (2026-06, Teil 2)
+- **KI-Trade-Steuerung** (`services/ai_trade_manager.py`, Rolle `trade_manager`): die KI eröffnet
+  eigene Trades (Seite, SL/TP in %, Hebel, Kapitalanteil) und steuert offene Trades live –
+  vorzeitiger Close, Teil-Close, SL/TP verschieben, Margin hinzufügen/entnehmen, Hebel ändern bei
+  gleicher Positionsgröße. Ausführung für Paper und Live über eine Quelle im AutoTrader
+  (Bitunix `adjust_position_margin` / `change_leverage`), inkl. Neuberechnung von Margin,
+  effektivem Hebel und Liquidationspreis.
+- **Schutzregeln**: max. Aktionen pro Trade, Cooldown, Hebel-Obergrenze, Margin-Aufschlagslimit,
+  Zusatz-Margin nur aus freiem Kapital; vollständiges Audit (`ai_trade_actions`, Trade-Events,
+  KI-Chat, Gedächtnis). Kapitalrahmen und Paper/Live-Modus bleiben für die KI tabu.
+- **Closed Loop** (`services/ai_closed_loop.py`, standardmäßig AUS): nach jeder Forschungs-
+  Auswertung startet die KI optional selbst einen Optimizer-Lauf für den stärksten Kandidaten;
+  validierte Ergebnisse werden als Vorschlag hinterlegt (Übernahme bleibt manuell).
+- UI: KI-Labor-Tab „Trade-Steuerung" mit Schaltern, Limits, manuellen Aktions-Buttons je Trade,
+  Aktions-Protokoll und Closed-Loop-Schalter. Tests: `tests/test_ai_lab.py` jetzt 34 Tests.
+
 ## Kern-Anforderungen (statisch)
 1. Bestehende Endpunkte, Datenmodelle und Nutzer-Workflows bleiben unverändert.
 2. Kapital (`max_capital`) und Paper/Live-Modus bleiben für jede KI tabu.
@@ -59,8 +75,8 @@
 ## Backlog (priorisiert)
 - **P0**: Supabase-Tabelle `ai_knowledge` im Projekt anlegen (`backend/scripts/supabase_schema.sql`),
   danach Spiegel-Status im KI-Labor prüfen.
-- **P1**: Optuna direkt auf Strategie-Parameter des Optimizers ansetzen (Vorschläge an den Optimizer
-  zurückgeben statt nur XGBoost-Hyperparameter); ML-Regime-Zuordnung aus dem Regime-Lab statt
+- **P1**: automatische Übernahme validierter Closed-Loop-Parameter (aktuell manuell);
+  ML-Regime-Zuordnung aus dem Regime-Lab statt
   heuristischem Label; Embeddings + semantische Suche im Gedächtnis.
 - **P2**: Forschungs-Analyst darf validierte Parameter automatisch als Optimizer-Job anstoßen
   (Closed-Loop-Selbstoptimierung); Feature-Store für Trades (Marktzustand direkt beim Signal speichern);

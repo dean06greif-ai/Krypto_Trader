@@ -71,12 +71,18 @@ async def lifespan(app: FastAPI):
     from services.ai_research import research_analyst
     from services.ai_ml_lab import ml_lab
     from services.ai_market_observer import market_observer
+    from services.ai_trade_manager import trade_manager
+    from services.ai_closed_loop import closed_loop
     ai_memory.setup(app.mongodb)
     research_analyst.setup(ai_engine)
     ml_lab.setup(ai_engine)
     market_observer.setup(ai_engine)
+    trade_manager.setup(ai_engine, autotrader)
+    closed_loop.setup(ai_engine)
     await research_analyst.load_state()
     await ml_lab.load_state()
+    await trade_manager.load_state()
+    await closed_loop.load_state()
     try:
         await app.mongodb.ai_knowledge.create_index([("kind", 1), ("ts", -1)])
         await app.mongodb.ai_market_snapshots.create_index([("symbol", 1), ("ts", -1)])
