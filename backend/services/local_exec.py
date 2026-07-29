@@ -94,7 +94,7 @@ def worker_supports_regime_lab() -> bool:
     for w in WORKERS.values():
         if _now() - w.get("last_seen", 0) >= WORKER_TIMEOUT:
             continue
-        if _ver(w.get("version")) >= (1, 4):
+        if _ver(w.get("version")) >= (1, 3):
             return True
     return False
 
