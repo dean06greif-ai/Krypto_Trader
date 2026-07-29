@@ -102,3 +102,65 @@ Kurzfassung:
   Lauf zu ersetzen – dadurch wirkt `max_lessons` (bis 50) endlich.
 - Offene P1-Punkte: längere Forex-Historie (Yahoo = ~30 Tage), Fetch-Fehler beim
   initialen Frontend-Load, widersprüchliche Admin-Passwörter in Alt-Tests.
+
+---
+
+## Iteration 18 (29.06.2026) – Regime-Engine v2 + NNFX-Framework
+
+### Problem (Nutzer)
+Regime wurden falsch erkannt: nur 2 Cluster, "leicht abwärts" bei starkem Absturz,
+Trends zu spät oder gar nicht, Labels passten nicht zum Chart. Wunsch: mathematisch
+belastbare Regime-Erkennung (Regression, ADX, Volatilität, Multi-Timeframe, Hysterese,
+Confidence), 9er-Taxonomie + Mapping auf 3 NNFX-Regime, NNFX als echtes Modul mit
+3 Strategien, automatische Strategie-Umschaltung (optional mit manueller Bestätigung),
+Validierung der Regime, viele Einstellmöglichkeiten, alles im Regime-Lab an einem Ort.
+
+### Umgesetzt
+1. `backend/services/regime_features.py` – vektorisierte, rein rückblickende Mathematik:
+   rollierende OLS (Steigung, **t-Wert**, R²), Wilder-ADX/DI+/DI-, ATR%, realisierte Vola,
+   Kaufman-Effizienz, rollierender z-Wert, Donchian (auch zeitversetzt), Varianz-Verhältnis
+   (Lo/MacKinlay), Run-Length. 200k Bars in ~1 s.
+2. `backend/services/regime_engine.py` – Engine v2 (feste Taxonomie statt Clustering):
+   Trend-Score = gewichteter t-Wert über mehrere Horizonte (Standard 5/10/20/50/100 Tage)
+   × Horizont-Konsens × DI-Bestätigung; Vola-Stufe über z-Wert des geglätteten ATR%;
+   Range-Filter (Trend-Einstieg nur bei neuem Extrem / Bestätigung des langen Horizonts /
+   Timeout / sehr starkem Score); Zustandsautomat mit Hysterese, Bestätigungsdauer,
+   Mindesthaltedauer, Confidence-Schwelle. 9 Regime (Trend × Vola) mit festen IDs/Labels
+   + NNFX-Mapping (trend/range/breakout). `validate_labels()` prüft jedes Segment gegen
+   den echten Kursverlauf (Abschnitt, Sichtfenster, langer Kontext, Vola-Stufe);
+   `ideal_labels()` liefert die Rückblick-Sicht (NUR Anzeige/Kontrolle, nie im Backtest).
+   ~47 Konfigurations-Keys, jeder mit Label/Erklärung (CONFIG_META) fürs Frontend.
+3. `services/regime.py` – `DEFAULT_ENGINE="v2"`, `is_v2()`, Dispatch in `detect_regimes`
+   (neu: `engine`, `engine_config`), `classify_series`, `current_regime`, `relabel_regimes`.
+   K-Means bleibt als `engine="kmeans"` erhalten (alte gespeicherte Modelle laufen weiter).
+4. `services/regime_lab.py` + `routers/regime_lab.py` – Engine-Auswahl je Analyse,
+   gespeicherte Validierung/aktuelles Regime/Rückblick-Vergleich je Coin,
+   `GET /api/regime-lab/engine/defaults`, `POST /api/regime-lab/{aid}/build-nnfx`
+   (idempotent, schreibt zusätzlich Regime-Zuordnungen für den bestehenden Walk-Forward).
+5. NNFX-Modul `backend/strategies/nnfx_strategies.py` – NNFX Trend / Mean-Reversion /
+   Breakout (14–18 Parameter je Strategie, gemeinsame Signalberechnung für Live und
+   vektorisierten Backtest). Neue Indikatoren in `services/vec.py` + `FastSeries`:
+   ADX/DI+/DI-, CCI, Keltner, Donchian.
+6. Automatische Umschaltung: `dynamic_live.apply_regime_strategies()` aktiviert je Coin die
+   Strategie des aktuellen Regimes (Coin-Toggles + Trade-Parameter), `require_confirmation`
+   pro Bot erzeugt `pending_switch` statt automatisch zu schalten;
+   `POST /api/dynamic/{id}/confirm` / `/dismiss`.
+7. Frontend: `RegimeEngineSettings.js` (Engine-Wahl + generische Feineinstellungen),
+   `RegimeValidation.js` (Prüfbericht), RegimeLab (aktuelles Regime je Coin, NNFX-Tags,
+   Rückblick-Band im Chart, "NNFX-Framework anwenden", Abschnitt 4 mit DynamicPanel),
+   DynamicPanel (NNFX-Badge, aktive Strategie je Coin, manuelle Bestätigung, Begründung).
+8. Tests: `tests/test_regime_engine.py` (28), `tests/test_nnfx.py` (17),
+   `tests/regime_scenarios.py` (11 synthetische Märkte), `scripts/regime_report.py`
+   (Diagnose-Tabelle), `tests/test_regime_v2_integration.py` (16 API-Tests, Testing-Agent).
+   Realdaten BTC/ETH 12h/720d: 9 Regime, Validierung bestanden, Richtungstreffer 80 %,
+   Ø Abschnitt ~12 Tage, Übereinstimmung mit Rückblick-Sicht 82 %.
+
+### Offen / nächste Schritte
+- P1: Optimierung der NNFX-**Strategieparameter** je Regime (aktuell optimiert der
+  Regime-Optimizer die Trade-Parameter; Strategie-Parameter-Suche wäre der nächste Schritt).
+- P1: Regime-Wechsel-Frühwarnung (z. B. Score-Momentum / Wahrscheinlichkeit des Wechsels)
+  in Regime-Lab und Live-Panel anzeigen.
+- P2: KI-Kommentar zur Regime-Lage (bestehende KI-Anbindung, nur Komfort – Erkennung bleibt
+  rein mathematisch).
+- P2: Varianz-Verhältnis-Filter auf Realdaten evaluieren (Standard aus).
+- P2: Chart je Strategie-Detail (Equity + Regime-Bänder) im Dynamik-Panel.

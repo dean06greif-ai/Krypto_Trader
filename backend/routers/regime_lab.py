@@ -379,7 +379,12 @@ async def build_nnfx(aid: str, body: Dict, _: bool = Depends(require_admin)):
     if not mapping:
         raise HTTPException(status_code=400, detail="Keine behaltenen Regime vorhanden")
     configs = {str(k): (v or {}) for k, v in (body.get("configs") or {}).items()}
-    did = f"dyn_{uuid.uuid4().hex[:8]}"
+    # Idempotent: für dieselbe Analyse + denselben Bereich wird die bestehende
+    # NNFX-Strategie aktualisiert statt jedes Mal eine neue anzulegen.
+    existing = await state.db.dynamic_strategies.find_one(
+        {"framework": "nnfx", "settings.analysis_id": aid, "settings.scope_key": key})
+    did = (existing or {}).get("id") or f"dyn_{uuid.uuid4().hex[:8]}"
+    prev_set = (existing or {}).get("settings") or {}
     dyn_doc = {"id": did,
                "name": body.get("name") or f"NNFX: {doc.get('name')}",
                "framework": "nnfx",
@@ -392,12 +397,18 @@ async def build_nnfx(aid: str, body: Dict, _: bool = Depends(require_admin)):
                "fallback_config": {}, "rule_variants": {}, "sub_strategies": {},
                "settings": {"confidence_min": (doc.get("settings") or {}).get("confidence_min"),
                             "min_hold_days": (doc.get("settings") or {}).get("min_hold_days"),
-                            "auto_check_enabled": False, "auto_apply_enabled": False,
-                            "require_confirmation": bool(body.get("require_confirmation", True)),
-                            "check_interval_minutes": 60, "check_days": 30,
-                            "source": "regime_lab_nnfx", "analysis_id": aid},
-               "verdict": {}, "created_at": datetime.now(timezone.utc).isoformat(),
-               "last_state": {}}
+                            "auto_check_enabled": bool(prev_set.get("auto_check_enabled")),
+                            "auto_apply_enabled": bool(prev_set.get("auto_apply_enabled")),
+                            "require_confirmation": bool(
+                                prev_set.get("require_confirmation",
+                                             body.get("require_confirmation", True))),
+                            "check_interval_minutes": prev_set.get("check_interval_minutes") or 60,
+                            "check_days": prev_set.get("check_days") or 30,
+                            "source": "regime_lab_nnfx", "analysis_id": aid,
+                            "scope_key": key},
+               "verdict": {}, "created_at": ((existing or {}).get("created_at")
+                                             or datetime.now(timezone.utc).isoformat()),
+               "last_state": (existing or {}).get("last_state") or {}}
     await state.db.dynamic_strategies.replace_one({"id": did}, dyn_doc, upsert=True)
     # Zusätzlich als Zuordnungen in der Analyse speichern -> der bestehende
     # Walk-Forward/Build-Weg kann die NNFX-Kombination direkt testen.

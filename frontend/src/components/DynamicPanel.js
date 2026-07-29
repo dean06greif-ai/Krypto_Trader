@@ -245,6 +245,13 @@ export default function DynamicPanel() {
                       data-testid={`dyn-auto-check-${s.id}`} />
                     Auto-Prüfung
                   </label>
+                  <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}
+                    title="Wechsel werden nicht automatisch übernommen, sondern als Vorschlag angezeigt und müssen bestätigt werden">
+                    <input type="checkbox" checked={!!s.settings?.require_confirmation}
+                      onChange={e => saveSettings(s.id, { require_confirmation: e.target.checked })}
+                      data-testid={`dyn-require-confirm-${s.id}`} />
+                    nur mit manueller Bestätigung
+                  </label>
                   {s.settings?.auto_check_enabled && (
                     <>
                       <label style={{ display: 'flex', gap: 4, alignItems: 'center' }}>alle
@@ -262,15 +269,6 @@ export default function DynamicPanel() {
                           data-testid={`dyn-auto-apply-${s.id}`} />
                         Auto-Übernahme bei Wechsel
                       </label>
-                      {s.settings?.auto_apply_enabled && (
-                        <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }}
-                          title="Wechsel werden nicht sofort übernommen, sondern als Vorschlag angezeigt und müssen hier bestätigt werden">
-                          <input type="checkbox" checked={!!s.settings?.require_confirmation}
-                            onChange={e => saveSettings(s.id, { require_confirmation: e.target.checked })}
-                            data-testid={`dyn-require-confirm-${s.id}`} />
-                          nur mit manueller Bestätigung
-                        </label>
-                      )}
                     </>
                   )}
                 </div>
