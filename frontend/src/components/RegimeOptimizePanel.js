@@ -68,6 +68,7 @@ export default function RegimeOptimizePanel({ analysisId, scope, symbol, regime,
   const [job, setJob] = useState(null);
   const [result, setResult] = useState(null);
   const [assigning, setAssigning] = useState(null);
+  const [optStratParams, setOptStratParams] = useState(false);
   const pollRef = useRef(null);
 
   useEffect(() => () => clearInterval(pollRef.current), []);
@@ -87,6 +88,7 @@ export default function RegimeOptimizePanel({ analysisId, scope, symbol, regime,
           base_strategy_id: mode !== 'params' && baseStrategy ? baseStrategy : undefined,
           indicators: mode === 'params' ? undefined : indicators,
           iterations, objective, min_trades: minTrades, max_rules: maxRules,
+          optimize_strategy_params: mode === 'params' ? optStratParams : undefined,
           optimize: optFlags, timeframe: tf,
           regime_walk_forward: regimeWf, regime_train_pct: regimeTrainPct,
           execution,
@@ -129,6 +131,7 @@ export default function RegimeOptimizePanel({ analysisId, scope, symbol, regime,
             definition: result.definition,
             rules: result.discovery?.rules || [],
             trade_params: cand.trade_params,
+            strategy_params: cand.strategy_params,
             metrics: cand.metrics,
             validation: cand.validation,
             source_job_id: job?.id,
@@ -161,6 +164,15 @@ export default function RegimeOptimizePanel({ analysisId, scope, symbol, regime,
               <option value="">– wählen –</option>
               {strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+          </label>
+        )}
+        {mode === 'params' && (
+          <label className="opt-check" style={{ paddingBottom: 0 }}
+            title="Sucht zusätzlich die Strategie-Parameter (Perioden, Schwellen, Filter) für genau dieses Regime – z.B. um NNFX je Marktphase zu justieren">
+            <input type="checkbox" checked={optStratParams}
+              onChange={e => setOptStratParams(e.target.checked)}
+              data-testid={`regime-opt-stratparams-${regime.id}`} />
+            Strategie-Parameter mitoptimieren
           </label>
         )}
         {mode !== 'params' && (
@@ -286,6 +298,12 @@ export default function RegimeOptimizePanel({ analysisId, scope, symbol, regime,
                   <CheckCircle size={13} /> Für dieses Regime übernehmen
                 </button>
               </div>
+              {Object.keys(c.strategy_params || {}).length > 0 && (
+                <div className="opt-small" data-testid={`regime-opt-stratparams-out-${regime.id}-${i}`}>
+                  Strategie-Parameter: {Object.entries(c.strategy_params).map(([k, v]) =>
+                    `${k}=${v}`).join(' · ')}
+                </div>
+              )}
               {Object.keys(c.trade_params || {}).length > 0 && (
                 <div className="opt-params-list" style={{ marginTop: 6, marginBottom: 0 }}>
                   {Object.entries(c.trade_params).map(([k, v]) =>

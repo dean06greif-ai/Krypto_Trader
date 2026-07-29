@@ -618,6 +618,110 @@ def build_model(histories: Dict[str, List[Dict]], timeframe: str,
             "n_samples": int(total_bars), "symbols": list((histories or {}).keys())}
 
 
+# ---------------------------------------------------------------- Frühwarnung
+def early_warning(f: Dict, cfg: Dict, i: int, cur_t: int, cur_v: int,
+                  b: Dict = None) -> Dict:
+    """Frühwarnung für einen Regime-Wechsel – bevor Bestätigungsdauer und
+    Mindesthaltedauer greifen.
+
+    Drei unabhängige Bausteine (rein mathematisch, kein Lookahead):
+    1. KANDIDAT: welcher Zustand wäre nach den Hysterese-Bändern gerade gewollt
+       und wie lange hält dieser Wunsch schon an (pending_bars).
+    2. ABSTAND: wie weit ist der Trend-Score von der nächsten Schwelle entfernt
+       (normiert auf die Schwelle).
+    3. MOMENTUM: Steigung des Scores pro Tag (Regression über das
+       Bestätigungsfenster) -> geschätzte Tage bis zur Schwelle (ETA).
+    Daraus ein Wahrscheinlichkeits-Score 0..100 (Heuristik, klar dokumentiert).
+    """
+    b = b if b is not None else _bands(f, cfg)
+    thr, h = cfg["trend_t"], cfg["hysteresis"]
+    score = f["score"]
+    n = len(score)
+    if i < 5 or not np.isfinite(score[i]):
+        return {"active": False}
+    dt, dv = _desired_state(b, i, cur_t, cur_v)
+    pending = (dt, dv) != (cur_t, cur_v)
+    pending_bars = 0
+    if pending:
+        j = i
+        while j > 0 and b["valid"][j] and _desired_state(b, j, cur_t, cur_v) == (dt, dv):
+            pending_bars += 1
+            j -= 1
+            if pending_bars > 5 * max(cfg["confirm_bars"], 1):
+                break
+
+    # Momentum des Scores über das Bestätigungsfenster
+    w = max(int(cfg["confirm_bars"]) * 2, 6)
+    lo = max(i - w + 1, 0)
+    seg = score[lo:i + 1]
+    seg = seg[np.isfinite(seg)]
+    slope_per_day = 0.0
+    if len(seg) >= 4:
+        x = np.arange(len(seg), dtype=float)
+        x -= x.mean()
+        denom = float((x * x).sum()) or 1.0
+        slope_per_bar = float((x * (seg - seg.mean())).sum() / denom)
+        slope_per_day = slope_per_bar * cfg["bars_per_day"]
+
+    s_now = float(score[i])
+    # Nächste relevante Schwelle in Richtung der Bewegung
+    if cur_t == 1:
+        target = thr * (1 + h) if slope_per_day >= 0 else -thr * (1 + h)
+        target_t = 2 if slope_per_day >= 0 else 0
+    elif cur_t == 2:
+        target = thr * (1 - h)          # nach unten verlassen
+        target_t = 1
+    else:
+        target = -thr * (1 - h)
+        target_t = 1
+    gap = target - s_now
+    eta_days = None
+    if slope_per_day != 0 and (gap > 0) == (slope_per_day > 0):
+        eta_days = round(abs(gap) / abs(slope_per_day), 1)
+    dist_norm = min(abs(gap) / max(thr, 1e-9), 3.0)
+
+    prob = 0.0
+    if pending:
+        prob += 45.0 * min(pending_bars / max(cfg["confirm_bars"], 1), 1.0)
+    prob += 35.0 * max(0.0, 1.0 - dist_norm)
+    if eta_days is not None:
+        prob += 20.0 * max(0.0, 1.0 - min(eta_days / 10.0, 1.0))
+    prob = round(min(prob, 99.0), 1)
+
+    next_t = dt if pending else target_t
+    next_v = dv if pending else cur_v
+    rid_next = regime_id(next_t, next_v)
+    return {"active": prob >= 25.0 or pending,
+            "next_regime": rid_next, "next_label": regime_label(rid_next),
+            "next_nnfx": nnfx_regime(rid_next),
+            "probability_pct": prob,
+            "eta_days": eta_days,
+            "pending": bool(pending), "pending_bars": int(pending_bars),
+            "pending_days": round(pending_bars / max(cfg["bars_per_day"], 1e-9), 2),
+            "confirm_days": round(cfg["confirm_bars"] / max(cfg["bars_per_day"], 1e-9), 2),
+            "score": round(s_now, 3),
+            "score_slope_per_day": round(slope_per_day, 3),
+            "distance_to_threshold": round(float(gap), 3),
+            "reason": _warning_text(rid_next, prob, eta_days, pending, pending_bars,
+                                    cfg, slope_per_day)}
+
+
+def _warning_text(rid_next: int, prob: float, eta: Optional[float], pending: bool,
+                  pending_bars: int, cfg: Dict, slope: float) -> str:
+    parts = []
+    if pending:
+        d = pending_bars / max(cfg["bars_per_day"], 1e-9)
+        parts.append(f"Kandidat {regime_label(rid_next)} seit {d:.1f} Tagen "
+                     f"(Bestätigung ab {cfg['confirm_bars'] / max(cfg['bars_per_day'], 1e-9):.1f} Tagen)")
+    else:
+        parts.append(f"Nächster wahrscheinlicher Zustand: {regime_label(rid_next)}")
+    parts.append(f"Score-Momentum {slope:+.2f}/Tag")
+    if eta is not None:
+        parts.append(f"Schwelle in ca. {eta:.1f} Tagen")
+    parts.append(f"Wahrscheinlichkeit {prob:.0f}%")
+    return " · ".join(parts)
+
+
 # ---------------------------------------------------------------- Live-Status
 def current_regime(model: Dict, candles, conf_min: float = None,
                    min_hold_days: float = None) -> Dict:
@@ -651,11 +755,18 @@ def current_regime(model: Dict, candles, conf_min: float = None,
                               for h in range(len(cfg["horizons_days"]))]}
     strength = ("stark" if abs(score) >= cfg["trend_strong_t"] else
                 ("moderat" if abs(score) >= cfg["trend_t"] else "schwach"))
+    t_idx, v_idx = split_id(rid)
+    warn = early_warning(f, cfg, last, t_idx, v_idx)
+    if warn.get("active") is not None:
+        active_days = (last - switch_i) / max(cfg["bars_per_day"], 1e-9)
+        warn["min_hold_days"] = round(cfg["min_hold_bars"] / max(cfg["bars_per_day"], 1e-9), 2)
+        warn["hold_remaining_days"] = max(round(warn["min_hold_days"] - active_days, 2), 0.0)
     return {"regime": rid, "label": regime_label(rid),
             "nnfx": nnfx_regime(rid), "nnfx_label": NNFX_LABELS[nnfx_regime(rid)],
             "strength": strength,
             "confidence": round(float(conf[last]) * 100, 1),
             "similarities": [], "details": detail,
+            "early_warning": warn,
             "reason": _reason_text(rid, detail, strength),
             "last_switch": ts, "active_since_bars": int(last - switch_i)}
 

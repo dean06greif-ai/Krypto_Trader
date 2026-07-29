@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowsClockwise, CheckCircle, Trash, CaretDown, CaretRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { regimeColor } from '../lib/regimeColors';
 import { authHeaders, isAdmin } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';
 
@@ -68,6 +69,20 @@ function LiveRegime() {
                 : ` · Cluster-Qualität ${fmt(data.silhouette, 2)}`}</span>
           </div>
           {cur?.reason && <div className="opt-small" style={{ color: '#8A8FA3' }}>{cur.reason}</div>}
+          {cur?.early_warning?.active && (
+            <div className="rl-warn" data-testid="live-regime-warning" title={cur.early_warning.reason}>
+              Frühwarnung: Wechsel → <b>{cur.early_warning.next_label}</b> ·
+              {' '}Wahrscheinlichkeit <b>{fmt(cur.early_warning.probability_pct, 0)}%</b>
+              {cur.early_warning.eta_days !== null && cur.early_warning.eta_days !== undefined
+                ? <> · Schwelle in ca. <b>{cur.early_warning.eta_days}</b> Tagen</> : null}
+              {cur.early_warning.pending
+                ? <> · Kandidat hält seit <b>{cur.early_warning.pending_days}</b> von {cur.early_warning.confirm_days} Tagen</>
+                : null}
+              {cur.early_warning.hold_remaining_days > 0
+                ? <> · Mindesthaltedauer noch <b>{cur.early_warning.hold_remaining_days}</b> Tage</>
+                : null}
+            </div>
+          )}
           {data.validation && (
             <div className="opt-small" data-testid="live-regime-validation">
               Prüfung: {data.validation.passed ? <span className="pos">plausibel</span> : <span style={{ color: '#FFB74D' }}>Auffälligkeiten</span>}
@@ -79,7 +94,10 @@ function LiveRegime() {
           <div className="opt-params-list" style={{ margin: '4px 0' }}>
             {(data.regimes || []).map(r => (
               <span key={r.id} className="opt-param-pill"
-                style={r.id === cur?.regime ? { borderColor: 'rgba(124,255,178,0.7)' } : undefined}>
+                title={`Farbe: Richtung (rot/gelb/grün) · Intensität: Volatilität`}
+                style={r.id === cur?.regime
+                  ? { borderColor: regimeColor(r.id, data.regimes), color: regimeColor(r.id, data.regimes) }
+                  : { borderColor: `${regimeColor(r.id, data.regimes)}55` }}>
                 #{r.id + 1} {r.label} · <b>{fmt(r.share_pct, 0)}%</b>
                 {r.nnfx ? ` · ${NNFX_LABELS[r.nnfx]}` : ''}
               </span>
@@ -322,6 +340,18 @@ export default function DynamicPanel() {
                       {st.last_switch && <span className="opt-small"> · letzter Wechsel: {new Date(st.last_switch).toLocaleDateString('de-DE')}</span>}
                     </div>
                     {st.reason && <div className="opt-small" style={{ color: '#8A8FA3' }}>{st.reason}</div>}
+                    {st.early_warning?.active && (
+                      <div className="rl-warn" data-testid={`dyn-warn-${s.id}-${sym}`}
+                        title={st.early_warning.reason}>
+                        Frühwarnung: Wechsel → <b>{st.early_warning.next_label}</b> ·
+                        {' '}<b>{fmt(st.early_warning.probability_pct, 0)}%</b>
+                        {st.early_warning.eta_days !== null && st.early_warning.eta_days !== undefined
+                          ? <> · ca. <b>{st.early_warning.eta_days}</b> Tage</> : null}
+                        {s.regime_strategies?.[String(st.early_warning.next_regime)]
+                          ? <> · dann Strategie <b>{s.regime_strategies[String(st.early_warning.next_regime)]}</b></>
+                          : null}
+                      </div>
+                    )}
                     {(st.similarities || []).length > 0 && (
                       <div className="opt-small">
                         Ähnlichkeiten: {(st.similarities || []).map(x => `${x.label} ${fmt(x.similarity_pct, 0)}%`).join(' · ')}

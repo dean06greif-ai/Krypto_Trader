@@ -4,8 +4,9 @@ import {
   ReferenceArea, ReferenceLine,
 } from 'recharts';
 
-export const REGIME_COLORS = ['#30D158', '#FF453A', '#FFD60A', '#64D2FF', '#BF5AF2',
-  '#FF9F0A', '#5E5CE6', '#66D4CF', '#FF6482', '#AC8E68'];
+import { regimeColor, regimeOpacity, REGIME_FALLBACK_COLORS } from '../lib/regimeColors';
+
+export const REGIME_COLORS = REGIME_FALLBACK_COLORS;
 
 const fmtDate = (ts) => {
   const d = new Date(ts);
@@ -34,14 +35,14 @@ export default function RegimeChart({ title, prices, segments, idealSegments, re
           {(segments || []).filter(s => !hidden[s.regime]).map((s, i) => (
             <ReferenceArea key={i} x1={s.from_ts} x2={s.to_ts}
               y1={min - pad} y2={max + pad}
-              fill={REGIME_COLORS[s.regime % REGIME_COLORS.length]}
-              fillOpacity={0.16} strokeOpacity={0} />
+              fill={regimeColor(s.regime, regimes)}
+              fillOpacity={regimeOpacity(s.regime, regimes)} strokeOpacity={0} />
           ))}
           {(idealSegments || []).map((s, i) => (
             <ReferenceArea key={`ideal-${i}`} x1={s.from_ts} x2={s.to_ts}
               y1={min - pad} y2={min - pad + (max - min + 2 * pad) * 0.07}
-              fill={REGIME_COLORS[s.regime % REGIME_COLORS.length]}
-              fillOpacity={0.75} strokeOpacity={0} />
+              fill={regimeColor(s.regime, regimes)}
+              fillOpacity={0.8} strokeOpacity={0} />
           ))}
           {trainEndTs && (
             <ReferenceLine x={trainEndTs} stroke="#ffa502" strokeDasharray="4 4"
@@ -70,7 +71,7 @@ export default function RegimeChart({ title, prices, segments, idealSegments, re
             onClick={() => setHidden(h => ({ ...h, [r.id]: !h[r.id] }))}
             data-testid={`regime-legend-${r.id}`}
             title="Klicken zum Ein-/Ausblenden der Markierung">
-            <span className="rl-dot" style={{ background: REGIME_COLORS[r.id % REGIME_COLORS.length] }} />
+            <span className="rl-dot" style={{ background: regimeColor(r.id, regimes) }} />
             #{r.id + 1} {r.label}
           </button>
         ))}

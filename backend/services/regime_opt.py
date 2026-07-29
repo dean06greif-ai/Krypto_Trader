@@ -214,37 +214,57 @@ async def run_regime_optimizer(job_id: str, body: Dict, registry, settings: Dict
         if strategy is not None:
             import random
             rng = random.Random(1000 + regime_id)
-            job["phase"] = f"Regime '{reg_meta['label']}': Trade-Parameter testen"
+            sid = getattr(strategy, "STRATEGY_ID", "") or ""
+            # Optional: auch die Strategie-Parameter (Perioden, Schwellen) für
+            # dieses Regime durchsuchen – z.B. um NNFX-Strategien je Marktphase
+            # zu justieren. Ohne Flag bleibt das Verhalten wie bisher.
+            p_space = {}
+            if body.get("optimize_strategy_params") and not getattr(strategy, "IS_CUSTOM", False):
+                from services.optimizer import strategy_param_space
+                p_space = strategy_param_space(
+                    strategy, skip_binary=not body.get("include_flag_params"))
+                keys = body.get("strategy_param_keys")
+                if keys:
+                    p_space = {k: v for k, v in p_space.items() if k in set(keys)}
+            job["phase"] = (f"Regime '{reg_meta['label']}': "
+                            + ("Strategie- und Trade-Parameter testen" if p_space
+                               else "Trade-Parameter testen"))
             base_m = await dyn.eval_regime_config(strategy, train_segs, regime_id,
                                                   settings, cfg, stop)
-            cands = [({}, base_m)]
-            if trade_space and iterations > 0:
+            cands = [({}, {}, base_m)]
+            if (trade_space or p_space) and iterations > 0:
                 for it in range(iterations):
                     if stop():
                         raise JobCancelled()
-                    set_phase(f"Regime '{reg_meta['label']}': Trade-Parameter "
+                    set_phase(f"Regime '{reg_meta['label']}': Parameter "
                               f"{it + 1}/{iterations}")
-                    tp = dyn.sample_config(trade_space, rng)
-                    m = await dyn.eval_regime_config(strategy, train_segs, regime_id,
-                                                     settings, {**cfg, **tp}, stop)
-                    cands.append((tp, m))
+                    tp = dyn.sample_config(trade_space, rng) if trade_space else {}
+                    sp = ({k: rng.choice(v) for k, v in p_space.items()}
+                          if p_space else {})
+                    m = await dyn.eval_regime_config(
+                        strategy, train_segs, regime_id,
+                        dyn.with_strategy_params(settings, sid, sp),
+                        {**cfg, **tp}, stop)
+                    cands.append((tp, sp, m))
                     prog()
-            cands.sort(key=lambda x: -_guarded(x[1], objective, min_trades))
+            cands.sort(key=lambda x: -_guarded(x[2], objective, min_trades))
             seen, uniq = set(), []
-            for tp, m in cands:
-                key = str(sorted(tp.items()))
+            for tp, sp, m in cands:
+                key = f"{sorted(tp.items())}|{sorted(sp.items())}"
                 if key not in seen:
                     seen.add(key)
-                    uniq.append((tp, m))
+                    uniq.append((tp, sp, m))
             min_val = max(int(min_trades * 0.4), 3)
-            for tp, m in uniq[:8]:
-                entry = {"trade_params": tp, "metrics": m,
+            for tp, sp, m in uniq[:8]:
+                entry = {"trade_params": tp, "strategy_params": sp, "metrics": m,
                          "score": round(_guarded(m, objective, min_trades), 3),
                          "validation": None, "validation_passed": None}
                 if val_segs:
                     set_phase(f"Regime '{reg_meta['label']}': Walk-Forward-Prüfung")
-                    vm = await dyn.eval_regime_config(strategy, val_segs, regime_id,
-                                                      settings, {**cfg, **tp}, stop)
+                    vm = await dyn.eval_regime_config(
+                        strategy, val_segs, regime_id,
+                        dyn.with_strategy_params(settings, sid, sp),
+                        {**cfg, **tp}, stop)
                     entry["validation"] = vm
                     entry["validation_passed"] = dyn.validation_passed(vm, min_val)
                 top5.append(entry)
@@ -391,6 +411,15 @@ async def run_walkforward(job_id: str, body: Dict, registry, settings: Dict,
                 st = registry.get(a.get("strategy_id") or "")
                 if st is not None:
                     strategies_by_regime[rid] = st
+        # Regime-spezifische Strategie-Parameter (z.B. je Marktphase justierte
+        # NNFX-Perioden) fließen über die Settings ein.
+        settings_by_regime = {}
+        for rid, a in assignments.items():
+            sp = a.get("strategy_params") or {}
+            st = strategies_by_regime.get(rid)
+            sid = getattr(st, "STRATEGY_ID", None) or a.get("strategy_id")
+            if sp and sid:
+                settings_by_regime[rid] = dyn.with_strategy_params(settings, sid, sp)
         fallback = base_strategy or next(iter(strategies_by_regime.values()))
         cfg = dict(default_cfg)
         if body.get("max_capital") is not None:
@@ -399,7 +428,8 @@ async def run_walkforward(job_id: str, body: Dict, registry, settings: Dict,
         job["phase"] = "Dynamische Strategie auf dem Holdout simulieren"
         job["progress"] = 40
         dyn_m, rows = await dyn.eval_dynamic(fallback, test_segs, configs, cfg,
-                                             settings, stop, strategies_by_regime)
+                                             settings, stop, strategies_by_regime,
+                                             settings_by_regime or None)
         switches = sum(max(len(ss) - 1, 0) for ss in test_segs.values())
 
         # Benchmark: jede bestätigte Regime-Strategie EINZELN statisch auf dem
@@ -414,7 +444,7 @@ async def run_walkforward(job_id: str, body: Dict, registry, settings: Dict,
             st = strategies_by_regime.get(rid) or fallback
             m, _ = await dyn.eval_dynamic(st, stat_segs,
                                           {-1: configs.get(rid) or {}}, cfg,
-                                          settings, stop)
+                                          settings_by_regime.get(rid, settings), stop)
             singles.append({"regime": rid, "label": a.get("regime_label"),
                             "metrics": m})
         best_single = max(singles, key=lambda s: s["metrics"].get("pnl") or -1e18) \

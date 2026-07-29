@@ -56,3 +56,10 @@
 .rl-valid-body { padding: 4px 10px 10px; }
 .rl-valid-row { display: flex; gap: 10px; flex-wrap: wrap; padding: 4px 0; border-top: 1px dashed #2a2e3f; font-size: 10.5px; color: #8b90a0; }
 .rl-valid-row b { color: #c9cddb; }
+
+/* Frühwarnung für einen Regime-Wechsel */
+.rl-warn {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px;
+  background: rgba(255, 214, 10, 0.1); border: 1px solid rgba(255, 214, 10, 0.35);
+  color: #ffe27a; border-radius: 20px; padding: 1px 9px;
+}

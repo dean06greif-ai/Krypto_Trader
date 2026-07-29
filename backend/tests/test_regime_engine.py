@@ -255,6 +255,47 @@ def test_kmeans_engine_still_available():
     assert any(l is not None for l in labels)
 
 
+def test_early_warning_signals_reversal_before_switch():
+    """Frühwarnung muss den Wechsel vor der offiziellen Umschaltung anzeigen."""
+    up = series(250, 0.55, 0.9, seed=131)
+    down = series(120, -0.7, 0.9, start=float(up[-1]), seed=132)
+    candles = make_candles(np.concatenate([up, down]))
+    model, labels = labels_for(candles)
+    # erster Bar, an dem das Label offiziell auf Abwärts wechselt
+    switch = next((i for i in range(250, len(labels))
+                   if labels[i] is not None and eng.split_id(labels[i])[0] == 0), None)
+    assert switch is not None, "Wechsel wurde nicht erkannt"
+    warned = None
+    for i in range(250, switch):
+        cur = eng.current_regime(model, candles[:i + 1])
+        w = cur.get("early_warning") or {}
+        if w.get("active") and eng.split_id(w["next_regime"])[0] == 0:
+            warned = i
+            break
+    assert warned is not None, "keine Frühwarnung vor dem Wechsel"
+    assert warned < switch, (warned, switch)
+
+
+def test_early_warning_quiet_in_stable_trend():
+    """In einem stabilen Trend darf keine hohe Wechsel-Wahrscheinlichkeit gemeldet werden."""
+    candles = make_candles(series(400, 0.5, 0.7, seed=133))
+    model, _labels = labels_for(candles)
+    cur = eng.current_regime(model, candles)
+    w = cur.get("early_warning") or {}
+    assert w.get("probability_pct", 0) < 70, w
+
+
+def test_early_warning_fields_are_serialisable():
+    import json
+    candles = make_candles(series(300, -0.3, 1.2, seed=134))
+    model, _l = labels_for(candles)
+    cur = eng.current_regime(model, candles)
+    json.dumps(cur)
+    w = cur["early_warning"]
+    for k in ("active", "next_regime", "probability_pct", "pending", "reason"):
+        assert k in w
+
+
 def test_nnfx_mapping_covers_all_regimes():
     ids = [t["id"] for t in eng.taxonomy()]
     assert len(ids) == 9

@@ -11,6 +11,7 @@ import RegimeOptimizePanel from './RegimeOptimizePanel';
 import RegimeEngineSettings from './RegimeEngineSettings';
 import RegimeValidation from './RegimeValidation';
 import DynamicPanel from './DynamicPanel';
+import { regimeColor } from '../lib/regimeColors';
 import './RegimeLab.css';
 
 const NNFX_LABELS = { trend: 'NNFX: Trend', range: 'NNFX: Seitwärts', breakout: 'NNFX: Breakout' };
@@ -59,8 +60,10 @@ function RegimeCard({ analysis, scope, symbol, regime, usage, strategies, jobBlo
 
   return (
     <div className={`rl-regime-card ${kept ? '' : 'discarded'} ${assignment ? 'assigned' : ''}`}
+      style={{ borderLeft: `3px solid ${regimeColor(regime.id, [regime])}` }}
       data-testid={`regime-card-${scope}-${regime.id}`}>
       <div className="rl-regime-head">
+        <span className="rl-dot" style={{ background: regimeColor(regime.id, [regime]) }} />
         <label className="opt-check" style={{ paddingBottom: 0 }} title="Verworfene Regime werden bei Strategie-Suche und Zusammenbau übersprungen">
           <input type="checkbox" checked={kept} onChange={toggleKeep}
             data-testid={`regime-keep-${scope}-${regime.id}`} /> behalten
@@ -342,6 +345,7 @@ function AnalysisDetail({ analysis, strategies, jobBlocked, execution, onChanged
           {currentBadges.map(([sym, c]) => (
             <div key={sym} className="rl-current" data-testid={`regime-current-${sym}`}
               title={c.reason || ''}>
+              <span className="rl-dot" style={{ background: regimeColor(c.regime, regimes) }} />
               <b>{sym.replace('USDT', '')}</b>
               <span className="rl-current-label">{c.label}</span>
               {c.nnfx && <span className={`rl-nnfx-tag ${c.nnfx}`}>{NNFX_LABELS[c.nnfx] || c.nnfx}</span>}
@@ -349,6 +353,14 @@ function AnalysisDetail({ analysis, strategies, jobBlocked, execution, onChanged
               {c.strength && <span className="opt-small">Stärke <b>{c.strength}</b></span>}
               {c.last_switch && (
                 <span className="opt-small">seit {new Date(c.last_switch).toLocaleDateString('de-DE')}</span>
+              )}
+              {c.early_warning?.active && (
+                <span className="rl-warn" title={c.early_warning.reason}
+                  data-testid={`regime-warn-${sym}`}>
+                  Wechsel → {c.early_warning.next_label} · {fmt(c.early_warning.probability_pct, 0)}%
+                  {c.early_warning.eta_days !== null && c.early_warning.eta_days !== undefined
+                    ? ` · ~${c.early_warning.eta_days} Tage` : ''}
+                </span>
               )}
             </div>
           ))}

@@ -204,6 +204,22 @@ async def _set_toggle(strategy_id: str, symbol: str, enabled: bool):
     strategy_coin_toggles[(strategy_id, symbol)] = bool(enabled)
 
 
+async def _apply_strategy_params(strategy_id: str, symbol: str, params: Dict):
+    """Regime-spezifische Strategie-Parameter (Perioden, Schwellen) für EINEN Coin
+    setzen – wirkt live über scanner.settings['coin_params'] und in Backtests über
+    strategy_coin_configs[...]['params']."""
+    if not params or not strategy_id:
+        return
+    from core.state import scanner
+    cp = dict(scanner.settings.get("coin_params", {}))
+    strat_cp = dict(cp.get(strategy_id, {}))
+    strat_cp[symbol] = {**strat_cp.get(symbol, {}), **params}
+    cp[strategy_id] = strat_cp
+    scanner.update_settings({"coin_params": cp})
+    await state.db.settings.update_one({"_id": "scanner_settings"},
+                                       {"$set": scanner.settings}, upsert=True)
+
+
 async def apply_regime_strategies(doc: Dict) -> list:
     """Multi-Strategie-Modus (z.B. NNFX): pro Coin die Strategie des AKTUELLEN
     Regimes aktivieren und die übrigen Regime-Strategien für diesen Coin
@@ -229,13 +245,18 @@ async def apply_regime_strategies(doc: Dict) -> list:
         for sid in all_sids:
             await _set_toggle(sid, sym, sid == want)
         cfg_r = configs.get(str(rid)) or {}
-        if want and cfg_r:
+        params_r = (doc.get("regime_params") or {}).get(str(rid)) or {}
+        if want and params_r:
+            await _apply_strategy_params(want, sym, params_r)
+        if want and (cfg_r or params_r):
             key = f"{want}_{sym}"
             prev = await state.db.strategy_coin_configs.find_one({"_id": key})
             merged = dict((prev or {}).get("config", {}))
             for k in OPT_TRADE_KEYS:
                 if cfg_r.get(k) is not None:
                     merged[k] = cfg_r[k]
+            if params_r:
+                merged["params"] = {**(merged.get("params") or {}), **params_r}
             merged.update({"dynamic_applied": now_iso, "dynamic_id": doc["id"],
                            "dynamic_regime": rid})
             await state.db.strategy_coin_configs.replace_one(
@@ -243,6 +264,7 @@ async def apply_regime_strategies(doc: Dict) -> list:
             autotrader.config.setdefault("strategy_coin_configs", {})[key] = merged
         applied.append({"symbol": sym, "regime": rid, "label": st.get("label"),
                         "confidence": st.get("confidence"), "strategy_id": want,
+                        "strategy_params": params_r or None,
                         "disabled": [s for s in all_sids if s != want]})
     await state.db.dynamic_strategies.update_one(
         {"id": doc["id"]}, {"$set": {"last_applied": now_iso,

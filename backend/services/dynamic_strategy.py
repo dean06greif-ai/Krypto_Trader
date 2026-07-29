@@ -140,10 +140,24 @@ def register_segments(*segment_maps) -> Dict[str, object]:
     return data
 
 
-async def _rows_for(strategy, segs: List[tuple], settings: Dict, cfg_for,
+def with_strategy_params(settings: Dict, strategy_id: str, params: Dict) -> Dict:
+    """Settings-Kopie mit überschriebenen Strategie-Parametern (Indikator-Perioden,
+    Schwellen ...). Wirkt sowohl im sequenziellen als auch im Multi-Core-Pfad,
+    weil die Settings je Segment übergeben werden."""
+    if not params:
+        return settings
+    sp = dict(settings.get("strategy_params") or {})
+    sp[strategy_id] = {**(sp.get(strategy_id) or {}), **params}
+    return {**settings, "strategy_params": sp}
+
+
+async def _rows_for(strategy, segs: List[tuple], settings, cfg_for,
                     should_stop=None) -> List[Dict]:
     """segs: Liste von (sym, seg). Läuft über alle CPU-Kerne, wenn ein Pool
-    gesetzt ist – sonst sequenziell im Thread (identisches Ergebnis)."""
+    gesetzt ist – sonst sequenziell im Thread (identisches Ergebnis).
+    `settings` darf ein Dict ODER eine Funktion seg -> Settings sein (z.B. für
+    Regime-spezifische Strategie-Parameter)."""
+    set_for = settings if callable(settings) else (lambda _s: settings)
     t_wall = time.perf_counter()
     BENCH["evaluations"] += 1
     BENCH["segments"] += len(segs)
@@ -155,7 +169,7 @@ async def _rows_for(strategy, segs: List[tuple], settings: Dict, cfg_for,
             st = strategy(seg) if callable(strategy) else strategy
             t0 = time.perf_counter()
             out.append((seg, await asyncio.to_thread(
-                simulate_segment, st, seg, sym, settings, cfg_for(seg), should_stop)))
+                simulate_segment, st, seg, sym, set_for(seg), cfg_for(seg), should_stop)))
             BENCH["cpu_seconds"] += time.perf_counter() - t0
         BENCH["sim_seconds"] += time.perf_counter() - t_wall
         return out
@@ -168,19 +182,27 @@ async def _rows_for(strategy, segs: List[tuple], settings: Dict, cfg_for,
         st = strategy(seg) if callable(strategy) else strategy
         futs.append(loop.run_in_executor(
             _POOL, parallel_sim.sim_segment_task_timed, parallel_sim.strategy_spec(st),
-            seg["_key"], sym, settings, cfg_for(seg), _iso(seg["start_ts"])))
+            seg["_key"], sym, set_for(seg), cfg_for(seg), _iso(seg["start_ts"])))
     timed = await asyncio.gather(*futs)
     BENCH["cpu_seconds"] += sum(d for _, d in timed)
     BENCH["sim_seconds"] += time.perf_counter() - t_wall
     return list(zip([s for _, s in segs], [rows for rows, _ in timed]))
 
 
-def _def_key(strategy) -> str:
+def _def_key(strategy, settings: Dict = None, sym: str = None) -> str:
+    """Cache-Schlüssel einer Strategie-VARIANTE. Wichtig: für Built-in-Strategien
+    gehören die effektiven Strategie-Parameter dazu, sonst würden verschiedene
+    Parameter-Kandidaten denselben (falschen) Signal-Provider wiederverwenden."""
     if getattr(strategy, "IS_CUSTOM", False):
         d = strategy.definition
         return json.dumps({"i": d.get("indicators"), "l": d.get("long_rules"),
                            "s": d.get("short_rules")}, sort_keys=True, default=str)
-    return getattr(strategy, "STRATEGY_ID", "builtin")
+    sid = getattr(strategy, "STRATEGY_ID", "builtin")
+    sp = ((settings or {}).get("strategy_params") or {}).get(sid) or {}
+    cp = (((settings or {}).get("coin_params") or {}).get(sid) or {}).get(sym) or {}
+    if not sp and not cp:
+        return sid
+    return sid + "|" + json.dumps({**sp, **cp}, sort_keys=True, default=str)
 
 
 def provider_for_seg(strategy, seg: Dict, settings: Dict, sym: str):
@@ -197,7 +219,7 @@ def provider_for_seg(strategy, seg: Dict, settings: Dict, sym: str):
     if fs is None:
         return None
     cache = seg.setdefault("_prov", {})
-    key = _def_key(strategy)
+    key = _def_key(strategy, settings, sym)
     if key in cache:
         return cache[key]
     try:
@@ -241,16 +263,19 @@ async def eval_regime_config(strategy, segments: Dict[str, List[Dict]], rid: int
 
 async def eval_dynamic(strategy, segments: Dict[str, List[Dict]],
                        configs: Dict[int, Dict], base_cfg: Dict, settings: Dict,
-                       should_stop=None, strategies_by_regime: Dict = None
+                       should_stop=None, strategies_by_regime: Dict = None,
+                       settings_by_regime: Dict = None
                        ) -> Tuple[Dict, List[Dict]]:
     """Komplette dynamische Simulation: jedes Segment mit der Sub-Strategie und
     Konfiguration seines Regimes; chronologisch zusammengeführt."""
     segs = [(sym, seg) for sym, ss in segments.items() for seg in ss]
     sym_of = {id(seg): sym for sym, seg in segs}
     by_regime = strategies_by_regime or {}
+    by_set = settings_by_regime or {}
     rows = []
     for seg, trades in await _rows_for(
-            lambda s: by_regime.get(s["regime"]) or strategy, segs, settings,
+            lambda s: by_regime.get(s["regime"]) or strategy, segs,
+            (lambda s: by_set.get(s["regime"], settings)) if by_set else settings,
             lambda s: {**base_cfg, **(configs.get(s["regime"]) or {})}, should_stop):
         for t in trades:
             rows.append({**t, "symbol": sym_of.get(id(seg)), "regime": seg["regime"]})

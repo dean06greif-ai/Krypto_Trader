@@ -228,7 +228,8 @@ async def start_regime_optimize(aid: str, body: Dict, _: bool = Depends(require_
     params = {k: body.get(k) for k in
               ("analysis_id", "scope", "symbol", "regime_id", "mode",
                "strategy_id", "timeframe", "objective", "iterations",
-               "min_trades", "max_rules")}
+               "min_trades", "max_rules", "optimize_strategy_params",
+               "strategy_param_keys", "include_flag_params")}
     params["execution"] = execution
     if execution == "local":
         _check_local_available()
@@ -267,6 +268,7 @@ async def assign_regime_strategy(aid: str, body: Dict, _: bool = Depends(require
             "definition": cand.get("definition"),
             "rules": cand.get("rules") or [],
             "trade_params": cand.get("trade_params") or {},
+            "strategy_params": cand.get("strategy_params") or {},
             "metrics": cand.get("metrics"),
             "validation": cand.get("validation"),
             "source_job_id": cand.get("source_job_id"),
@@ -316,6 +318,14 @@ async def build_dynamic(aid: str, body: Dict, _: bool = Depends(require_admin)):
         sid = new_sid
     did = f"dyn_{uuid.uuid4().hex[:8]}"
     wf = (doc.get("walkforward") or {}).get(lab.scope_key(scope, symbol)) or {}
+    # Regime, die eine eigene Registry-Strategie (z.B. NNFX) nutzen, werden live
+    # per Strategie-Umschaltung bedient; Regime-spezifische Strategie-Parameter
+    # kommen aus den Zuordnungen.
+    regime_strategies = {str(rid): a.get("strategy_id")
+                         for rid, a in assignments.items()
+                         if not a.get("definition") and strategy_registry.get(a.get("strategy_id") or "")}
+    regime_params = {str(rid): a.get("strategy_params") or {}
+                     for rid, a in assignments.items() if a.get("strategy_params")}
     dyn_doc = {"id": did,
                "name": body.get("name") or f"Regime-Lab: {doc.get('name')}",
                "strategy_id": sid,
@@ -324,6 +334,9 @@ async def build_dynamic(aid: str, body: Dict, _: bool = Depends(require_admin)):
                "model": model,
                "configs": {str(a["regime_id"]): a.get("trade_params") or {}
                            for a in assignments.values()},
+               **({"regime_strategies": regime_strategies}
+                  if len(regime_strategies) == len(assignments) else {}),
+               "regime_params": regime_params,
                "fallback_config": {},
                "rule_variants": {},
                "sub_strategies": {str(a["regime_id"]):
@@ -390,6 +403,11 @@ async def build_nnfx(aid: str, body: Dict, _: bool = Depends(require_admin)):
                "framework": "nnfx",
                "strategy_id": mapping[sorted(mapping.keys())[0]],
                "regime_strategies": mapping,
+               "regime_params": {rid: ((doc.get("assignments") or {})
+                                       .get(f"{key}:{rid}", {}).get("strategy_params") or {})
+                                 for rid in mapping
+                                 if (doc.get("assignments") or {})
+                                 .get(f"{key}:{rid}", {}).get("strategy_params")},
                "symbols": [symbol] if scope == "per_coin" else doc.get("symbols") or [],
                "timeframe": doc.get("timeframe"),
                "model": model,
@@ -419,12 +437,16 @@ async def build_nnfx(aid: str, body: Dict, _: bool = Depends(require_admin)):
             reg = next((r for r in model.get("regimes") or []
                         if str(r["id"]) == rid_str), {})
             strat = strategy_registry.get(sid)
+            prev_a = assignments.get(f"{key}:{rid_str}") or {}
+            keep_params = (prev_a.get("strategy_params") or {}) \
+                if prev_a.get("strategy_id") == sid else {}
             assignments[f"{key}:{rid_str}"] = {
                 "regime_id": int(rid_str), "regime_label": reg.get("label"),
                 "mode": "params", "strategy_id": sid,
                 "strategy_name": getattr(strat, "STRATEGY_NAME", sid),
                 "definition": None, "rules": [],
-                "trade_params": configs.get(rid_str) or {},
+                "trade_params": configs.get(rid_str) or prev_a.get("trade_params") or {},
+                "strategy_params": keep_params,
                 "metrics": None, "validation": None,
                 "source_job_id": None, "nnfx": reg.get("nnfx"),
                 "assigned_at": now_iso}

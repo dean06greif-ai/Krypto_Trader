@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 3 (Farben · Frühwarnung · Strategie-Parameter je Regime): Backend 10/10 grün (test_regime_v3_extras.py) + Frontend Integrationstest komplett grün. Verifiziert: (1) Regime-Farben semantisch – regime-card-combined-0..8 haben CSS-borderLeft/rl-dot in Rot (F08C8C/E03B3B/A8121B), Gelb (F2E3A0/EBC034/C08A00), Grün (9BE3B0/2FCB6E/0E8F43); Chart-Bänder ebenfalls farblich getrennt (visuell im Screenshot bestätigt). (2) Frühwarnung: GET /api/dynamic/current-regime liefert current.early_warning mit allen geforderten Feldern (active, next_regime, next_label, next_nnfx, probability_pct 0..99, eta_days null|>0, pending, pending_days, confirm_days, min_hold_days, hold_remaining_days, reason); im UI erscheint der Warn-Kasten (live-regime-warning) im DynamicPanel nach 4h/90d-Run (73% Wahrscheinlichkeit, Kandidat seit 0.67 Tagen). (3) Strategie-Parameter je Regime: POST /api/regime-lab/ra_82c98807/optimize mit optimize_strategy_params=true erzeugt top5 mit UNTERSCHIEDLICHEN strategy_params und daraus resultierenden UNTERSCHIEDLICHEN metrics (Regression Provider-Cache-Bugfix bestätigt), ohne Flag ist strategy_params={} bei allen Kandidaten. Flag-Params allow_long/allow_short werden nur bei include_flag_params=true gesampelt. (4) Zuordnung mit strategy_params persistiert und bleibt nach idempotentem /build-nnfx erhalten (gleiche dyn-ID). (5) /api/dynamic/{did}/refresh liefert per_symbol ohne 500er; /apply gibt strategy_id je Coin zurück. (6) UI: Checkbox regime-opt-stratparams-6 nur im Modus 'Parameter' sichtbar (nicht in combo). Alle Regressions-Endpoints (/api/strategies, /api/coins, /api/regime-lab/list, /api/regime-lab/engine/defaults) unverändert grün.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Browser-Konsole (vorbestehend, siehe iteration_2)",
+        "issues": ["React Hydration Warning: <span> darf kein Kind von <option> sein (im DAY_OPTIONS-Select von RegimeLab.js Z. 627 – ähnlich in weiteren <select>). Verursacht durch Emergent-Injection-Wrapper (data-ve-dynamic span), keine Funktionseinschränkung.", "Initial 401 beim Load vor Admin-Login (dyn-list Poll ohne Token) – nicht blockierend."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_regime_v3_extras.py",
+    "/app/test_reports/pytest/v3_full.xml",
+    "/app/test_reports/pytest/v3_smoke.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Hydration warning in Selects der RegimeLab-Formulare unterdrücken (bereits in iteration_2 gemeldet, weiterhin offen).",
+    "OPTIONAL: Regime-Lab \"NNFX-Framework anwenden\" ist jetzt idempotent (gleiche dyn-ID) – Test hat das bestätigt; ggf. UI-Hinweis anzeigen (\"aktualisiert bestehende NNFX-Strategie\") statt der bisherigen Erfolgsmeldung \"erstellt\"."
+  ],
+  "critical_code_review_comments": [
+    "backend/services/regime_engine.py::early_warning ist mathematisch sauber (3 Bausteine: Kandidat/pending, Score-Distance, Momentum-basierte ETA; Wahrscheinlichkeit als klar dokumentierte Heuristik) und wird korrekt in current_regime() mit min_hold_days/hold_remaining_days angereichert. Aktivierungs-Schwelle prob>=25 ODER pending – sinnvoll, keine False-Negatives durch zu strenge Filter.",
+    "backend/services/regime_opt.py::run_regime_optimizer sampelt strategy_params zusätzlich zu trade_params NUR wenn optimize_strategy_params=true UND strategy nicht custom ist; strategy_param_keys filtert korrekt. skip_binary=not include_flag_params wehrt allow_long/allow_short standardmäßig ab – korrekt validiert per Test.",
+    "backend/services/dynamic_strategy.py::_def_key(strategy, settings, sym) nimmt jetzt strategy_params UND coin_params[strategy_id][sym] in den Cache-Key auf. Test test_provider_cache_key_includes_strategy_params sowie der Integrationstest (top5[*].strategy_params unterschiedlich -> unterschiedliche metrics) bestätigen den Bugfix.",
+    "backend/routers/regime_lab.py::build_nnfx nutzt {framework:'nnfx', settings.analysis_id, settings.scope_key} als Idempotenz-Schlüssel – korrektes Upsert-Verhalten. keep_params-Logik behält vorhandene assignment.strategy_params, wenn strategy_id unverändert bleibt (bestätigt: nach 2× build-nnfx bleiben Werte erhalten). Regression: `settings.scope_key` wird korrekt beim ersten Aufruf gesetzt.",
+    "backend/routers/regime_lab.py::assign nimmt candidate.strategy_params auf und speichert sie in assignments[...] – Frontend sendet dies aus RegimeOptimizePanel; Round-Trip funktioniert.",
+    "backend/services/dynamic_live.py::_apply_strategy_params schreibt sowohl scanner.settings['coin_params'] (live) als auch strategy_coin_configs.config.params (Backtest-Persistenz). Keine 500er im Test beobachtet.",
+    "frontend/src/lib/regimeColors.js: v2RegimeColor(id) und regimeColor(id, regimes) sind konsistent, Fallback für Nicht-v2-Regime bleibt REGIME_FALLBACK_COLORS – gut isoliert.",
+    "frontend/src/components/RegimeOptimizePanel.js zeigt regime-opt-stratparams-<id> ausschließlich im Modus params (Zeile 169-177) – im Test bestätigt (True in params, False in combo). optStratParams wird nur bei mode==='params' an das Backend gesendet.",
+    "frontend/src/components/DynamicPanel.js LiveRegime zeigt live-regime-warning conditional (cur?.early_warning?.active) – im 4h/90d-Run wurde die Frühwarnung mit 73% aktiviert und mit allen Textbausteinen (Wahrscheinlichkeit / Kandidat-Dauer) korrekt gerendert.",
+    "Minor: routers/regime_lab.py Z. 424 setzt require_confirmation nur beim ERSTEN build-nnfx, spätere Aufrufe erhalten den vorherigen Wert – konsistent mit UI-Toggle in DynamicPanel."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_regime_v3_extras.py",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (Farben 9/9, Frühwarnung sichtbar mit Feldern, optStratParams Sichtbarkeit korrekt)"},
+  "test_credentials": "Admin/admin über POST /api/auth/login → Bearer token; im UI via localStorage['admin_token'] gesetzt.",
+  "seed_data_creation": "Test-Klasse legt keine dauerhaften Analysen an. Optimize-Jobs (3 Stück) laufen gegen ra_82c98807 und werden nur in regime_lab_runs (JOBS-Dict) gespeichert. build-nnfx erzeugt oder aktualisiert dyn_<xxx> mit framework=nnfx + settings.scope_key=combined + settings.analysis_id=ra_82c98807 (idempotent). Zwei Alt-Analysen 'TEST_engine_v2_small' (ra_99dc4124, ra_668fa6b7) aus vorherigem Testing-Agent wurden während dieser Iteration bereinigt.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Analyse ra_82c98807 (BTC/ETH 12h 720d Engine v2, 9 assignments) bleibt Stabil. Die NNFX-Strategie dieser Analyse ist jetzt idempotent (settings.analysis_id+scope_key-Query in dynamic_strategies) und kann als dyn_id via db.dynamic_strategies.find_one({framework:'nnfx', settings.analysis_id:'ra_82c98807', settings.scope_key:'combined'}) gefunden werden. Für UI-Waits waitForSelector statt networkidle nutzen (WebSocket-Traffic verhindert idle). Für Regime-Farbchecks: prüfe getComputedStyle(el).borderLeftColor auf rgb(...) statt hex – Farbtabelle in frontend/src/lib/regimeColors.js V2_COLORS. Optimize-Jobs mit iterations=6..10 dauern ~2-3 min gegen 12h/720d.",
+  "rca of the issue": "N/A – keine offenen Bugs. Frühere Provider-Cache-Regression (identische Signale bei unterschiedlichen strategy_params) ist im Backend via _def_key-Erweiterung (json-serialisierte strategy_params + coin_params) behoben und im Integrationstest test_01_optimize_with_flag_yields_distinct_strategy_params sowie im Unit-Test test_provider_cache_key_includes_strategy_params abgesichert."
+}

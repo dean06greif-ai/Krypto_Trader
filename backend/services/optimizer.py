@@ -282,28 +282,40 @@ def _tpe_suggest(space: Dict[str, List], history: List[Dict], rng: random.Random
     return best_cand
 
 
-# ---------------- Modus 1: Parameter-Optimierung ----------------
-async def _optimize_params(job, strategy, histories, settings, cfg, objective,
-                           min_trades, iterations, trade_space, progress,
-                           algorithm="random", fs_map=None, should_stop=None,
-                           pool=None, workers=1, dd_max_pct=None):
-    meta = strategy.DEFAULT_PARAMS or {}
+def strategy_param_space(strategy, max_values: int = 60,
+                         skip_binary: bool = False) -> Dict[str, list]:
+    """Suchraum der Strategie-Parameter aus DEFAULT_PARAMS (min/max/step).
+    Zu große Räume werden ausgedünnt. Wird vom Optimizer UND vom
+    Regime-Optimizer genutzt (eine Quelle der Wahrheit).
+    skip_binary=True lässt Ein/Aus-Schalter (0/1) weg – sinnvoll bei kurzen
+    Regime-Abschnitten, wo ein zufälliges 'aus' nur Leerläufe erzeugt."""
     space = {}
-    for k, mm in meta.items():
+    for k, mm in (getattr(strategy, "DEFAULT_PARAMS", None) or {}).items():
         try:
             lo, hi = float(mm["min"]), float(mm["max"])
             step = float(mm.get("step") or 1)
+            if skip_binary and lo == 0.0 and hi == 1.0 and step == 1.0:
+                continue
             vals, v = [], lo
             while v <= hi + 1e-9:
                 vals.append(round(v, 4))
                 v += step
-            if len(vals) > 60:
-                stride = len(vals) // 60 + 1
+            if len(vals) > max_values:
+                stride = len(vals) // max_values + 1
                 vals = vals[::stride]
             if vals:
                 space[k] = vals
         except (KeyError, TypeError, ValueError):
             continue
+    return space
+
+
+# ---------------- Modus 1: Parameter-Optimierung ----------------
+async def _optimize_params(job, strategy, histories, settings, cfg, objective,
+                           min_trades, iterations, trade_space, progress,
+                           algorithm="random", fs_map=None, should_stop=None,
+                           pool=None, workers=1, dd_max_pct=None):
+    space = strategy_param_space(strategy)
     trade_space = trade_space or {}
     # Flacher Suchraum für Bayes: Strategie-Parameter "p:", Trade-Parameter "t:"
     flat_space = {**{f"p:{k}": v for k, v in space.items()},
