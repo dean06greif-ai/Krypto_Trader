@@ -1,0 +1,9 @@
+{
+  "server": "http://localhost:8001",
+  "token": "e96113db25acf7b2a1ea540aade0d5b7fbce1341acd206a1",
+  "data_dir": "/app/memory/worker_test",
+  "name": "testworker",
+  "worker_id": "44143ec084344d1c",
+  "ram_limit_mb": 4096,
+  "max_parallel_jobs": 1
+}

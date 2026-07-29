@@ -1,0 +1,54 @@
+{
+  "summary": "Regime-Engine v2 + NNFX-Framework Integrationstest komplett grün: 16/16 neue Backend-Tests (test_regime_v2_integration.py) + Frontend-Smoke-Test (Regime-Lab, Analyse ra_82c98807, Dynamische Strategien Panel) alle ok. Backend deckt engine/defaults (v2/kmeans/9-Taxonomie/nnfx_labels), current-regime v2+kmeans-Fallback, gespeicherte Analyse ra_82c98807 (engine=v2, 9 Regime, validation.passed=true, per_symbol.current/validation/ideal.agreement), 400 bei engine=quatsch, kleiner Live-Job (1 Coin/4h/90d) startet+wird done, /build-nnfx erzeugt dyn mit framework=nnfx + require_confirmation=true + 9 combined:*-assignments in der Analyse, /strategies enthält nnfx_trend/reversion/breakout mit nnfx_regime + >=14 Params, /dynamic refresh/apply/settings/dismiss + confirm-Guard (400 ohne pending). Frontend: regime-lab-button, engine-select mit v2/kmeans, kmeans-only-Felder erscheinen genau bei kmeans, engine-toggle+fields, Analyse-Detail mit 9 NNFX-Badges, regime-current-BTCUSDT/ETHUSDT, regime-validation, regime-show-ideal, regime-nnfx-btn-combined, dyn-panel-toggle mit NNFX-Karte dyn_80384eba.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Dynamische Strategien -> manuelle Bestätigung",
+        "issue": "data-testid=dyn-require-confirm-<id> ist nur sichtbar, wenn ZUERST Auto-Prüfung UND Auto-Übernahme aktiviert wurden (progressive Disclosure). Beim Öffnen des dyn-panel ist der Schalter also standardmäßig nicht vorhanden, obwohl das Backend settings.require_confirmation=true bereits speichert. Kein Bug im engeren Sinn, aber der Review-Text listet dyn-require-confirm-<id> als sichtbares Feld im Panel. Falls es 'immer sichtbar' sein soll, muss DynamicPanel.js Zeilen 265-273 die conditional {auto_apply_enabled && ...} entfernt werden.",
+        "affected_selectors": ["dyn-require-confirm-dyn_80384eba"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Regime-Lab Modal (v2, ohne Änderungen)",
+        "issues": ["regime-engine-reset erscheint erst, wenn eine Feineinstellung tatsächlich geändert wurde (Object.keys(config).length > 0). Beim ersten Öffnen also nicht sichtbar. Verhalten ist sinnvoll (Standard=Standard), sollte aber dokumentiert sein — der Review erwartet den Reset-Button 'immer'."]
+      },
+      {
+        "screen": "Browser-Konsole",
+        "issues": ["React hydration warning: <span> darf kein Kind von <option> sein (aus Header.js oder Selects, tritt beim initialen Render auf). Keine Funktionseinschränkung, aber sollte in einem Follow-up bereinigt werden.", "Eine einzelne 401-Antwort beim initialen Load (vermutlich ein Poll vor Admin-Login) — nicht blockierend."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_regime_v2_integration.py",
+    "/app/test_reports/pytest/regime_v2_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: DynamicPanel.js - dyn-require-confirm-<id> sichtbar machen, ohne dass zuerst auto_apply_enabled aktiviert werden muss (falls Anforderung 'immer sichtbar' war). Aktuell hinter zwei Feature-Toggles versteckt.",
+    "OPTIONAL: Hydration warning in Header-Selects (span in option) beheben — führt zu Konsolen-Rauschen, aber kein Funktionsfehler."
+  ],
+  "critical_code_review_comments": [
+    "backend/services/regime_engine.py + regime_features.py: sauberer Aufbau, Standardkonfig hat 47 Keys mit CONFIG_META – erlaubt dem Frontend generische Feineinstellungen ohne UI-Duplizierung. Gut.",
+    "backend/services/regime.py DEFAULT_ENGINE='v2' + is_v2() Dispatch + engine=quatsch->400 (routers/regime_lab.py) verhindert stille Fehlkonfigurationen. Rückwärtskompatibilität mit kmeans über GET-Query bestätigt.",
+    "backend/routers/regime_lab.py POST /{aid}/build-nnfx: mapped alle 9 Regime -> nnfx_trend/reversion/breakout und schreibt assignments zusätzlich zurück in die Analyse. Idempotenz: legt bei mehrfachem Aufruf jeweils neue dyn-Einträge an (dyn_e873ad64, dyn_7a2591ab beim Testen entstanden) — hier wäre ein Upsert/Wiederverwendung sinnvoll, um DB-Bloat zu vermeiden.",
+    "backend/routers/dynamic.py: /confirm ohne pending_switch -> 400 mit klarem Detail ('Kein offener Regime-Wechsel'), /dismiss ist idempotent (auch ohne pending 200 status=dismissed). Verhalten in beiden Fällen sinnvoll.",
+    "backend/strategies/nnfx_strategies.py: NNFX_STRATEGY_BY_REGIME liefert korrektes Mapping (trend/range/breakout -> nnfx_trend/reversion/breakout); alle drei Strategien haben >=14 Parameter (15/18/14). NNFXReversionStrategy hat 18 – falls es später schlanker werden soll, ok, aber Anforderung >=14 erfüllt.",
+    "frontend/src/components/RegimeEngineSettings.js: engine-select bindet perfekt an das v2/kmeans-Umschalten in RegimeLab.js (kmeans-only-Felder regime-lookback/max/minshare/confmin/minhold erscheinen nur bei kmeans). Reset erscheint erst bei nicht-leerer config (siehe design_issue) – konsistente UX.",
+    "frontend/src/components/DynamicPanel.js Z. 265-273: dyn-require-confirm-<id> ist doppelt gated (auto_check_enabled UND auto_apply_enabled). Falls die Anforderung 'immer sichtbar' war, entfernt man die äußere Bedingung – s. action_items."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_regime_v2_integration.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% (alle sichtbaren Testids gefunden; 1 UX-Anmerkung zu dyn-require-confirm-Sichtbarkeit)"},
+  "test_credentials": "Admin/admin über POST /api/auth/login; Token als Bearer für alle write-Endpoints.",
+  "seed_data_creation": "1 Analyse angelegt ('TEST_engine_v2_small', ra_99dc4124) und nach Verifikation wieder gelöscht. 2 build-nnfx-dyns (dyn_7a2591ab, dyn_e873ad64) beim Explorieren erzeugt und wieder gelöscht. Testklasse TestBuildNnfx erzeugt bei jedem Lauf einen neuen dyn und löscht ihn im Teardown – dyn_80384eba bleibt unverändert.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "REACT_APP_BACKEND_URL muss explizit gesetzt sein (pytest -> env-var); mit pytest.ini-addopts '-n 2 --dist loadscope' und '-p no:cacheprovider' laufen die Tests deterministisch. Analyse ra_82c98807 (engine=v2) und dyn_80384eba (NNFX BTC/ETH 12h, framework=nnfx, require_confirmation=true) sind stabil in der DB. Frontend: waitForLoadState('networkidle') hängt wegen laufender WebSockets – stattdessen auf ein konkretes Selector warten. build-nnfx erzeugt bei jedem Aufruf einen NEUEN dyn (keine Idempotenz).",
+  "rca of the issue": "N/A - keine offenen Bugs. Zwei minor UX-Beobachtungen (dyn-require-confirm hinter zwei Feature-Flags; regime-engine-reset erst bei Änderung sichtbar) sind explizit im Code als conditionals umgesetzt und wirken bewusst. Falls die Anforderung 'immer sichtbar' war, sind das schnelle Einzeilen-Änderungen im Frontend."
+}

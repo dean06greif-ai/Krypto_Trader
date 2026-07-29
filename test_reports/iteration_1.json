@@ -1,0 +1,37 @@
+{
+  "summary": "Erweiterung Asset-Universum (INDICES/RESOURCES/FOREX) + KI-Lektions-Bugfix vollständig getestet. Alle 21 neuen iter17-Backend-Tests grün; alle 6 angeforderten Legacy-Unit-Test-Dateien laufen sauber (55/57 passed, die 2 Fails in test_winrate_bug.py sind pre-existing test debt, siehe agent_to_agent_context_note). Frontend: Sidebar zeigt alle 4 Gruppen, Charts für QQQUSDT/EURUSD laden korrekt, P-Badge für FX vorhanden, Backtester+Optimizer AssetPicker enthalten alle neuen Assets, ai-max-lessons-select bietet 50 an und die UI zeigt 'Lernen (12)' (>5, Bug-Fix visuell bestätigt).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "backend/tests/test_winrate_bug.py", "issue": "test_winrate_bugfix_full_flow + test_regression_capital_and_balance FAIL: Test restartet Supervisor-Backend und pollt /api/performance und /api/autotrade/capital während des Neustarts -> 404. Beide Endpoints funktionieren live (curl -> 200). Pre-existing test debt gemäß agent_to_agent_context_note."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter17_new_assets.py",
+    "/app/test_reports/pytest/iter17_results.xml",
+    "/app/test_reports/pytest/unit_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "core/instruments.py ist sauber (frozen dataclass, klare Trennung Live-/Hist-Quelle, is_tradable-Guard). Erweiterung eines Assets = 1 Zeile.",
+    "services/history_sources.py macht die 3 Quellen (Binance vorwärts / Bitunix rückwärts / Yahoo Chunk) mit einheitlicher Fehlerbehandlung + Fortschritt sauber lesbar; HistoryUnavailable statt stiller Lücken ist ein wichtiger Fix.",
+    "services/ai_learning.merge_lessons erhält alte Lektionen, aktualisiert Duplikate case-insensitiv über den Titel und respektiert max_lessons — der eigentliche Root Cause (LLM liefert 3-5 Lektionen -> alte gehen verloren) ist damit behoben.",
+    "bitunix_trade.on_signal stuft Live->Paper bei fehlendem Bitunix-Kontrakt herunter statt zu senden — verhindert Geister-Positionen bei Forex.",
+    "Empfehlung (niedrig): frontend hat viele console-Fehler 'TypeError: Failed to fetch' beim initialen Load (mehrere Endpoints, u.a. /api/notifications). Wahrscheinlich Race gegen Backend-Ready oder mangelnde Fehlerbehandlung im useSWR-ähnlichen Hook — nicht blockierend, wäre aber ein sinnvolles Follow-up."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter17_new_assets.py"
+  ],
+  "success_rate": {"backend": "100% (21/21 iter17 + 55/55 relevante Legacy-Tests; 2/57 Fails sind pre-existing test debt)", "frontend": "100%"},
+  "test_credentials": "Admin / admin (aus /app/memory/test_credentials.md, bestätigt gegen /api/auth/login).",
+  "seed_data_creation": "Keine. Bestehende KI-Lektionen (12 Stück) wurden nur gelesen.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Auth-Login: POST /api/auth/login {username, password}; Response.token als Bearer Header. Backtest/Optimizer sind exklusiv (409 bei parallelem 2. Job) -> sequenziell testen. Nutze `-p no:cacheprovider -n0` beim pytest, sonst restartet uvicorn --reload beim Schreiben von .pytest_cache und HTTP-Tests brechen mit ConnectionError ab. Erstlauf für Indizes/Rohstoffe braucht bis ~70s (Historien-Download); Cache liegt in /tmp/candle_cache und war beim Retest bereits warm.",
+  "rca of the issue": "N/A - keine offenen Bugs. Der KI-Lektions-Bug hatte als Root Cause `run_learning()` ersetzte die komplette Lektionsliste durch die LLM-Antwort (typisch 3-5 Lektionen), sodass max_lessons=50 nie wirken konnte. Fix in services/ai_learning.merge_lessons: bestehende Lektionen bleiben erhalten, Titel-Duplikate werden case-insensitiv aktualisiert, nur removed_lessons entfallen. Verifiziert durch test_ai_lessons_merge.py + Live /api/ai/insights + UI 'Lernen (12)'."
+}
