@@ -22,7 +22,25 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
+def _base_url() -> str:
+    """Backend-URL: ENV hat Vorrang, sonst aus frontend/.env lesen."""
+    url = os.environ.get("REACT_APP_BACKEND_URL")
+    if not url:
+        env = os.path.join(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))), "frontend", ".env")
+        try:
+            with open(env) as fh:
+                for line in fh:
+                    if line.startswith("REACT_APP_BACKEND_URL="):
+                        url = line.split("=", 1)[1].strip().strip('"')
+                        break
+        except OSError:
+            pass
+    assert url, "REACT_APP_BACKEND_URL nicht gesetzt (ENV oder frontend/.env)"
+    return url.rstrip("/")
+
+
+BASE_URL = _base_url()
 ADMIN_USER = "Admin"
 ADMIN_PASSWORD = "Dean06Greif!/Admin"
 
