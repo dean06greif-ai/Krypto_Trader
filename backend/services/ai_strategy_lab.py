@@ -1,0 +1,417 @@
+"""KI-Strategie-Labor: eigene Strategie-Ideen der KI sicher zur Live-Reife bringen.
+
+Hintergrund: Der KI Trader ist nur EINE von vielen Strategien der Plattform.
+Er darf eigene Strategien entwickeln – aber nicht sofort mit echtem Geld.
+Deshalb eine klare Pipeline pro Kandidat:
+
+    ghost  ->  live_pending  ->  (Freigabe des Traders)  ->  paper | live
+      |                                                          |
+      +-- Ghost-Trades werden nur simuliert mitgeschrieben        +-- rejected
+
+  * `ghost`        : Signale werden NICHT an den AutoTrader geschickt, sondern als
+                     Ghost-Trade (reine Simulation ohne Kapital) mitgeschrieben und
+                     gegen echte Kurse ausgewertet.
+  * `live_pending` : Schwellen (Anzahl Ghost-Trades + Winrate) erreicht – wartet auf
+                     die manuelle Freigabe des Traders.
+  * `paper`        : darf handeln, wird aber im AutoTrader zu Paper gezwungen.
+  * `live`         : vollständig freigegeben (Paper/Live entscheidet wie immer die
+                     Coin-Schaltung des Traders).
+
+Vom Trader selbst vorgegebene Strategien können direkt freigegeben werden
+(`stage="live"`), ein Backtest ist keine Pflicht. Kandidaten mit maschinenlesbarer
+Regel-Definition können zusätzlich als Custom-Strategie registriert werden, damit
+Backtester/Optimizer sie rechnen können.
+"""
+import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
+
+from services.ai_memory import memory
+
+logger = logging.getLogger(__name__)
+
+COLL = "ai_strategy_candidates"
+GHOST_COLL = "ai_ghost_trades"
+STAGES = ("ghost", "live_pending", "paper", "live", "rejected")
+
+DEFAULT_SETTINGS = {
+    "enabled": True,
+    "allow_ai_create": True,
+    "min_ghost_trades": 20,
+    "min_ghost_winrate": 55.0,
+    "promote_to": "paper",          # Ziel-Stufe nach der Freigabe: paper | live
+    "max_active_candidates": 5,
+}
+
+TESTING_NOTE = (
+    "Backtest/Optimizer/Strategie-Optimierer kannst du für deine eigenen Strategien nutzen, "
+    "SOFERN sie sich in feste Regeln fassen lassen (Indikator-Bedingungen). Gib dafür in der "
+    'Strategie-Idee optional "rule_definition" mit: {"timeframe": "1m", "indicators": '
+    '{"rsi_period": 14, "ema_fast_period": 9, "ema_slow_period": 50}, "long_rules": '
+    '[{"indicator": "rsi", "op": "<", "value": 30}], "short_rules": [...]} – erlaubte '
+    "Indikatoren u.a. price, rsi, ema_fast, ema_slow, macd, macd_hist, bb_upper, bb_lower, "
+    "atr_pct, vwap, stoch_k, rel_volume, price_change_pct; Operatoren <, >, <=, >=, "
+    "cross_above, cross_below. Solche Kandidaten erscheinen automatisch im Backtester/"
+    "Optimizer (ohne live zu gehen).\n"
+    "NICHT sinnvoll testbar sind: news-getriebene Trades, diskretionäre Entscheidungen und "
+    "Trades, in denen du live nachjustierst (SL/TP verschieben, Teil-Close, Margin/Hebel "
+    "ändern) – ein Backtest würde sie systematisch falsch bewerten. Nutze Backtests also als "
+    "Zusatz-Evidenz für den regelbasierten Kern, nicht als Ersatz für deine dynamische, "
+    "aktuelle Marktarbeit."
+)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def ghost_stats(trades: List[Dict]) -> Dict:
+    """Ghost-Statistik aus abgeschlossenen Ghost-Trades (rein, testbar)."""
+    closed = [t for t in trades or [] if t.get("status") == "closed"]
+    wins = sum(1 for t in closed if t.get("result") == "win")
+    losses = sum(1 for t in closed if t.get("result") == "loss")
+    decided = wins + losses
+    pnl_pct = round(sum(float(t.get("pnl_pct") or 0) for t in closed), 3)
+    return {"trades": len(closed), "wins": wins, "losses": losses,
+            "win_rate": round(wins / decided * 100, 1) if decided else 0.0,
+            "pnl_pct": pnl_pct,
+            "open": sum(1 for t in trades or [] if t.get("status") == "open")}
+
+
+def promotion_ready(stats: Dict, settings: Dict) -> bool:
+    """Sind die Ghost-Schwellen erreicht? (rein, testbar)"""
+    return (int(stats.get("trades") or 0) >= int(settings.get("min_ghost_trades", 20))
+            and float(stats.get("win_rate") or 0) >= float(settings.get("min_ghost_winrate", 55.0)))
+
+
+def ghost_outcome(side: str, price: float, sl: float, tp: float) -> Optional[str]:
+    """Wurde ein Ghost-Trade durch den Kurs entschieden? (rein, testbar)"""
+    if side == "LONG":
+        if price >= tp:
+            return "win"
+        if price <= sl:
+            return "loss"
+    else:
+        if price <= tp:
+            return "win"
+        if price >= sl:
+            return "loss"
+    return None
+
+
+class StrategyLab:
+    def __init__(self):
+        self.engine = None
+        self.settings: Dict = dict(DEFAULT_SETTINGS)
+        self.last_error: Optional[str] = None
+        self._cache: Dict[str, Dict] = {}
+
+    def setup(self, engine):
+        self.engine = engine
+
+    @property
+    def db(self):
+        return self.engine.db if self.engine else None
+
+    # ---------------- state ----------------
+    async def load_state(self):
+        try:
+            doc = await self.db.settings.find_one({"_id": "ai_strategy_lab"})
+            if doc:
+                for k in DEFAULT_SETTINGS:
+                    if k in doc:
+                        self.settings[k] = doc[k]
+            await self._refresh_cache()
+        except Exception as e:
+            logger.warning(f"Strategie-Labor State laden fehlgeschlagen: {e}")
+
+    async def update_settings(self, updates: Dict) -> Dict:
+        for key in ("enabled", "allow_ai_create"):
+            if key in updates:
+                self.settings[key] = bool(updates[key])
+        for key, lo, hi in (("min_ghost_trades", 3, 200), ("max_active_candidates", 1, 20)):
+            if key in updates:
+                try:
+                    self.settings[key] = max(lo, min(hi, int(updates[key])))
+                except (TypeError, ValueError):
+                    pass
+        if "min_ghost_winrate" in updates:
+            try:
+                self.settings["min_ghost_winrate"] = max(30.0, min(95.0,
+                                                                   float(updates["min_ghost_winrate"])))
+            except (TypeError, ValueError):
+                pass
+        if updates.get("promote_to") in ("paper", "live"):
+            self.settings["promote_to"] = updates["promote_to"]
+        await self.db.settings.update_one({"_id": "ai_strategy_lab"},
+                                          {"$set": dict(self.settings)}, upsert=True)
+        return dict(self.settings)
+
+    async def _refresh_cache(self):
+        rows = await self.db[COLL].find({"stage": {"$ne": "rejected"}}).to_list(100)
+        self._cache = {}
+        for r in rows:
+            r.pop("_id", None)
+            self._cache[r["id"]] = r
+
+    # ---------------- Kandidaten ----------------
+    async def create_candidate(self, spec: Dict, source: str = "ki") -> Dict:
+        if source == "ki" and not self.settings.get("allow_ai_create", True):
+            return {"status": "blocked", "detail": "Neue KI-Strategien sind deaktiviert"}
+        name = str(spec.get("name") or "").strip()[:80]
+        if not name:
+            return {"status": "error", "detail": "name fehlt"}
+        active = await self.db[COLL].count_documents({"stage": {"$in": ["ghost", "live_pending"]}})
+        if source == "ki" and active >= int(self.settings.get("max_active_candidates", 5)):
+            return {"status": "blocked",
+                    "detail": f"Zu viele Kandidaten in der Testphase ({active})"}
+        stage = str(spec.get("stage") or "ghost")
+        if stage not in STAGES or (source == "ki" and stage != "ghost"):
+            stage = "ghost"
+        cand = {
+            "id": f"cand_{uuid.uuid4().hex[:8]}",
+            "name": name,
+            "thesis": str(spec.get("thesis") or "")[:1200],
+            "rules_text": str(spec.get("rules_text") or "")[:1500],
+            "symbols": [str(s).upper() for s in (spec.get("symbols") or [])][:10],
+            "timeframe": str(spec.get("timeframe") or "1m"),
+            "learned_from": str(spec.get("learned_from") or "")[:400],
+            "rule_definition": spec.get("rule_definition") if isinstance(
+                spec.get("rule_definition"), dict) else None,
+            "stage": stage,
+            "source": source,
+            "created_at": _now_iso(),
+            "updated_at": _now_iso(),
+            "stats": {"ghost": ghost_stats([]), "live_note": None},
+            "custom_strategy_id": None,
+            "trader_note": str(spec.get("trader_note") or "")[:400],
+        }
+        await self.db[COLL].insert_one(dict(cand))
+        self._cache[cand["id"]] = cand
+        await self.db.ai_chat.insert_one({
+            "id": str(uuid.uuid4()), "role": "strategy",
+            "text": (f"Neue Strategie-Idee „{name}“ angelegt "
+                     f"({'vom Trader' if source != 'ki' else 'von mir'}) – Stufe {stage}. "
+                     + (cand["thesis"][:300] if cand["thesis"] else "")),
+            "candidate_id": cand["id"], "stage": stage, "ts": _now_iso()})
+        await memory.remember("idea", f"Strategie-Kandidat {name}",
+                              f"{cand['thesis']} | Regeln: {cand['rules_text']}",
+                              meta={"candidate_id": cand["id"], "source": source},
+                              tags=["strategy", "candidate"], weight=2,
+                              source="strategy_lab")
+        logger.info(f"Strategie-Kandidat angelegt: {name} ({cand['id']}, {stage})")
+        # Regelbasierte Ideen sofort für Backtester/Optimizer verfügbar machen
+        if cand.get("rule_definition"):
+            try:
+                reg = await self.register_for_testing(cand["id"])
+                if reg.get("status") == "ok":
+                    cand["custom_strategy_id"] = reg["strategy_id"]
+            except Exception as e:
+                logger.warning(f"Auto-Registrierung für Backtest fehlgeschlagen: {e}")
+        return {"status": "ok", "candidate": cand}
+
+    async def list_candidates(self, include_rejected: bool = True) -> List[Dict]:
+        q = {} if include_rejected else {"stage": {"$ne": "rejected"}}
+        rows = await self.db[COLL].find(q).sort("created_at", -1).limit(60).to_list(60)
+        for r in rows:
+            r.pop("_id", None)
+        return rows
+
+    async def get(self, cid: str) -> Optional[Dict]:
+        c = await self.db[COLL].find_one({"id": cid})
+        if c:
+            c.pop("_id", None)
+        return c
+
+    async def decide(self, cid: str, action: str, note: str = "") -> Dict:
+        """Freigabe/Ablehnung durch den Trader (nur er darf live schalten)."""
+        cand = await self.get(cid)
+        if not cand:
+            return {"status": "error", "detail": "Kandidat nicht gefunden"}
+        action = str(action).lower()
+        if action == "approve":
+            stage = self.settings.get("promote_to", "paper")
+        elif action == "approve_live":
+            stage = "live"
+        elif action == "reject":
+            stage = "rejected"
+        elif action == "reset":
+            stage = "ghost"
+        else:
+            return {"status": "error", "detail": "action muss approve|approve_live|reject|reset sein"}
+        await self.db[COLL].update_one({"id": cid}, {"$set": {
+            "stage": stage, "updated_at": _now_iso(),
+            "decided_at": _now_iso(), "trader_note": str(note)[:400]}})
+        await self._refresh_cache()
+        await self.db.ai_chat.insert_one({
+            "id": str(uuid.uuid4()), "role": "strategy",
+            "text": (f"Strategie „{cand['name']}“: Trader-Entscheidung „{action}“ → Stufe {stage}."
+                     + (f" Hinweis: {note}" if note else "")),
+            "candidate_id": cid, "stage": stage, "ts": _now_iso()})
+        return {"status": "ok", "candidate": await self.get(cid)}
+
+    def execution_stage(self, cid: Optional[str]) -> Optional[str]:
+        """Welche Ausführung ist für diesen Kandidaten erlaubt? (in-memory, schnell)"""
+        if not cid:
+            return None
+        cand = self._cache.get(cid)
+        if not cand:
+            return "unknown"
+        return cand.get("stage")
+
+    # ---------------- Ghost-Trading ----------------
+    async def record_ghost_trade(self, cid: str, symbol: str, side: str, entry: float,
+                                 sl: float, tp: float, reason: str = "") -> Dict:
+        gt = {
+            "id": f"ghost_{uuid.uuid4().hex[:10]}", "candidate_id": cid,
+            "symbol": str(symbol).upper(), "side": str(side).upper(),
+            "entry": float(entry), "sl": float(sl), "tp": float(tp),
+            "reason": str(reason)[:300], "status": "open",
+            "opened_at": _now_iso(),
+        }
+        await self.db[GHOST_COLL].insert_one(dict(gt))
+        logger.info(f"Ghost-Trade {gt['side']} {gt['symbol']} für Kandidat {cid}")
+        return gt
+
+    async def _evaluate_ghosts(self):
+        open_rows = await self.db[GHOST_COLL].find({"status": "open"}).limit(200).to_list(200)
+        if not open_rows:
+            return
+        touched = set()
+        for gt in open_rows:
+            price = None
+            try:
+                price = self.engine.scanner.current_price(gt["symbol"])
+            except Exception:
+                price = None
+            if not price:
+                continue
+            res = ghost_outcome(gt["side"], float(price), float(gt["sl"]), float(gt["tp"]))
+            if not res:
+                continue
+            exit_price = float(gt["tp"]) if res == "win" else float(gt["sl"])
+            move = (exit_price - gt["entry"]) if gt["side"] == "LONG" else (gt["entry"] - exit_price)
+            pnl_pct = round(move / gt["entry"] * 100, 4) if gt["entry"] else 0.0
+            await self.db[GHOST_COLL].update_one({"id": gt["id"]}, {"$set": {
+                "status": "closed", "result": res, "exit_price": exit_price,
+                "pnl_pct": pnl_pct, "closed_at": _now_iso()}})
+            touched.add(gt["candidate_id"])
+        for cid in touched:
+            await self.refresh_candidate_stats(cid)
+
+    async def refresh_candidate_stats(self, cid: str) -> Dict:
+        rows = await self.db[GHOST_COLL].find({"candidate_id": cid}).limit(500).to_list(500)
+        stats = ghost_stats(rows)
+        cand = await self.get(cid)
+        if not cand:
+            return stats
+        updates = {"stats.ghost": stats, "updated_at": _now_iso()}
+        if cand.get("stage") == "ghost" and promotion_ready(stats, self.settings):
+            updates["stage"] = "live_pending"
+            updates["promotion_ready_at"] = _now_iso()
+            await self.db.ai_chat.insert_one({
+                "id": str(uuid.uuid4()), "role": "strategy",
+                "text": (f"Strategie „{cand['name']}“ hat die Ghost-Phase bestanden: "
+                         f"{stats['trades']} Trades, Winrate {stats['win_rate']}%, "
+                         f"Summe {stats['pnl_pct']}%. Sie wartet jetzt auf DEINE Freigabe, "
+                         f"bevor sie {self.settings.get('promote_to', 'paper')} handeln darf."),
+                "candidate_id": cid, "stage": "live_pending", "ts": _now_iso()})
+            await memory.remember(
+                "research_insight", f"Ghost-Phase bestanden: {cand['name']}",
+                f"{stats['trades']} Ghost-Trades, Winrate {stats['win_rate']}%, "
+                f"Summe {stats['pnl_pct']}%.", meta={"candidate_id": cid, "stats": stats},
+                tags=["strategy", "promotion"], weight=3, source="strategy_lab")
+        await self.db[COLL].update_one({"id": cid}, {"$set": updates})
+        await self._refresh_cache()
+        return stats
+
+    async def ghost_trades(self, cid: Optional[str] = None, limit: int = 50) -> List[Dict]:
+        q = {"candidate_id": cid} if cid else {}
+        rows = await self.db[GHOST_COLL].find(q).sort("opened_at", -1) \
+            .limit(max(1, min(300, limit))).to_list(300)
+        for r in rows:
+            r.pop("_id", None)
+        return rows
+
+    # ---------------- Backtest-Anbindung ----------------
+    async def register_for_testing(self, cid: str) -> Dict:
+        """Kandidat mit Regel-Definition als Custom-Strategie registrieren, damit
+        Backtester/Optimizer ihn rechnen können (ohne ihn live zu schalten)."""
+        cand = await self.get(cid)
+        if not cand:
+            return {"status": "error", "detail": "Kandidat nicht gefunden"}
+        definition = cand.get("rule_definition")
+        if not isinstance(definition, dict) or not (definition.get("long_rules")
+                                                    or definition.get("short_rules")):
+            return {"status": "not_testable",
+                    "detail": "Kandidat hat keine maschinenlesbaren Regeln "
+                              "(news-/diskretionär getriebene Ideen sind nicht backtestbar)"}
+        sid = cand.get("custom_strategy_id") or f"custom_{uuid.uuid4().hex[:8]}"
+        definition = {**definition, "id": sid,
+                      "name": f"KI-Kandidat: {cand['name']}",
+                      "description": (cand.get("thesis") or "")[:300],
+                      "timeframe": definition.get("timeframe") or cand.get("timeframe") or "1m"}
+        await self.db.custom_strategies.update_one({"id": sid}, {"$set": definition}, upsert=True)
+        try:
+            from strategies.registry import registry as strategy_registry
+            strategy_registry.upsert_custom(definition)
+        except Exception as e:
+            logger.warning(f"Kandidat {cid} konnte nicht registriert werden: {e}")
+        await self.db[COLL].update_one({"id": cid}, {"$set": {
+            "custom_strategy_id": sid, "updated_at": _now_iso()}})
+        await self._refresh_cache()
+        return {"status": "ok", "strategy_id": sid, "definition": definition,
+                "note": "Im Backtester/Optimizer wählbar. " + TESTING_NOTE}
+
+    # ---------------- Prompt-Kontext ----------------
+    async def context_text(self) -> str:
+        try:
+            rows = await self.list_candidates(include_rejected=False)
+        except Exception:
+            rows = []
+        s = self.settings
+        lines = [
+            "=== DEIN STRATEGIE-LABOR (eigene Strategien sicher testen) ===",
+            f"Pipeline: ghost → live_pending → Freigabe des Traders → "
+            f"{s.get('promote_to', 'paper')}. Schwellen: mind. {s['min_ghost_trades']} "
+            f"Ghost-Trades und {s['min_ghost_winrate']}% Winrate. Ohne Freigabe des Traders "
+            "handelt KEINE neue Strategie mit echtem Geld.",
+            "Willst du eine neue Strategie testen, gib sie im Analyse-JSON unter "
+            '"new_strategies": [{"name": "...", "thesis": "...", "rules_text": "...", '
+            '"symbols": ["BTCUSDT"], "learned_from": "welche bestehende Strategie/Parameter '
+            'dich inspiriert hat", "rule_definition": {...optional, siehe unten...}}] '
+            'zurück. Entscheidungen, die zu einem Kandidaten gehören, markiere mit '
+            '"strategy_candidate_id".',
+            TESTING_NOTE,
+        ]
+        if rows:
+            lines.append("Aktuelle Kandidaten:")
+            for c in rows[:8]:
+                g = (c.get("stats") or {}).get("ghost") or {}
+                lines.append(
+                    f"- {c['id']} „{c['name']}“ [{c['stage']}]: {g.get('trades', 0)} Ghost-Trades, "
+                    f"Winrate {g.get('win_rate', 0)}%, Summe {g.get('pnl_pct', 0)}% | "
+                    f"Coins {', '.join(c.get('symbols') or []) or 'alle'} | "
+                    f"Idee: {(c.get('thesis') or '')[:140]}")
+        else:
+            lines.append("Aktuelle Kandidaten: (keine)")
+        return "\n".join(lines)
+
+    async def tick(self):
+        if self.db is None or not self.settings.get("enabled", True):
+            return
+        try:
+            await self._evaluate_ghosts()
+        except Exception as e:
+            self.last_error = str(e)[:200]
+            logger.error(f"Ghost-Auswertung fehlgeschlagen: {e}")
+
+    def status(self) -> Dict:
+        return {"settings": dict(self.settings), "stages": list(STAGES),
+                "active": len([c for c in self._cache.values()
+                               if c.get("stage") in ("ghost", "live_pending")]),
+                "last_error": self.last_error}
+
+
+strategy_lab = StrategyLab()
