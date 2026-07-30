@@ -25,6 +25,8 @@ DEFAULT_SETTINGS = {
     "strategy_sessions": {},                        # {strategy_id: [sessions]} überschreibt global
     "pre_signal_enabled": True,
     "notifications": {},                            # {symbol: bool}
+    # Sperrzeit (Minuten) für wiederholte Telegram-Meldungen desselben Setups
+    "notify_cooldown_min": 15,
 }
 
 

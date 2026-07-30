@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 3 (Zeitplan, MasterPrompt-Lektionspolicy + Tageslimits, Makro-Validierung, Makro pro Kandidat, Provider-Health, Telegram-Bremse) getestet. Backend: neue Datei /app/backend/tests/test_ai_iter3_api.py mit 23 Live-API-Tests -> alle grün (23/23). Pre-existierende Unit-Tests test_ai_iter2_governance.py 18/18 grün (mit PYTHONPATH=/app/backend). Frontend: Admin-Login, MasterPrompt-Panel mit allen 18 neuen Testids (lesson-policy-textarea, master-rule-forbidden-terms, master-rule-daily-loss, master-rule-trades-per-day, validation-macro-min-trades/confirmations/step/window, ai-schedule-editor, schedule-preset-30/5, schedule-add, schedule-window-0 mit from/to/interval/label/enabled/remove, schedule-default-interval, notify-cooldown, schedule-save, master-prompt-save/reset) sichtbar; Save->Toast, Reset->Save funktioniert, Zeitplan-Editor: Preset 30 (22-06 Nacht) + Preset 5 (15-18 US-Open) hinzugefügt, Standard-Intervall 12 + notify-cooldown 18 gesetzt, schedule-save -> Toast 'Zeitplan gespeichert - aktuell alle 30 min (Nacht ruhiger)'. Strategie-Labor: TEST_UI_MACRO Kandidat angelegt, strategy-macro-<id> Formular offen, sl_fixed_percent=0.6 & tp1_crv=1.8 gespeichert -> view zeigt 'Eigene Parameter: sl_fixed_percent=0.6, tp1_crv=1.8', Kandidat via strategy-reject-<id> auf 'abgelehnt' gesetzt. Aufräumung: Zeitplan wieder [], default 10, notify 15, MasterPrompt Defaults, macro_min_trades zurück auf 25.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/ai/master-prompt",
+        "issue": "Router leitet body['lesson_policy'] NICHT an master_prompt.save() weiter -> Editierung der Lektions-Policy im UI (lesson-policy-textarea) hat keinen Effekt. Fix: in routers/ai_governance.py Zeile 54: master_prompt.save(text=..., rules=..., lesson_policy=body.get('lesson_policy')). Zusätzlich sollte die Guard 'if text not in body and rules not in body' um lesson_policy erweitert werden."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "MasterPrompt speichern",
+        "issue": "UI sendet lesson_policy im POST body (AIGovernancePanel.js Zeile 44), Backend ignoriert das Feld -> Zwar Toast + Version-Bump, aber Text der Lektionen-Policy wird nicht persistiert.",
+        "affected_selectors": ["lesson-policy-textarea", "master-prompt-save"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_iter3_api.py",
+    "/app/test_reports/pytest/iter3_api.xml"
+  ],
+  "action_items": [
+    "routers/ai_governance.py::set_master_prompt: lesson_policy aus body an master_prompt.save() weitergeben (analog rules/text). Endpoint-Guard erweitern und Snapshot enthält korrekt aktualisiertes lesson_policy."
+  ],
+  "critical_code_review_comments": [
+    "Router-Bug: set_master_prompt (ai_governance.py L50-57) unterstützt nur text+rules; das service-Objekt master_prompt.save() akzeptiert lesson_policy und die Persistenz-Logik ist bereits vollstaendig implementiert - es fehlt lediglich die Weiterleitung im Router. Kleine, isolierte Aenderung.",
+    "Notify-Guard-Endpoint validiert cooldown_min sauber und clampt auf [0, 240]. Ungueltige Werte -> 400.",
+    "Schedule-Endpoint verwirft ungueltige Fenster serverseitig (normalize_schedule) - aus 4 gesendeten Fenstern wurden 2 gueltige gespeichert.",
+    "Strategy-Macro-Endpoint filtert unbekannte Keys (foo) korrekt und akzeptiert nur MACRO_KEYS.",
+    "Ausgabe der providers/health-Struktur enthaelt alle geforderten Felder inkl. cooldown_left_s (in dieser Preview-Umgebung leer, da keine LLM-Keys)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_iter3_api.py (neu, 23 API-Tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (23/23 neue API-Tests; 18/18 iter2-Unit-Tests)",
+    "frontend": "100% aller neuen Flows (MasterPrompt, Zeitplan, Strategie-Labor Makro)"
+  },
+  "test_credentials": "Admin / Dean06Greif!/Admin",
+  "seed_data_creation": "Alle Testdaten aufgeraeumt: schedule=[], default_interval_min=10, notify_cooldown=15, MasterPrompt-Regeln auf Defaults (forbidden_terms=[], max_daily_loss_usdt=0, max_trades_per_day=0), validation macro_min_trades zurueck auf 25/3/20/14. TEST_UI_MACRO + TEST_MACRO Kandidaten stehen auf stage='rejected' (kein DELETE-Endpoint vorgesehen).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Zum Ausfuehren der Iter3-API-Tests: cd /app && REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL frontend/.env | cut -d= -f2) pytest backend/tests/test_ai_iter3_api.py -v. Fuer die vorhandenen Unit-Tests (iter2): PYTHONPATH=/app/backend erforderlich. Der einzige gefundene Bug ist die fehlende Weiterleitung von lesson_policy im POST /api/ai/master-prompt Router - nach Fix bitte test_master_prompt_post_with_new_rules erweitern (die deaktivierte lesson_policy-Assertion wiederherstellen).",
+  "rca of the issue": "POST /api/ai/master-prompt: FastAPI-Handler set_master_prompt liest zwar body['text'] und body['rules'], nicht aber body['lesson_policy'], obwohl das Frontend (AIGovernancePanel.js Zeile 44) und die Service-Methode master_prompt.save(text, rules, lesson_policy) beides unterstuetzen. Reproduktion: POST {text,rules,lesson_policy:'X'} -> Response.master_prompt.lesson_policy bleibt Default. Mitigation: In routers/ai_governance.py Zeile 54 den Aufruf ergaenzen: master_prompt.save(text=body.get('text'), rules=body.get('rules'), lesson_policy=body.get('lesson_policy'))."
+}

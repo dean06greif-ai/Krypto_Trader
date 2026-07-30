@@ -752,6 +752,14 @@ class AutoTradeManager:
         if eff_mode == "off":
             return None
         cfg = self.effective_cfg(symbol, strategy_id)
+        # Höchste Priorität für KI-Strategie-Kandidaten: deren individuelle
+        # Makro-Parameter (services/ai_strategy_lab.py) überschreiben die Config
+        # nur für diesen Trade.
+        overrides = signal.get("cfg_overrides") or {}
+        if isinstance(overrides, dict):
+            for k, v in overrides.items():
+                if k in cfg and v is not None:
+                    cfg[k] = v
         # Enable-Logik: Wenn eine per-(Strategie,Coin)- oder Strategie-Config
         # explizit auf live/paper steht, gilt DEREN enabled-Flag (Default True).
         # Nur ohne solche Config bleibt der Coin-Schalter der Master-Switch.

@@ -8,6 +8,7 @@ from core import state
 from core.state import scanner, telegram, autotrader, open_signal_evals, \
     control_state, toggle_enabled, websocket_clients
 from core.utils import _clean
+from services import notify_guard
 
 logger = logging.getLogger(__name__)
 
@@ -108,15 +109,25 @@ async def process_signal(signal: Dict, candles: List[Dict]):
         })
 
     # FIX 1: Telegram-Benachrichtigung senden (wenn aktiviert)
+    # Spam-Bremse: identische Setups (gleicher Coin/Strategie/Richtung und
+    # nahezu gleicher Entry) werden innerhalb der Sperrzeit nicht erneut
+    # gemeldet – vorher kamen bei einem 5 Minuten laufenden Signal bis zu
+    # 10 gleiche Nachrichten.
     if notify and signals_enabled_for_strategy:
-        try:
-            # tp1_close_percent für die Telegram-Nachricht hinzufügen
-            coin_cfg = autotrader.coin_cfg(symbol)
-            signal["tp1_close_percent"] = coin_cfg.get("tp1_close_percent", 50)
-            await telegram.send_signal(signal)
-            logger.info(f"Telegram notification sent for {symbol} {signal['type']}")
-        except Exception as e:
-            logger.error(f"Failed to send Telegram notification: {e}")
+        cooldown = scanner.settings.get("notify_cooldown_min", notify_guard.DEFAULT_COOLDOWN_MIN)
+        allowed, reason = notify_guard.check(signal, cooldown)
+        signal["notify_suppressed"] = not allowed
+        if allowed:
+            try:
+                # tp1_close_percent für die Telegram-Nachricht hinzufügen
+                coin_cfg = autotrader.coin_cfg(symbol)
+                signal["tp1_close_percent"] = coin_cfg.get("tp1_close_percent", 50)
+                await telegram.send_signal(signal)
+                logger.info(f"Telegram notification sent for {symbol} {signal['type']}")
+            except Exception as e:
+                logger.error(f"Failed to send Telegram notification: {e}")
+        else:
+            logger.debug(f"Telegram für {symbol} {signal['type']} unterdrückt: {reason}")
 
     # FIX 2: Auto-Trade ausführen (wenn Auto-Trading aktiviert ist)
     try:

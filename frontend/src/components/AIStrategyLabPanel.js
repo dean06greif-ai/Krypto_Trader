@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Flask, CheckCircle, XCircle, ArrowCounterClockwise, ChartLine, Ghost } from '@phosphor-icons/react';
+import { Flask, CheckCircle, XCircle, ArrowCounterClockwise, ChartLine, Ghost, SlidersHorizontal } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
 import './AIGovernance.css';
@@ -20,6 +20,7 @@ export const AIStrategyLabPanel = () => {
   const [settings, setSettings] = useState(null);
   const [ghosts, setGhosts] = useState({});
   const [form, setForm] = useState({ name: '', thesis: '', symbols: '' });
+  const [macroEdit, setMacroEdit] = useState(null);   // {cid, params}
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -73,6 +74,26 @@ export const AIStrategyLabPanel = () => {
       const data = await res.json();
       if (data.status === 'ok') toast.success('Für Backtester/Optimizer registriert');
       else toast.message(data.detail || 'Nicht testbar');
+      load();
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const saveMacro = async () => {
+    if (!macroEdit) return;
+    const params = {};
+    Object.entries(macroEdit.params).forEach(([k, v]) => {
+      if (v !== '' && v !== null && !Number.isNaN(Number(v))) params[k] = Number(v);
+    });
+    try {
+      const res = await fetch(`${API_URL}/api/ai/strategies/${macroEdit.cid}/macro`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ macro_params: params }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Fehler');
+      toast.success('Makro-Parameter dieser Strategie gespeichert');
+      setMacroEdit(null);
       load();
     } catch (e) { toast.error(e.message); }
   };
@@ -213,7 +234,48 @@ export const AIStrategyLabPanel = () => {
                   data-testid={`strategy-ghosts-${c.id}`}>
                   Ghost-Trades
                 </button>
+                <button className="gov-btn" data-testid={`strategy-macro-${c.id}`}
+                  onClick={() => setMacroEdit(macroEdit?.cid === c.id ? null : {
+                    cid: c.id,
+                    params: {
+                      sl_fixed_percent: c.macro_params?.sl_fixed_percent ?? '',
+                      tp1_crv: c.macro_params?.tp1_crv ?? '',
+                      tpf_crv: c.macro_params?.tpf_crv ?? '',
+                      leverage: c.macro_params?.leverage ?? '',
+                      tp1_close_percent: c.macro_params?.tp1_close_percent ?? '',
+                    },
+                  })}>
+                  <SlidersHorizontal size={13} weight="bold" /> Makro-Parameter
+                </button>
               </div>
+              {Object.keys(c.macro_params || {}).length > 0 && (
+                <div className="gov-card-rules" data-testid={`strategy-macro-view-${c.id}`}>
+                  Eigene Parameter: {Object.entries(c.macro_params)
+                    .map(([k, v]) => `${k}=${v}`).join(', ')}
+                </div>
+              )}
+              {macroEdit?.cid === c.id && (
+                <div className="gov-rules" data-testid={`strategy-macro-form-${c.id}`}>
+                  {[['sl_fixed_percent', 'Stop-Loss %'], ['tp1_crv', 'TP1 als CRV'],
+                    ['tpf_crv', 'Final-TP als CRV'], ['leverage', 'Hebel'],
+                    ['tp1_close_percent', 'TP1 Teil-Close %']].map(([key, label]) => (
+                    <label key={key}>
+                      <span>{label}</span>
+                      <input type="number" step="0.05" value={macroEdit.params[key]}
+                        placeholder="Standard"
+                        onChange={e => setMacroEdit({
+                          ...macroEdit,
+                          params: { ...macroEdit.params, [key]: e.target.value },
+                        })}
+                        data-testid={`strategy-macro-${key}-${c.id}`} />
+                    </label>
+                  ))}
+                  <div className="gov-actions">
+                    <button className="gov-btn primary" onClick={saveMacro}
+                      data-testid={`strategy-macro-save-${c.id}`}>Übernehmen</button>
+                  </div>
+                </div>
+              )}
               {ghosts[c.id] && (
                 <ul className="gov-ghost-list" data-testid={`strategy-ghost-list-${c.id}`}>
                   {ghosts[c.id].length === 0 && <li>(noch keine Ghost-Trades)</li>}

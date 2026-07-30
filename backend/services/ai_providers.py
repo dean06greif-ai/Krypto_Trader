@@ -179,6 +179,64 @@ def same_provider_chain(provider: str, preferred: Optional[str]) -> List[Tuple[s
     return [(provider, m) for m in chain if m in allowed]
 
 
+# ---------------- Provider-Health (Limit-/Fallback-Anzeige) ----------------
+# Sichtbar machen, WARUM die KI auf ein anderes Modell ausgewichen ist.
+RATE_LIMIT_COOLDOWN_S = 30 * 60
+
+_health: Dict[str, Dict] = {}     # "provider/model" -> {status, ts, detail, key_index}
+_last_call: Dict = {}             # letzter erfolgreicher Aufruf inkl. Fallback-Info
+
+
+def _now() -> float:
+    import time as _t
+    return _t.time()
+
+
+def record_result(provider: str, model: str, status: str, detail: str = "",
+                  key_index: int = 0, role: Optional[str] = None,
+                  requested: Optional[str] = None):
+    """Ergebnis eines Modell-Aufrufs festhalten (ok | rate_limited | error)."""
+    _health[f"{provider}/{model}"] = {
+        "provider": provider, "model": model, "status": status,
+        "detail": str(detail)[:200], "key_index": key_index, "ts": _now(),
+    }
+    if status == "ok":
+        _last_call.update({
+            "provider": provider, "model": model, "role": role,
+            "requested_model": requested, "key_index": key_index,
+            "fallback": bool((requested and requested != model) or key_index > 0),
+            "ts": _now(),
+        })
+
+
+def health_status() -> Dict:
+    """Aufbereiteter Zustand für /api/ai/status und die UI."""
+    now = _now()
+    limited, errors, models = [], [], {}
+    for key, h in _health.items():
+        age = now - float(h.get("ts", 0))
+        entry = {**h, "age_s": int(age)}
+        if h.get("status") == "rate_limited":
+            entry["cooldown_left_s"] = max(0, int(RATE_LIMIT_COOLDOWN_S - age))
+            if entry["cooldown_left_s"] > 0:
+                limited.append(entry)
+        elif h.get("status") == "error" and age < RATE_LIMIT_COOLDOWN_S:
+            errors.append(entry)
+        models[key] = entry
+    last = dict(_last_call)
+    if last.get("ts"):
+        last["age_s"] = int(now - last["ts"])
+    return {
+        "models": models,
+        "rate_limited": limited,
+        "errors": errors,
+        "last_call": last,
+        "fallback_active": bool(last.get("fallback")),
+        "providers": available_providers(),
+        "backup_keys": backup_keys_info(),
+    }
+
+
 # ---------------- client caches ----------------
 _gemini_clients: Dict[str, object] = {}   # key -> genai.Client
 _oai_clients: Dict[Tuple[str, str], object] = {}  # (provider, key) -> AsyncOpenAI
@@ -271,13 +329,17 @@ async def generate_chain(chain: List[Tuple[str, str]], prompt: str, system: str,
                     text = await _oai_generate(provider, model, key, prompt, system, temperature, json_mode)
                 if i > 0:
                     logger.warning(f"AI: Backup-Key für {provider} genutzt ({model})")
+                record_result(provider, model, "ok", key_index=i,
+                              requested=chain[0][1] if chain else None)
                 return text, provider, model
             except Exception as e:
                 last_err = e
                 if is_rate_limit_error(e):
                     logger.warning(f"{provider}/{model} rate-limited (Key {i + 1}/{len(keys)}), weiter…")
+                    record_result(provider, model, "rate_limited", str(e), key_index=i)
                     continue
                 logger.warning(f"{provider}/{model} Fehler: {str(e)[:150]} – nächstes Modell…")
+                record_result(provider, model, "error", str(e), key_index=i)
                 break  # anderer Fehler -> nächstes Modell, nicht nächster Key
     if not tried_any:
         raise RuntimeError("Kein API-Key für die konfigurierten Provider gesetzt")
@@ -325,6 +387,8 @@ async def stream_chain(chain: List[Tuple[str, str]], prompt: str, system: str,
                         if part:
                             streamed = True
                             yield ("token", part)
+                record_result(provider, model, "ok", key_index=i,
+                              requested=chain[0][1] if chain else None)
                 yield ("meta", (provider, model))
                 return
             except Exception as e:
@@ -334,8 +398,10 @@ async def stream_chain(chain: List[Tuple[str, str]], prompt: str, system: str,
                     return
                 if is_rate_limit_error(e):
                     logger.warning(f"{provider}/{model} chat rate-limited (Key {i + 1}), weiter…")
+                    record_result(provider, model, "rate_limited", str(e), key_index=i)
                     continue
                 logger.warning(f"{provider}/{model} chat Fehler: {str(e)[:150]}")
+                record_result(provider, model, "error", str(e), key_index=i)
                 break
     if not tried_any:
         yield ("error", "Kein API-Key für die konfigurierten Provider gesetzt")

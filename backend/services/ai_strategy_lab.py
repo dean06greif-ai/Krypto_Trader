@@ -24,7 +24,7 @@ Backtester/Optimizer sie rechnen können.
 """
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from services.ai_memory import memory
@@ -32,6 +32,13 @@ from services.ai_memory import memory
 logger = logging.getLogger(__name__)
 
 COLL = "ai_strategy_candidates"
+# Makro-/Struktur-Parameter, die pro eigener KI-Strategie individuell gelten dürfen
+MACRO_PARAM_KEYS = ("sl_fixed_percent", "sl_atr_mult", "tp1_crv", "tpf_crv",
+                    "tp1_close_percent", "leverage", "trail_atr_mult",
+                    "breakeven_offset_percent", "max_capital")
+# Nur diese Keys werden als Trade-Overrides an den AutoTrader gegeben
+TRADE_OVERRIDE_KEYS = ("tp1_close_percent", "leverage", "trail_atr_mult",
+                       "breakeven_offset_percent", "sl_atr_mult")
 GHOST_COLL = "ai_ghost_trades"
 STAGES = ("ghost", "live_pending", "paper", "live", "rejected")
 
@@ -42,6 +49,7 @@ DEFAULT_SETTINGS = {
     "min_ghost_winrate": 55.0,
     "promote_to": "paper",          # Ziel-Stufe nach der Freigabe: paper | live
     "max_active_candidates": 5,
+    "ghost_timeout_min": 240,        # Ghost-Trade ohne Treffer läuft aus (nicht gewertet)
 }
 
 TESTING_NOTE = (
@@ -76,7 +84,8 @@ def ghost_stats(trades: List[Dict]) -> Dict:
     return {"trades": len(closed), "wins": wins, "losses": losses,
             "win_rate": round(wins / decided * 100, 1) if decided else 0.0,
             "pnl_pct": pnl_pct,
-            "open": sum(1 for t in trades or [] if t.get("status") == "open")}
+            "open": sum(1 for t in trades or [] if t.get("status") == "open"),
+            "expired": sum(1 for t in trades or [] if t.get("status") == "expired")}
 
 
 def promotion_ready(stats: Dict, settings: Dict) -> bool:
@@ -130,7 +139,8 @@ class StrategyLab:
         for key in ("enabled", "allow_ai_create"):
             if key in updates:
                 self.settings[key] = bool(updates[key])
-        for key, lo, hi in (("min_ghost_trades", 3, 200), ("max_active_candidates", 1, 20)):
+        for key, lo, hi in (("min_ghost_trades", 3, 200), ("max_active_candidates", 1, 20),
+                            ("ghost_timeout_min", 15, 2880)):
             if key in updates:
                 try:
                     self.settings[key] = max(lo, min(hi, int(updates[key])))
@@ -185,6 +195,8 @@ class StrategyLab:
             "updated_at": _now_iso(),
             "stats": {"ghost": ghost_stats([]), "live_note": None},
             "custom_strategy_id": None,
+            "macro_params": {k: v for k, v in (spec.get("macro_params") or {}).items()
+                             if k in MACRO_PARAM_KEYS},
             "trader_note": str(spec.get("trader_note") or "")[:400],
         }
         await self.db[COLL].insert_one(dict(cand))
@@ -260,6 +272,44 @@ class StrategyLab:
             return "unknown"
         return cand.get("stage")
 
+    # ---------------- Makro-Parameter pro Strategie ----------------
+    async def update_macro_params(self, cid: str, changes: Dict) -> Dict:
+        """Struktur-Parameter (SL, CRV, Hebel ...) einer eigenen Strategie setzen.
+        Wird von der Validierung (`ai_validation`) abgesichert aufgerufen."""
+        cand = await self.get(cid)
+        if not cand:
+            return {"status": "error", "detail": "Kandidat nicht gefunden"}
+        macro = dict(cand.get("macro_params") or {})
+        applied = {}
+        for key, value in (changes or {}).items():
+            if key not in MACRO_PARAM_KEYS or value is None:
+                continue
+            try:
+                macro[key] = float(value)
+            except (TypeError, ValueError):
+                continue
+            applied[key] = macro[key]
+        await self.db[COLL].update_one({"id": cid}, {"$set": {
+            "macro_params": macro, "updated_at": _now_iso()}})
+        await self._refresh_cache()
+        logger.info(f"Makro-Parameter für {cid} gesetzt: {applied}")
+        return {"status": "ok", "macro_params": macro, "applied": applied}
+
+    def macro_params(self, cid: Optional[str]) -> Dict:
+        """Aktive Makro-Parameter eines Kandidaten (in-memory, für Signal-Levels)."""
+        if not cid:
+            return {}
+        cand = self._cache.get(cid) or {}
+        if cand.get("stage") not in ("paper", "live"):
+            return {}
+        return dict(cand.get("macro_params") or {})
+
+    def trade_overrides(self, cid: Optional[str]) -> Optional[Dict]:
+        """Nur die Parameter, die der AutoTrader direkt übernehmen darf."""
+        macro = self.macro_params(cid)
+        out = {k: macro[k] for k in TRADE_OVERRIDE_KEYS if k in macro}
+        return out or None
+
     # ---------------- Ghost-Trading ----------------
     async def record_ghost_trade(self, cid: str, symbol: str, side: str, entry: float,
                                  sl: float, tp: float, reason: str = "") -> Dict:
@@ -279,7 +329,23 @@ class StrategyLab:
         if not open_rows:
             return
         touched = set()
+        timeout_min = int(self.settings.get("ghost_timeout_min", 240))
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_min)
         for gt in open_rows:
+            # Ghost-Trades ohne Entscheidung laufen aus – sonst blockieren sie die
+            # Statistik dauerhaft und die Strategie käme nie zur Bewertung.
+            try:
+                opened = datetime.fromisoformat(str(gt.get("opened_at")))
+                if opened.tzinfo is None:
+                    opened = opened.replace(tzinfo=timezone.utc)
+            except Exception:
+                opened = None
+            if opened and opened < cutoff:
+                await self.db[GHOST_COLL].update_one({"id": gt["id"]}, {"$set": {
+                    "status": "expired", "result": "expired",
+                    "closed_at": _now_iso()}})
+                touched.add(gt["candidate_id"])
+                continue
             price = None
             try:
                 price = self.engine.scanner.current_price(gt["symbol"])
@@ -300,13 +366,29 @@ class StrategyLab:
         for cid in touched:
             await self.refresh_candidate_stats(cid)
 
+    async def real_stats(self, cid: str) -> Dict:
+        """Ergebnisse der echten (Paper/Live-)Trades dieser Strategie."""
+        try:
+            rows = await self.db.auto_trades.find(
+                {"ai_candidate_id": cid, "status": "closed"},
+                {"result": 1, "realized_pnl": 1, "mode": 1}).limit(500).to_list(500)
+        except Exception:
+            return {"trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0, "pnl": 0.0}
+        wins = sum(1 for r in rows if r.get("result") == "win")
+        losses = sum(1 for r in rows if r.get("result") == "loss")
+        decided = wins + losses
+        return {"trades": len(rows), "wins": wins, "losses": losses,
+                "win_rate": round(wins / decided * 100, 1) if decided else 0.0,
+                "pnl": round(sum(float(r.get("realized_pnl") or 0) for r in rows), 4)}
+
     async def refresh_candidate_stats(self, cid: str) -> Dict:
         rows = await self.db[GHOST_COLL].find({"candidate_id": cid}).limit(500).to_list(500)
         stats = ghost_stats(rows)
         cand = await self.get(cid)
         if not cand:
             return stats
-        updates = {"stats.ghost": stats, "updated_at": _now_iso()}
+        updates = {"stats.ghost": stats, "stats.real": await self.real_stats(cid),
+                   "updated_at": _now_iso()}
         if cand.get("stage") == "ghost" and promotion_ready(stats, self.settings):
             updates["stage"] = "live_pending"
             updates["promotion_ready_at"] = _now_iso()
@@ -383,16 +465,27 @@ class StrategyLab:
             'dich inspiriert hat", "rule_definition": {...optional, siehe unten...}}] '
             'zurück. Entscheidungen, die zu einem Kandidaten gehören, markiere mit '
             '"strategy_candidate_id".',
+            "Eigene Makro-Parameter pro Strategie (SL/CRV/Hebel/TP1-Anteil) kannst du über "
+            'config_changes mit "symbol": "<candidate_id>" anpassen – sie gelten nur für Trades '
+            "dieser Strategie und werden mit deren eigener Trade-Stichprobe validiert "
+            "(Schutz vor Overfitting).",
             TESTING_NOTE,
         ]
         if rows:
             lines.append("Aktuelle Kandidaten:")
             for c in rows[:8]:
                 g = (c.get("stats") or {}).get("ghost") or {}
+                macro = c.get("macro_params") or {}
+                macro_txt = ", ".join(f"{k}={v}" for k, v in macro.items()) or "Standard"
+                real = (c.get("stats") or {}).get("real") or {}
+                real_txt = (f" | echte Trades {real.get('trades', 0)}, Winrate "
+                            f"{real.get('win_rate', 0)}%, PnL {real.get('pnl', 0)} USDT"
+                            if real.get("trades") else "")
                 lines.append(
-                    f"- {c['id']} „{c['name']}“ [{c['stage']}]: {g.get('trades', 0)} Ghost-Trades, "
+                    f"- {c['id']} „{c['name']}“ [{c['stage']}]{real_txt}: {g.get('trades', 0)} Ghost-Trades, "
                     f"Winrate {g.get('win_rate', 0)}%, Summe {g.get('pnl_pct', 0)}% | "
                     f"Coins {', '.join(c.get('symbols') or []) or 'alle'} | "
+                    f"Makro-Parameter: {macro_txt} | "
                     f"Idee: {(c.get('thesis') or '')[:140]}")
         else:
             lines.append("Aktuelle Kandidaten: (keine)")
@@ -403,6 +496,13 @@ class StrategyLab:
             return
         try:
             await self._evaluate_ghosts()
+            for cid, cand in list(self._cache.items()):
+                if cand.get("stage") in ("paper", "live"):
+                    real = await self.real_stats(cid)
+                    if real != (cand.get("stats") or {}).get("real"):
+                        await self.db[COLL].update_one({"id": cid},
+                                                       {"$set": {"stats.real": real}})
+                        cand.setdefault("stats", {})["real"] = real
         except Exception as e:
             self.last_error = str(e)[:200]
             logger.error(f"Ghost-Auswertung fehlgeschlagen: {e}")

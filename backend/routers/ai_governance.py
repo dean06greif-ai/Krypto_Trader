@@ -16,6 +16,9 @@ from typing import Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import require_admin
+from core import state
+from core.state import scanner
+from services import ai_providers, ai_schedule, notify_guard
 from services.ai_engine import ai_engine
 from services.ai_lessons import lesson_store
 from services.ai_master_prompt import master_prompt
@@ -145,6 +148,73 @@ async def register_candidate_for_test(cid: str, _: bool = Depends(require_admin)
     if res.get("status") == "error":
         raise HTTPException(status_code=404, detail=res.get("detail"))
     return res
+
+
+@router.post("/api/ai/strategies/{cid}/macro")
+async def set_candidate_macro(cid: str, body: Dict, _: bool = Depends(require_admin)):
+    """Makro-Parameter (SL, CRV, Hebel ...) einer eigenen KI-Strategie setzen."""
+    res = await strategy_lab.update_macro_params(cid, body.get("macro_params") or body)
+    if res.get("status") != "ok":
+        raise HTTPException(status_code=404, detail=res.get("detail"))
+    _opinion("Makro-Parameter einer Strategie (Trader)",
+             f"Kandidat {cid}: {res.get('applied')}")
+    return {"status": "success", **res}
+
+
+# ---------------- Analyse-Zeitplan ----------------
+@router.get("/api/ai/schedule")
+async def get_schedule():
+    interval, window = ai_engine.current_interval()
+    return {
+        "schedule": ai_engine.config.get("schedule") or [],
+        "default_interval_min": ai_engine.config.get("interval_min", 10),
+        "active": {"interval_min": interval, "window": window},
+        "text": ai_schedule.schedule_text(ai_engine.config.get("schedule"),
+                                          ai_engine.config.get("interval_min", 10)),
+        "max_windows": ai_schedule.MAX_WINDOWS,
+    }
+
+
+@router.post("/api/ai/schedule")
+async def set_schedule(body: Dict, _: bool = Depends(require_admin)):
+    updates: Dict = {}
+    if "schedule" in body:
+        updates["schedule"] = body["schedule"]
+    if "default_interval_min" in body:
+        updates["interval_min"] = body["default_interval_min"]
+    if not updates:
+        raise HTTPException(status_code=400, detail="schedule oder default_interval_min nötig")
+    await ai_engine.update_config(updates)
+    interval, window = ai_engine.current_interval()
+    return {"status": "success", "schedule": ai_engine.config.get("schedule"),
+            "default_interval_min": ai_engine.config.get("interval_min"),
+            "active": {"interval_min": interval, "window": window}}
+
+
+# ---------------- Provider-Zustand (Limit / Fallback) ----------------
+@router.get("/api/ai/providers/health")
+async def providers_health():
+    return ai_providers.health_status()
+
+
+# ---------------- Telegram-Spam-Bremse ----------------
+@router.get("/api/ai/notify-guard")
+async def get_notify_guard():
+    return {"cooldown_min": scanner.settings.get("notify_cooldown_min",
+                                                 notify_guard.DEFAULT_COOLDOWN_MIN),
+            "state": notify_guard.status()}
+
+
+@router.post("/api/ai/notify-guard")
+async def set_notify_guard(body: Dict, _: bool = Depends(require_admin)):
+    try:
+        value = max(0, min(240, int(float(body.get("cooldown_min")))))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="cooldown_min (0-240) erforderlich")
+    scanner.settings["notify_cooldown_min"] = value
+    await state.db.settings.update_one({"_id": "scanner"},
+                                       {"$set": {"notify_cooldown_min": value}}, upsert=True)
+    return {"status": "success", "cooldown_min": value}
 
 
 @router.get("/api/ai/strategies/ghost-trades")

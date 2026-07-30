@@ -135,6 +135,26 @@ class FakeCollection:
             nd.update(u.get("$set", {}))
             self.docs.append(nd)
 
+    async def count_documents(self, q):
+        def ok(doc):
+            for k, v in q.items():
+                if isinstance(v, dict):
+                    if "$exists" in v:
+                        parts = k.split(".")
+                        cur = doc
+                        for part in parts:
+                            cur = (cur or {}).get(part) if isinstance(cur, dict) else None
+                        if bool(cur is not None) != bool(v["$exists"]):
+                            return False
+                        continue
+                    if "$gte" in v and str(doc.get(k, "")) < str(v["$gte"]):
+                        return False
+                    continue
+                if doc.get(k) != v:
+                    return False
+            return True
+        return len([d for d in self.docs if ok(d)])
+
     async def update_many(self, q, u):
         for d in self.docs:
             if self._match(d, q):
@@ -180,12 +200,39 @@ def _engine(autonomy, learning=True, closed=50, per_symbol=25):
     return e
 
 
+def _confirm(e, scope, symbol, key, direction="down", times=3):
+    """Frühere Vorschläge derselben Richtung simulieren (Bestätigungen)."""
+    for i in range(times):
+        e.db.ai_proposals.docs.append({
+            "id": f"seed{i}", "scope": scope, "symbol": symbol,
+            "changes": {key: 1}, "macro_direction": direction,
+            "ts": "2999-01-01T00:00:00+00:00"})
+
+
 def test_change_without_enough_data_is_parked():
     e = _engine("auto", closed=1, per_symbol=1)
     res = asyncio.run(e._handle_config_changes(
-        [{"symbol": "BTCUSDT", "changes": {"leverage": 8}, "reason": "Bauchgefühl"}]))
-    assert res[0]["status"] == "needs_data"
+        [{"symbol": "BTCUSDT", "changes": {"tp1_close_percent": 40},
+          "reason": "Bauchgefühl"}]))
+    assert res[0]["status"] in ("needs_data", "needs_confirmation")
     assert e.db.strategy_coin_configs.docs == []   # nichts angewendet
+
+
+def test_macro_change_needs_multiple_confirmations():
+    e = _engine("auto")
+    res = asyncio.run(e._handle_config_changes(
+        [{"symbol": "BTCUSDT", "changes": {"sl_fixed_percent": 0.6},
+          "reason": "ein Trade lief ins Minus"}]))
+    assert res[0]["status"] == "needs_confirmation"
+    assert e.db.strategy_coin_configs.docs == []
+    # Nach genügend Bestätigungen greift die Änderung – aber nur in kleinen Schritten
+    _confirm(e, "coin", "BTCUSDT", "sl_fixed_percent", direction="up", times=3)
+    res2 = asyncio.run(e._handle_config_changes(
+        [{"symbol": "BTCUSDT", "changes": {"sl_fixed_percent": 2.4},
+          "reason": "mehrfach bestätigt"}]))
+    assert res2[0]["status"] == "auto_applied"
+    doc = asyncio.run(e.db.strategy_coin_configs.find_one({"_id": "ai_trader_BTCUSDT"}))
+    assert doc["config"]["sl_fixed_percent"] <= 1.2   # Schrittweite begrenzt (Default 1.0)
 
 
 def test_user_change_bypasses_validation():
@@ -193,6 +240,7 @@ def test_user_change_bypasses_validation():
     res = asyncio.run(e._handle_config_changes(
         [{"symbol": "BTCUSDT", "changes": {"leverage": 8}, "reason": "Trader will das"}],
         source="user"))
+    assert res[0]["changes"]["leverage"] == 8
     assert res[0]["status"] == "auto_applied"
 
 
@@ -212,6 +260,7 @@ def test_change_against_master_prompt_is_blocked():
 
 def test_suggest_mode_creates_pending_proposal():
     e = _engine("suggest")
+    _confirm(e, "coin", "BTCUSDT", "leverage", direction="down")
     res = asyncio.run(e._handle_config_changes(
         [{"symbol": "BTCUSDT", "changes": {"leverage": 8, "max_capital": 999},
           "reason": "test"}], source="analysis"))
@@ -223,12 +272,14 @@ def test_suggest_mode_creates_pending_proposal():
     # Nichts wurde angewendet
     assert e.db.strategy_coin_configs.docs == []
     # Proposal + Chat-Eintrag persistiert
-    assert len(e.db.ai_proposals.docs) == 1
+    assert len([d for d in e.db.ai_proposals.docs
+                if not str(d["id"]).startswith("seed")]) == 1
     assert e.db.ai_chat.docs[0]["role"] == "config"
 
 
 def test_auto_mode_applies_immediately():
     e = _engine("auto")
+    _confirm(e, "coin", "BTCUSDT", "leverage", direction="down")
     res = asyncio.run(e._handle_config_changes(
         [{"symbol": "BTCUSDT", "changes": {"leverage": 8}, "reason": "test"}]))
     assert res[0]["status"] == "auto_applied"
@@ -261,27 +312,31 @@ def test_noop_changes_skipped():
 
 def test_engine_scope_change():
     e = _engine("auto")
+    _confirm(e, "engine", "ENGINE", "min_confidence", direction="up")
     res = asyncio.run(e._handle_config_changes(
         [{"symbol": "ENGINE", "changes": {"min_confidence": 75}, "reason": "zu viele Fehlsignale"}]))
     assert res[0]["status"] == "auto_applied"
-    assert e.config["min_confidence"] == 75
+    # Struktur-Parameter wandern nur in kleinen Schritten (65 -> max. 70)
+    assert 65 < e.config["min_confidence"] <= 75
 
 
 def test_approve_pending_proposal():
     e = _engine("suggest")
+    _confirm(e, "coin", "ETHUSDT", "sl_fixed_percent", direction="up")
     res = asyncio.run(e._handle_config_changes(
         [{"symbol": "ETHUSDT", "changes": {"sl_fixed_percent": 1.5}}]))
     pid = res[0]["id"]
     prop = asyncio.run(e.decide_proposal(pid, True))
     assert prop["status"] == "applied"
     doc = asyncio.run(e.db.strategy_coin_configs.find_one({"_id": "ai_trader_ETHUSDT"}))
-    assert doc["config"]["sl_fixed_percent"] == 1.5
+    assert 1.0 < doc["config"]["sl_fixed_percent"] <= 1.5   # Schritt begrenzt
     # Doppelt entscheiden geht nicht
     assert asyncio.run(e.decide_proposal(pid, True)) is None
 
 
 def test_reject_pending_proposal():
     e = _engine("suggest")
+    _confirm(e, "coin", "ETHUSDT", "tp1_crv", direction="up")
     res = asyncio.run(e._handle_config_changes(
         [{"symbol": "ETHUSDT", "changes": {"tp1_crv": 2.0}}]))
     pid = res[0]["id"]

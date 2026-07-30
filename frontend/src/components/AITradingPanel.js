@@ -235,8 +235,12 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
 
   const loadProposals = useCallback(async () => {
     try {
-      const data = await fetch(`${API_URL}/api/ai/proposals?status=pending&limit=20`).then(r => r.json());
-      setProposals(data.proposals || []);
+      // Auch geparkte Vorschläge zeigen: sie warten auf Daten bzw. Bestätigungen,
+      // dürfen aber vom Trader jederzeit freigegeben werden.
+      const lists = await Promise.all(['pending', 'needs_confirmation', 'needs_data'].map(
+        st => fetch(`${API_URL}/api/ai/proposals?status=${st}&limit=10`)
+          .then(r => r.json()).then(d => d.proposals || []).catch(() => [])));
+      setProposals(lists.flat());
     } catch (e) { /* silent */ }
   }, []);
 
@@ -711,6 +715,33 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
             Wähle im Setup ein Modell eines Providers, für den ein Key existiert.
           </div>
         )}
+        {/* Limit-/Fallback-Anzeige: welches Modell aktuell wirklich arbeitet */}
+        {(status?.providers_health?.rate_limited?.length > 0
+          || status?.providers_health?.fallback_active) && (
+          <div className="ai-limit-banner" data-testid="ai-limit-banner">
+            <div className="ai-limit-head">
+              {status.providers_health.fallback_active
+                ? `Fallback aktiv: ${status.providers_health.last_call?.provider}/${status.providers_health.last_call?.model}`
+                : 'Modell-Limit erreicht'}
+              {status.providers_health.last_call?.key_index > 0 && ' · Backup-Key'}
+              {status.providers_health.last_call?.requested_model
+                && status.providers_health.last_call.requested_model !== status.providers_health.last_call.model
+                && ` (gewünscht: ${status.providers_health.last_call.requested_model})`}
+            </div>
+            {(status.providers_health.rate_limited || []).slice(0, 4).map(m => (
+              <div className="ai-limit-row" key={`${m.provider}/${m.model}`}
+                data-testid={`ai-limit-${m.provider}-${String(m.model).replace(/[^a-z0-9]/gi, '-')}`}>
+                {m.provider}/{m.model}: Limit erreicht – frei in ca.{' '}
+                {Math.ceil((m.cooldown_left_s || 0) / 60)} min
+              </div>
+            ))}
+            {(status.providers_health.errors || []).slice(0, 2).map(m => (
+              <div className="ai-limit-row err" key={`err-${m.provider}/${m.model}`}>
+                {m.provider}/{m.model}: {m.detail}
+              </div>
+            ))}
+          </div>
+        )}
         {status?.last_error && (
           <div className="ai-warning" data-testid="ai-error-banner">
             ⚠ {status.last_error}
@@ -1177,6 +1208,14 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                     ))}
                   </span>
                 </div>
+                {p.status && p.status !== 'pending' && (
+                  <div className="ai-prop-wait" data-testid={`ai-proposal-status-${p.id}`}>
+                    {p.status === 'needs_confirmation' ? 'wartet auf Bestätigungen' : 'wartet auf Daten'}
+                    {': '}
+                    {(p.macro_validation?.reason || p.validation?.reason || '')}
+                    {p.clamped && ' · Schrittweite begrenzt'}
+                  </div>
+                )}
                 {p.reason && <div className="ai-prop-reason">{p.reason}</div>}
                 <div className="ai-prop-actions">
                   <button className="ai-prop-approve" onClick={() => decideProposal(p.id, 'approve')} data-testid={`ai-proposal-approve-${p.symbol}`}>

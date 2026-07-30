@@ -30,6 +30,16 @@ DEFAULT_TEXT = (
     "5. Neue, noch nicht validierte Strategien zuerst als Ghost-/Paper-Trades testen."
 )
 
+DEFAULT_LESSON_POLICY = (
+    "1. Eine Lektion muss auf ausgewerteten Trades beruhen, nicht auf einer Vermutung.\n"
+    "2. Keine Lektion darf diesen MasterPrompt aufweichen oder umgehen.\n"
+    "3. Lektionen dürfen keine festen Einstiegs-Automatismen vorschreiben, die Markt- und "
+    "News-Kontext ignorieren.\n"
+    "4. Eine Lektion nennt Bedingung, Konsequenz und die Datenbasis (z.B. 'bei ATR% > 0.8 "
+    "war der 0.4%-SL in 12 von 15 Trades zu eng').\n"
+    "5. Risikoregeln (SL/Hebel/Kapital) dürfen nur vorsichtiger, nie aggressiver werden."
+)
+
 DEFAULT_RULES: Dict = {
     "max_leverage": 25,          # 0 = keine Obergrenze
     "min_confidence": 0,         # zusätzliche Mindest-Konfidenz (0 = aus)
@@ -37,6 +47,9 @@ DEFAULT_RULES: Dict = {
     "blocked_symbols": [],       # z.B. ["DOGEUSDT"]
     "max_open_trades": 0,        # 0 = unbegrenzt (gilt für KI-Trades)
     "require_live_approval": True,   # neue KI-Strategien nur nach Freigabe live
+    "forbidden_terms": [],           # Begriffe, die in Lektionen verboten sind
+    "max_daily_loss_usdt": 0,        # Tages-Verlustlimit der KI (0 = aus)
+    "max_trades_per_day": 0,         # max. KI-Trades pro Tag (0 = unbegrenzt)
 }
 
 RULE_LABELS = {
@@ -46,6 +59,9 @@ RULE_LABELS = {
     "blocked_symbols": "Gesperrte Coins",
     "max_open_trades": "Max. offene KI-Trades",
     "require_live_approval": "Live erst nach Freigabe",
+    "forbidden_terms": "Verbotene Begriffe in Lektionen",
+    "max_daily_loss_usdt": "Tages-Verlustlimit (USDT)",
+    "max_trades_per_day": "Max. Trades pro Tag",
 }
 
 # Erkennt Hebel-Angaben in Lektionen ("Hebel 40x", "leverage 40")
@@ -60,7 +76,8 @@ def normalize_rules(raw: Optional[Dict]) -> Dict:
     """Rohes Regel-Dict auf das erlaubte Schema bringen (rein, testbar)."""
     rules = dict(DEFAULT_RULES)
     for key, lo, hi in (("max_leverage", 0, 125), ("min_confidence", 0, 100),
-                        ("max_open_trades", 0, 50)):
+                        ("max_open_trades", 0, 50), ("max_daily_loss_usdt", 0, 100000),
+                        ("max_trades_per_day", 0, 200)):
         if raw and key in raw:
             try:
                 rules[key] = max(lo, min(hi, int(float(raw[key]))))
@@ -74,6 +91,9 @@ def normalize_rules(raw: Optional[Dict]) -> Dict:
                                     if str(s).strip()][:40]
     if raw and "require_live_approval" in raw:
         rules["require_live_approval"] = bool(raw["require_live_approval"])
+    if raw and isinstance(raw.get("forbidden_terms"), list):
+        rules["forbidden_terms"] = [str(t).strip()[:40] for t in raw["forbidden_terms"]
+                                    if str(t).strip()][:20]
     return rules
 
 
@@ -97,6 +117,25 @@ def check_trade_rules(rules: Dict, symbol: str, side: str,
     if open_trades is not None and r["max_open_trades"] and int(open_trades) >= r["max_open_trades"]:
         return False, (f"MasterPrompt: bereits {open_trades} offene KI-Trades "
                        f"(max. {r['max_open_trades']})")
+    return True, ""
+
+
+def check_day_rules(rules: Dict, day_pnl: Optional[float] = None,
+                    day_trades: Optional[int] = None) -> Tuple[bool, str]:
+    """Tages-Risikolimits prüfen (rein, testbar).
+
+    Ein Daytrader braucht eine harte Reißleine: ist das Tages-Verlustlimit
+    erreicht oder die maximale Anzahl Trades ausgeschöpft, wird nicht mehr
+    eröffnet."""
+    r = normalize_rules(rules)
+    limit = float(r.get("max_daily_loss_usdt") or 0)
+    if limit and day_pnl is not None and float(day_pnl) <= -abs(limit):
+        return False, (f"MasterPrompt: Tages-Verlustlimit erreicht "
+                       f"({round(float(day_pnl), 2)} USDT von max. -{limit} USDT)")
+    max_trades = int(r.get("max_trades_per_day") or 0)
+    if max_trades and day_trades is not None and int(day_trades) >= max_trades:
+        return False, (f"MasterPrompt: Tages-Limit von {max_trades} Trades bereits "
+                       f"erreicht ({day_trades})")
     return True, ""
 
 
@@ -135,6 +174,9 @@ def check_lesson_rules(rules: Dict, title: str, detail: str) -> Tuple[bool, str]
                                    f"über Obergrenze {r['max_leverage']}x")
             except ValueError:
                 continue
+    for term in r.get("forbidden_terms", []):
+        if term and re.search(re.escape(term), text, re.IGNORECASE):
+            return False, f"MasterPrompt: Lektion enthält den verbotenen Begriff „{term}“"
     for sym in r["blocked_symbols"]:
         base = sym.replace("USDT", "")
         if base and re.search(rf"\b{re.escape(base)}\b.{{0,40}}\b(long|short|traden|kaufen)\b",
@@ -155,6 +197,12 @@ def rules_text(rules: Dict) -> str:
         parts.append("Gesperrte Coins: " + ", ".join(r["blocked_symbols"]))
     if r["max_open_trades"]:
         parts.append(f"Max. offene KI-Trades: {r['max_open_trades']}")
+    if r.get("max_daily_loss_usdt"):
+        parts.append(f"Tages-Verlustlimit: {r['max_daily_loss_usdt']} USDT")
+    if r.get("max_trades_per_day"):
+        parts.append(f"Max. Trades pro Tag: {r['max_trades_per_day']}")
+    if r.get("forbidden_terms"):
+        parts.append("Verbotene Begriffe in Lektionen: " + ", ".join(r["forbidden_terms"]))
     parts.append("Neue KI-Strategien live: "
                  + ("nur nach Freigabe des Traders" if r["require_live_approval"]
                     else "nach bestandener Ghost-/Paper-Phase automatisch"))
@@ -167,6 +215,7 @@ class MasterPromptStore:
     def __init__(self):
         self.db = None
         self.text: str = DEFAULT_TEXT
+        self.lesson_policy: str = DEFAULT_LESSON_POLICY
         self.rules: Dict = dict(DEFAULT_RULES)
         self.version: int = 1
         self.updated_at: Optional[str] = None
@@ -185,29 +234,35 @@ class MasterPromptStore:
         if not doc:
             await self.db.settings.update_one(
                 {"_id": DOC_ID},
-                {"$set": {"text": self.text, "rules": self.rules, "version": 1,
+                {"$set": {"text": self.text, "lesson_policy": self.lesson_policy,
+                          "rules": self.rules, "version": 1,
                           "updated_at": _now_iso()}}, upsert=True)
             return self.snapshot()
         self.text = str(doc.get("text") or DEFAULT_TEXT)
+        self.lesson_policy = str(doc.get("lesson_policy") or DEFAULT_LESSON_POLICY)
         self.rules = normalize_rules(doc.get("rules"))
         self.version = int(doc.get("version") or 1)
         self.updated_at = doc.get("updated_at")
         return self.snapshot()
 
     async def save(self, text: Optional[str] = None, rules: Optional[Dict] = None,
-                   editor: str = "trader") -> Dict:
+                   lesson_policy: Optional[str] = None, editor: str = "trader") -> Dict:
         """Nur der Trader speichert hier – KI-Rollen haben keinen Schreibpfad."""
         history_entry = {"text": self.text, "rules": dict(self.rules),
+                         "lesson_policy": self.lesson_policy,
                          "version": self.version, "replaced_at": _now_iso()}
         if text is not None:
             self.text = str(text)[:8000]
+        if lesson_policy is not None:
+            self.lesson_policy = str(lesson_policy)[:4000]
         if rules is not None:
             self.rules = normalize_rules(rules)
         self.version += 1
         self.updated_at = _now_iso()
         await self.db.settings.update_one(
             {"_id": DOC_ID},
-            {"$set": {"text": self.text, "rules": self.rules, "version": self.version,
+            {"$set": {"text": self.text, "lesson_policy": self.lesson_policy,
+                      "rules": self.rules, "version": self.version,
                       "updated_at": self.updated_at, "editor": editor},
              "$push": {"history": {"$each": [history_entry], "$slice": -20}}},
             upsert=True)
@@ -226,6 +281,8 @@ class MasterPromptStore:
             "nur der Trader darf ihn ändern – du NICHT.)\n"
             f"{self.text}\n"
             f"HARTE REGELN (werden technisch erzwungen): {rules_text(self.rules)}\n"
+            f"GRUNDREGELN FÜR LEKTIONEN (gelten für jede gelernte Lektion):\n"
+            f"{self.lesson_policy}\n"
             "Diese Vorgaben stehen ÜBER allem: über gelernten Lektionen, über "
             "Empfehlungen anderer KI-Rollen, über deinen eigenen Analysen. Widersprechende "
             "Lektionen, Einstellungs-Vorschläge und Trades werden automatisch blockiert – "
@@ -237,16 +294,28 @@ class MasterPromptStore:
                     open_trades=None) -> Tuple[bool, str]:
         return check_trade_rules(self.rules, symbol, side, confidence, leverage, open_trades)
 
+    def check_day(self, day_pnl=None, day_trades=None) -> Tuple[bool, str]:
+        return check_day_rules(self.rules, day_pnl, day_trades)
+
     def check_changes(self, changes: Dict) -> Tuple[bool, str]:
         return check_change_rules(self.rules, changes)
 
     def check_lesson(self, title: str, detail: str) -> Tuple[bool, str]:
         return check_lesson_rules(self.rules, title, detail)
 
+    def lesson_policy_block(self) -> str:
+        """Nur die Lektions-Grundregeln (für den Lernlauf zusätzlich hervorgehoben)."""
+        return ("=== GRUNDREGELN FÜR LEKTIONEN (MasterPrompt – verbindlich) ===\n"
+                f"{self.lesson_policy}\n"
+                "Lektionen, die diesen Regeln oder dem MasterPrompt widersprechen, werden "
+                "automatisch verworfen.")
+
     def snapshot(self) -> Dict:
-        return {"text": self.text, "rules": dict(self.rules), "version": self.version,
+        return {"text": self.text, "lesson_policy": self.lesson_policy,
+                "rules": dict(self.rules), "version": self.version,
                 "updated_at": self.updated_at, "rule_labels": RULE_LABELS,
-                "defaults": {"text": DEFAULT_TEXT, "rules": dict(DEFAULT_RULES)}}
+                "defaults": {"text": DEFAULT_TEXT, "rules": dict(DEFAULT_RULES),
+                             "lesson_policy": DEFAULT_LESSON_POLICY}}
 
 
 master_prompt = MasterPromptStore()

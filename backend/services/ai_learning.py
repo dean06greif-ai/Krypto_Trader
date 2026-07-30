@@ -370,6 +370,7 @@ class AILearning:
                     "min_confidence/cooldown_min). NIE max_capital oder mode.\n" + tunable_spec_text())
             prompt = (
                 f"{master_prompt.prompt_block()}\n\n"
+                f"{master_prompt.lesson_policy_block()}\n\n"
                 f"{validation_gate.prompt_block()}\n\n"
                 f"=== PERFORMANCE-STATISTIK (letzte {stats.get('lookback_days')} Tage) ===\n{stats_txt}\n\n"
                 f"=== LETZTE GESCHLOSSENE TRADES (chronologisch) ===\n{outcomes_txt}\n\n"

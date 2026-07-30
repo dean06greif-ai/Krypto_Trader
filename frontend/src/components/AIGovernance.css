@@ -111,3 +111,17 @@
   background: #0d1017; border: 1px solid #2a3049; border-radius: 6px;
   color: #e8eaf2; padding: 6px 8px; font-size: 12px; font-family: inherit;
 }
+
+/* Zeitplan-Editor */
+.gov-sched-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  padding: 7px 9px; margin-bottom: 6px;
+  background: #0d1017; border: 1px solid #262b3d; border-radius: 8px;
+}
+.gov-sched-row input[type="time"], .gov-sched-row input[type="number"], .gov-sched-row input[type="text"] {
+  background: #1a1f30; border: 1px solid #2a3049; color: #e8eaf2;
+  border-radius: 6px; padding: 4px 7px; font-size: 12px;
+}
+.gov-sched-row input[type="number"] { width: 64px; }
+.gov-sched-row input[type="text"] { flex: 1; min-width: 110px; }
+.gov-sched-sep { font-size: 11px; color: #8b91a8; }

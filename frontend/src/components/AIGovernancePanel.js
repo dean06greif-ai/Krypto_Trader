@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Crown, FloppyDisk, ArrowCounterClockwise, ShieldCheck } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
+import AIScheduleEditor from './AIScheduleEditor';
 import './AIGovernance.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -13,6 +14,7 @@ export const AIGovernancePanel = () => {
   const [snap, setSnap] = useState(null);
   const [text, setText] = useState('');
   const [rules, setRules] = useState(null);
+  const [lessonPolicy, setLessonPolicy] = useState('');
   const [validation, setValidation] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -25,6 +27,7 @@ export const AIGovernancePanel = () => {
       const s = mp.master_prompt || null;
       setSnap(s);
       setText(s?.text || '');
+      setLessonPolicy(s?.lesson_policy || '');
       setRules(s?.rules ? { ...s.rules } : null);
       setValidation(val.settings || null);
     } catch (e) { /* silent */ }
@@ -38,7 +41,7 @@ export const AIGovernancePanel = () => {
       const res = await fetch(`${API_URL}/api/ai/master-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ text, rules }),
+        body: JSON.stringify({ text, rules, lesson_policy: lessonPolicy }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Speichern fehlgeschlagen');
@@ -54,6 +57,7 @@ export const AIGovernancePanel = () => {
   const resetDefaults = () => {
     if (!snap?.defaults) return;
     setText(snap.defaults.text || '');
+    setLessonPolicy(snap.defaults.lesson_policy || '');
     setRules({ ...snap.defaults.rules });
   };
 
@@ -94,11 +98,27 @@ export const AIGovernancePanel = () => {
       </p>
       <textarea
         className="gov-textarea"
-        rows={10}
+        rows={9}
         value={text}
         onChange={e => setText(e.target.value)}
         placeholder="Grundsätze, die für die KI immer gelten…"
         data-testid="master-prompt-textarea"
+      />
+
+      <div className="gov-head gov-head-sub">
+        <span className="gov-title">Grundregeln für Lektionen</span>
+      </div>
+      <p className="gov-hint">
+        Diese Regeln gelten für JEDE gelernte Lektion. Lektionen, die ihnen (oder dem
+        MasterPrompt) widersprechen, werden automatisch verworfen.
+      </p>
+      <textarea
+        className="gov-textarea"
+        rows={6}
+        value={lessonPolicy}
+        onChange={e => setLessonPolicy(e.target.value)}
+        placeholder="Grundregeln, die jede Lektion erfüllen muss…"
+        data-testid="lesson-policy-textarea"
       />
 
       <div className="gov-rules">
@@ -115,10 +135,32 @@ export const AIGovernancePanel = () => {
             data-testid="master-rule-min-confidence" />
         </label>
         <label>
+          <span>Tages-Verlustlimit USDT (0 = aus)</span>
+          <input type="number" min="0" max="100000" value={rules.max_daily_loss_usdt}
+            onChange={e => setRules({ ...rules, max_daily_loss_usdt: Number(e.target.value) })}
+            data-testid="master-rule-daily-loss" />
+        </label>
+        <label>
+          <span>Max. Trades pro Tag (0 = frei)</span>
+          <input type="number" min="0" max="200" value={rules.max_trades_per_day}
+            onChange={e => setRules({ ...rules, max_trades_per_day: Number(e.target.value) })}
+            data-testid="master-rule-trades-per-day" />
+        </label>
+        <label>
           <span>Max. offene KI-Trades (0 = frei)</span>
           <input type="number" min="0" max="50" value={rules.max_open_trades}
             onChange={e => setRules({ ...rules, max_open_trades: Number(e.target.value) })}
             data-testid="master-rule-max-open" />
+        </label>
+        <label>
+          <span>Verbotene Begriffe in Lektionen (Komma)</span>
+          <input type="text" value={(rules.forbidden_terms || []).join(',')}
+            onChange={e => setRules({
+              ...rules,
+              forbidden_terms: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+            })}
+            placeholder="z.B. all-in, revenge"
+            data-testid="master-rule-forbidden-terms" />
         </label>
         <label>
           <span>Gesperrte Coins (Komma)</span>
@@ -202,8 +244,42 @@ export const AIGovernancePanel = () => {
                 data-testid="validation-min-removal" />
             </label>
           </div>
+          <p className="gov-hint">
+            <b>Struktur-Parameter</b> (Stop-Loss, CRV, Hebel, Konfidenz) sind extra geschützt:
+            Sie brauchen eine größere Stichprobe UND mehrere Bestätigungen derselben Richtung –
+            ein einzelner Trade verschiebt nichts. Zusätzlich wandert jeder Wert nur in kleinen
+            Schritten.
+          </p>
+          <div className="gov-rules">
+            <label>
+              <span>Min. Trades (Struktur)</span>
+              <input type="number" min="0" max="500" value={validation.macro_min_trades}
+                onChange={e => saveValidation({ macro_min_trades: Number(e.target.value) })}
+                data-testid="validation-macro-min-trades" />
+            </label>
+            <label>
+              <span>Nötige Bestätigungen</span>
+              <input type="number" min="1" max="20" value={validation.macro_min_confirmations}
+                onChange={e => saveValidation({ macro_min_confirmations: Number(e.target.value) })}
+                data-testid="validation-macro-confirmations" />
+            </label>
+            <label>
+              <span>Max. Schritt (% des Werts)</span>
+              <input type="number" min="1" max="100" value={validation.macro_max_step_pct}
+                onChange={e => saveValidation({ macro_max_step_pct: Number(e.target.value) })}
+                data-testid="validation-macro-step" />
+            </label>
+            <label>
+              <span>Bestätigungs-Fenster (Tage)</span>
+              <input type="number" min="1" max="90" value={validation.macro_confirm_window_days}
+                onChange={e => saveValidation({ macro_confirm_window_days: Number(e.target.value) })}
+                data-testid="validation-macro-window" />
+            </label>
+          </div>
         </>
       )}
+
+      <AIScheduleEditor />
     </div>
   );
 };

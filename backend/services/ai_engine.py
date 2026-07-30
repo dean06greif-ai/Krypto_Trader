@@ -40,6 +40,8 @@ from services import macro_context
 from services.ai_knowledge import PLATFORM_KNOWLEDGE, tunable_spec_text, validate_changes
 from services.ai_master_prompt import master_prompt
 from services.ai_strategy_lab import strategy_lab
+from services import ai_schedule
+from services import ai_validation
 from services.ai_validation import validation_gate
 from services import ai_providers
 from services.ai_roles import role_manager
@@ -62,6 +64,9 @@ SUMMARY_SYSTEM = (
 DEFAULT_AI_CONFIG = {
     "enabled": False,
     "interval_min": 10,
+    # Zeitplan der regelmäßigen Analyse: Fenster mit eigenem Intervall,
+    # z.B. nachts alle 30 min, 15-18 Uhr alle 5 min (services/ai_schedule.py).
+    "schedule": [],
     "min_confidence": 65,
     "provider": "gemini",
     "model": "gemini-3.5-flash",
@@ -179,6 +184,8 @@ class AIEngine:
         self.decisions: Dict[str, Dict] = {}
         self.last_run: Optional[str] = None
         self.next_run: Optional[str] = None
+        self.active_window: Optional[str] = None
+        self._day_risk_cache: Dict = {}
         self.last_error: Optional[str] = None
         self.running = False
         self._analyzing = False
@@ -306,6 +313,8 @@ class AIEngine:
             self.config["enabled"] = bool(updates["enabled"])
         if "interval_min" in updates:
             self.config["interval_min"] = max(2, min(120, int(updates["interval_min"])))
+        if "schedule" in updates:
+            self.config["schedule"] = ai_schedule.normalize_schedule(updates["schedule"])
         if "min_confidence" in updates:
             self.config["min_confidence"] = max(0, min(100, int(updates["min_confidence"])))
         if "cooldown_min" in updates:
@@ -423,8 +432,13 @@ class AIEngine:
         return "\n".join(out)
 
     async def _context_brief(self, coins=None) -> str:
+        cadence = ai_schedule.schedule_text(self.config.get("schedule"),
+                                            self.config.get("interval_min", 10))
         parts = [master_prompt.prompt_block(),
                  self._role_context_block(),
+                 f"=== DEIN ANALYSE-RHYTHMUS ===\nDu wirst nach diesem Zeitplan aufgerufen: "
+                 f"{cadence}. Plane Stops/Ziele so, dass sie bis zum nächsten Aufruf "
+                 f"tragfähig sind – aktuell in {self.current_interval()[0]} Minuten.",
                  "PLATTFORM-WISSEN (was diese Website macht – dein Grundverständnis):\n"
                  + PLATFORM_KNOWLEDGE]
         # Letzte Tages-Zusammenfassung als KI-Gedächtnis ganz oben einfügen.
@@ -972,6 +986,23 @@ class AIEngine:
         finally:
             self._analyzing = False
 
+    async def _today_risk(self) -> tuple:
+        """Realisierter PnL und Trade-Anzahl der KI für den heutigen Handelstag."""
+        try:
+            day = self.scanner.berlin_date()
+            rows = await self.db.auto_trades.find(
+                {"strategy_id": "ai_trader", "trade_date": day},
+                {"realized_pnl": 1, "status": 1}).to_list(300)
+        except Exception as e:
+            logger.warning(f"Tages-Risiko nicht ermittelbar: {e}")
+            return None, None
+        pnl = sum(float(r.get("realized_pnl") or 0) for r in rows)
+        self._day_risk_cache = {"date": day, "realized_pnl": round(pnl, 4),
+                                "trades": len(rows),
+                                "limit_usdt": master_prompt.rules.get("max_daily_loss_usdt"),
+                                "max_trades": master_prompt.rules.get("max_trades_per_day")}
+        return round(pnl, 4), len(rows)
+
     async def _emit_signal(self, dec: Dict) -> bool:
         sym = dec["symbol"]
         # ---- MasterPrompt: oberstes Gebot, technisch erzwungen ----
@@ -982,6 +1013,9 @@ class AIEngine:
             open_ai_trades = None
         allowed, why = master_prompt.check_trade(
             sym, dec["action"], confidence=dec.get("confidence"), open_trades=open_ai_trades)
+        if allowed:
+            day_pnl, day_trades = await self._today_risk()
+            allowed, why = master_prompt.check_day(day_pnl, day_trades)
         if not allowed:
             logger.info(f"AI-Signal blockiert ({sym} {dec['action']}): {why}")
             dec["blocked_by"] = why
@@ -1015,9 +1049,20 @@ class AIEngine:
         entry = float(dec["price"])
         if entry <= 0:
             return False
-        sl_pct = max(0.15, min(5.0, dec["sl_pct"])) / 100
-        tp1_pct = max(sl_pct * 1.2, min(0.08, dec["tp1_pct"] / 100))
-        tpf_pct = max(tp1_pct, min(0.15, dec["tpf_pct"] / 100))
+        # Makro-Parameter des Strategie-Kandidaten haben Vorrang vor den
+        # spontanen Prozentwerten der Analyse (individuelle Feinjustierung
+        # je eigener Strategie, siehe services/ai_strategy_lab.py).
+        macro = strategy_lab.macro_params(dec.get("strategy_candidate_id"))
+        sl_input = macro.get("sl_fixed_percent", dec["sl_pct"])
+        sl_pct = max(0.15, min(5.0, float(sl_input))) / 100
+        if macro.get("tp1_crv"):
+            tp1_pct = min(0.08, sl_pct * float(macro["tp1_crv"]))
+        else:
+            tp1_pct = max(sl_pct * 1.2, min(0.08, dec["tp1_pct"] / 100))
+        if macro.get("tpf_crv"):
+            tpf_pct = min(0.15, max(tp1_pct, sl_pct * float(macro["tpf_crv"])))
+        else:
+            tpf_pct = max(tp1_pct, min(0.15, dec["tpf_pct"] / 100))
         sign = 1 if dec["action"] == "LONG" else -1
         sl = entry * (1 - sign * sl_pct)
         tp1 = entry * (1 + sign * tp1_pct)
@@ -1070,6 +1115,7 @@ class AIEngine:
             "decision_id": dec.get("id"),
             "use_ai_levels": bool(self.config.get("use_ai_levels")),
             "ai_candidate_id": cand_id,
+            "cfg_overrides": strategy_lab.trade_overrides(cand_id) if cand_id else None,
             "force_paper": bool(cand_id and stage == "paper"),
             "force_paper_reason": ("Strategie-Kandidat noch nicht für Live freigegeben"
                                   if cand_id and stage == "paper" else None),
@@ -1088,6 +1134,12 @@ class AIEngine:
     async def _current_cfg_values(self, scope: str, symbol: Optional[str], keys) -> Dict:
         if scope == "engine":
             return {k: self.config.get(k) for k in keys}
+        if scope == "candidate":
+            # Makro-Parameter einer eigenen KI-Strategie (Kandidat)
+            cand = await strategy_lab.get(symbol) or {}
+            macro = cand.get("macro_params") or {}
+            from core.defaults import DEFAULT_STRATEGY_COIN_CFG
+            return {k: macro.get(k, DEFAULT_STRATEGY_COIN_CFG.get(k)) for k in keys}
         from core.defaults import DEFAULT_STRATEGY_COIN_CFG
         doc = await self.db.strategy_coin_configs.find_one({"_id": f"ai_trader_{symbol}"})
         saved = doc.get("config", {}) if doc else {}
@@ -1097,6 +1149,9 @@ class AIEngine:
     async def _apply_changes(self, scope: str, symbol: Optional[str], changes: Dict):
         if scope == "engine":
             await self.update_config(dict(changes))
+            return
+        if scope == "candidate":
+            await strategy_lab.update_macro_params(symbol, dict(changes))
             return
         key = f"ai_trader_{symbol}"
         doc = await self.db.strategy_coin_configs.find_one({"_id": key})
@@ -1109,6 +1164,54 @@ class AIEngine:
             autotrader.config.setdefault("strategy_coin_configs", {})[key] = saved
         except Exception:
             pass
+
+    async def _macro_gate(self, prop: Dict, macro_keys: List[str], current: Dict,
+                          stats: Dict, scope: str, symbol: Optional[str]):
+        """Struktur-Parameter (SL, CRV, Hebel ...) brauchen mehrere Bestätigungen
+        und dürfen nur in kleinen Schritten wandern.
+
+        Die Bestätigungen werden aus früheren Vorschlägen derselben Richtung
+        gezählt – ein einzelner (Verlust-)Trade verschiebt damit nichts."""
+        window_days = int(validation_gate.settings.get("macro_confirm_window_days", 14))
+        since = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+        sample = await self._macro_sample(stats, scope, symbol)
+        worst = None
+        clamped_any = False
+        changes = dict(prop["changes"])
+        for key in macro_keys:
+            cur, proposed = current.get(key), changes[key]
+            direction = "up" if (cur is None or float(proposed) > float(cur)) else "down"
+            try:
+                confirmations = 1 + await self.db.ai_proposals.count_documents({
+                    "scope": scope,
+                    "symbol": prop["symbol"],
+                    f"changes.{key}": {"$exists": True},
+                    "macro_direction": direction,
+                    "ts": {"$gte": since},
+                })
+            except Exception:
+                confirmations = 1
+            gate = validation_gate.macro(sample, confirmations)
+            gate["key"] = key
+            gate["direction"] = direction
+            if worst is None or (not gate["validated"] and worst["validated"]):
+                worst = gate
+            value, was_clamped = validation_gate.clamp(key, cur, proposed)
+            changes[key] = value
+            clamped_any = clamped_any or was_clamped
+        prop["changes"] = changes
+        prop["macro_direction"] = worst.get("direction") if worst else None
+        return (worst or {"validated": True, "reason": "keine Makro-Parameter"}), clamped_any
+
+    async def _macro_sample(self, stats: Dict, scope: str, symbol: Optional[str]) -> int:
+        """Stichprobe für Makro-Änderungen – pro Kandidat aus dessen eigenen Trades."""
+        if scope == "candidate" and symbol:
+            try:
+                return await self.db.auto_trades.count_documents(
+                    {"ai_candidate_id": symbol, "status": "closed"})
+            except Exception:
+                return 0
+        return ai_validation.sample_size(stats, scope, symbol)
 
     async def _handle_config_changes(self, raw_list: List, source: str = "analysis") -> List[Dict]:
         """Validiert KI-Änderungswünsche gegen die Whitelist und wendet sie an
@@ -1130,11 +1233,21 @@ class AIEngine:
             if not isinstance(item, dict):
                 continue
             symbol_raw = str(item.get("symbol", "")).upper().strip()
-            scope = "engine" if symbol_raw in ("ENGINE", "GLOBAL", "") else "coin"
-            symbol = upper_syms.get(symbol_raw)
-            if scope == "coin" and not symbol:
-                continue
-            valid, rejected = validate_changes(item.get("changes") or {}, scope=scope)
+            cand_ref = str(item.get("strategy_candidate_id") or "").strip() or (
+                symbol_raw.lower() if symbol_raw.lower().startswith("cand_") else "")
+            if cand_ref:
+                scope, symbol = "candidate", cand_ref
+                if not await strategy_lab.get(cand_ref):
+                    logger.info(f"AI config change: Kandidat {cand_ref} unbekannt – übersprungen")
+                    continue
+            else:
+                scope = "engine" if symbol_raw in ("ENGINE", "GLOBAL", "") else "coin"
+                symbol = upper_syms.get(symbol_raw)
+                if scope == "coin" and not symbol:
+                    continue
+            # Kandidaten nutzen dieselbe Whitelist wie Coin-Configs
+            valid, rejected = validate_changes(item.get("changes") or {},
+                                               scope="coin" if scope == "candidate" else scope)
             if rejected:
                 logger.info(f"AI config change abgelehnt ({symbol_raw}): {rejected}")
             if not valid:
@@ -1147,7 +1260,7 @@ class AIEngine:
                 "id": str(uuid.uuid4()),
                 "ts": _now_iso(),
                 "scope": scope,
-                "symbol": symbol if scope == "coin" else "ENGINE",
+                "symbol": symbol if scope in ("coin", "candidate") else "ENGINE",
                 "changes": valid,
                 "current": {k: current.get(k) for k in valid},
                 "reason": str(item.get("reason", ""))[:300],
@@ -1165,14 +1278,29 @@ class AIEngine:
                 continue
             # 2. Datenbasis-Validierung – ohne ausreichende Stichprobe nur parken
             if source != "user":
-                gate = validation_gate.change(stats, scope, symbol)
+                macro_keys = [k for k in valid if ai_validation.is_macro_key(k)]
+                normal_keys = [k for k in valid if k not in macro_keys]
+                gate = validation_gate.change(stats, scope, symbol) if normal_keys else \
+                    {"validated": True, "reason": "nur Struktur-Parameter", "sample": 0}
                 prop["validation"] = gate
-                if not gate.get("validated"):
+                if normal_keys and not gate.get("validated"):
                     prop["status"] = "needs_data"
                     await self.db.ai_proposals.insert_one(dict(prop))
                     results.append(prop)
                     logger.info(f"AI config change geparkt (needs_data): {gate.get('reason')}")
                     continue
+                if macro_keys:
+                    macro_gate, clamped = await self._macro_gate(
+                        prop, macro_keys, current, stats, scope, symbol)
+                    prop["macro_validation"] = macro_gate
+                    prop["clamped"] = clamped
+                    if not macro_gate.get("validated"):
+                        prop["status"] = "needs_confirmation"
+                        await self.db.ai_proposals.insert_one(dict(prop))
+                        results.append(prop)
+                        logger.info(f"AI Makro-Änderung geparkt: {macro_gate.get('reason')}")
+                        continue
+                    valid = prop["changes"]
             if autonomy == "auto" or source == "user":
                 try:
                     await self._apply_changes(scope, symbol, valid)
@@ -1187,6 +1315,7 @@ class AIEngine:
             applied = [p for p in results if p["status"] == "auto_applied"]
             pending = [p for p in results if p["status"] == "pending"]
             parked = [p for p in results if p["status"] == "needs_data"]
+            unconfirmed = [p for p in results if p["status"] == "needs_confirmation"]
             blocked = [p for p in results if p["status"] == "blocked_master"]
             txt = []
             if applied:
@@ -1196,6 +1325,10 @@ class AIEngine:
             if parked:
                 txt.append(f"{len(parked)} Änderung(en) warten auf mehr Daten "
                            f"({parked[0].get('validation', {}).get('reason', '')}).")
+            if unconfirmed:
+                txt.append(f"{len(unconfirmed)} Struktur-Änderung(en) (SL/CRV/Hebel) warten auf "
+                           f"weitere Bestätigungen: "
+                           f"{unconfirmed[0].get('macro_validation', {}).get('reason', '')}")
             if blocked:
                 txt.append(f"{len(blocked)} Änderung(en) verstoßen gegen den MasterPrompt "
                            f"und wurden verworfen ({blocked[0].get('block_reason', '')}).")
@@ -1206,6 +1339,8 @@ class AIEngine:
                            "changes": p["changes"], "current": p["current"],
                            "reason": p["reason"], "status": p["status"],
                            "validation": p.get("validation"),
+                           "macro_validation": p.get("macro_validation"),
+                           "clamped": p.get("clamped"),
                            "block_reason": p.get("block_reason")} for p in results],
                 "source": source, "ts": _now_iso(),
             })
@@ -1256,7 +1391,10 @@ class AIEngine:
 
     async def decide_proposal(self, pid: str, approve: bool) -> Optional[Dict]:
         prop = await self.db.ai_proposals.find_one({"id": pid})
-        if not prop or prop.get("status") != "pending":
+        # Der Trader darf auch geparkte Vorschläge (fehlende Daten/Bestätigungen)
+        # freigeben – seine Entscheidung braucht keine Validierung.
+        if not prop or prop.get("status") not in ("pending", "needs_data",
+                                                 "needs_confirmation"):
             return None
         if approve:
             symbol = None if prop.get("scope") == "engine" else prop.get("symbol")
@@ -1827,10 +1965,13 @@ class AIEngine:
                     continue
                 now = time.time()
                 if now >= self._next_due:
-                    interval = max(2, int(self.config.get("interval_min", 10))) * 60
+                    interval_min, window = self.current_interval()
+                    interval = max(1, interval_min) * 60
                     self._next_due = now + interval
                     self.next_run = (datetime.now(timezone.utc)
                                      + timedelta(seconds=interval)).isoformat()
+                    self.active_window = window
+                    logger.info(f"AI Analyse-Zyklus ({window}: alle {interval_min} min)")
                     await self.run_analysis()
             except Exception as e:
                 logger.error(f"AI loop error: {e}")
@@ -1916,6 +2057,13 @@ class AIEngine:
     async def clear_chat(self):
         await self.db.ai_chat.delete_many({})
 
+    def current_interval(self) -> tuple:
+        """Aktuelles Analyse-Intervall gemäß Zeitplan (Berlin-Zeit)."""
+        now = self.scanner.berlin_now()
+        minutes = now.hour * 60 + now.minute
+        return ai_schedule.effective_interval(
+            self.config.get("schedule"), self.config.get("interval_min", 10), minutes)
+
     def status(self) -> Dict:
         from services.ai_news_watcher import news_watcher
         return {
@@ -1937,6 +2085,14 @@ class AIEngine:
             "deep_last": self.deep_last,
             "deep_last_error": self.deep_last_error,
             "news_watcher": news_watcher.status(),
+            "schedule_active": {
+                "interval_min": self.current_interval()[0],
+                "window": self.current_interval()[1],
+                "text": ai_schedule.schedule_text(self.config.get("schedule"),
+                                                 self.config.get("interval_min", 10)),
+            },
+            "providers_health": ai_providers.health_status(),
+            "day_risk": self._day_risk_cache,
             "master_prompt": master_prompt.snapshot(),
             "validation": validation_gate.status(),
             "strategy_lab": strategy_lab.status(),
