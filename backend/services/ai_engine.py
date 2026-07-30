@@ -191,6 +191,7 @@ class AIEngine:
         self._analyzing = False
         self._next_due = 0.0
         self._last_signal_ts: Dict[str, float] = {}
+        self._last_ghost_ts: Dict[str, float] = {}
         # Modell, das aktuell benutzt wird (nach Fallback ggf. abweichend von cfg.model)
         self._effective_model: Optional[str] = None
         self._effective_provider: Optional[str] = None
@@ -1077,11 +1078,15 @@ class AIEngine:
                             "-> Kandidaten-Bezug verworfen")
                 cand_id, stage = None, None
             else:
+                if (time.time() - self._last_ghost_ts.get(sym, 0)) < cooldown:
+                    return False
                 try:
                     await strategy_lab.record_ghost_trade(
                         cand_id, sym, dec["action"], entry, sl, tp1,
                         reason=dec.get("reasoning", ""))
-                    self._last_signal_ts[sym] = time.time()
+                    # Eigener Cooldown für Ghost-Trades: ein simulierter Test darf
+                    # echte Signale auf dem Coin nicht blockieren.
+                    self._last_ghost_ts[sym] = time.time()
                 except Exception as ge:
                     logger.error(f"Ghost-Trade fehlgeschlagen: {ge}")
                 return False

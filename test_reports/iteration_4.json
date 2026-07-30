@@ -1,0 +1,29 @@
+{
+  "summary": "Retest Iteration 3 lesson_policy bugfix + short regression. New pytest file test_iter4_master_prompt_lesson_policy.py (16 tests) all green. Regression suite (test_ai_iter3_api.py + test_ai_governance_api.py + test_ai_iter2_governance.py + test_ai_governance.py + test_live_close_fix.py + test_ai_learning.py) = 117/117 passed. Frontend E2E confirmed: lesson-policy-textarea saves via master-prompt-save, survives full page reload -> value read back correctly from GET /api/ai/master-prompt. MasterPrompt reset+save cleanup executed. All defaults restored (text, rules, lesson_policy).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter4_master_prompt_lesson_policy.py",
+    "/app/test_reports/pytest/iter4_master_prompt.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routers/ai_governance.py::set_master_prompt now correctly forwards lesson_policy and guard accepts text|rules|lesson_policy. Fix verified end-to-end (backend + UI).",
+    "MasterPromptStore.save persists lesson_policy and snapshot exposes it -> both GET and POST paths verified.",
+    "Nur 8 transient 'Failed to fetch' console errors direkt nach page.reload (in-flight fetches werden abgebrochen), keine echten Fehler."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter4_master_prompt_lesson_policy.py (new)"
+  ],
+  "success_rate": {"backend": "100% (16/16 iter4 + 117/117 regression)", "frontend": "100% des Bugfix-Flows"},
+  "test_credentials": "Admin/admin (aus /app/memory/test_credentials.md, ADMIN_USER/ADMIN_PASSWORD env)",
+  "seed_data_creation": "MasterPrompt am Ende via UI reset+save (Defaults) und im pytest-Fixture ebenfalls auf defaults zurueckgesetzt. Keine offenen Testdaten.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "lesson_policy Bug ist behoben und mit dediziertem Test test_iter4_master_prompt_lesson_policy.py::test_post_lesson_policy_only + test_post_all_three abgedeckt. Regressionscommand: cd /app/backend && REACT_APP_BACKEND_URL=<url> PYTHONPATH=/app/backend python -m pytest tests/test_iter4_master_prompt_lesson_policy.py tests/test_ai_iter3_api.py tests/test_ai_governance_api.py tests/test_ai_iter2_governance.py tests/test_ai_governance.py tests/test_live_close_fix.py tests/test_ai_learning.py -q",
+  "rca of the issue": "Bereits im vorherigen Iterationsreport dokumentiert. Fix in routers/ai_governance.py (Zeile 52-56) korrekt: Guard prueft nun text/rules/lesson_policy und master_prompt.save() wird mit lesson_policy=body.get('lesson_policy') aufgerufen. Persistenz bestaetigt via GET/POST-Roundtrip und via Frontend-Reload."
+}

@@ -13,7 +13,7 @@ import requests
 
 BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 ADMIN_USER = "Admin"
-ADMIN_PASS = "Dean06Greif!/Admin"
+ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin")
 
 
 @pytest.fixture(scope="module")

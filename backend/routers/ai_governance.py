@@ -49,10 +49,13 @@ async def get_master_prompt(history: bool = False):
 
 @router.post("/api/ai/master-prompt")
 async def set_master_prompt(body: Dict, _: bool = Depends(require_admin)):
-    if "text" not in body and "rules" not in body:
-        raise HTTPException(status_code=400, detail="text oder rules erforderlich")
-    snap = await master_prompt.save(text=body.get("text"), rules=body.get("rules"))
+    if not any(k in body for k in ("text", "rules", "lesson_policy")):
+        raise HTTPException(status_code=400,
+                            detail="text, rules oder lesson_policy erforderlich")
+    snap = await master_prompt.save(text=body.get("text"), rules=body.get("rules"),
+                                    lesson_policy=body.get("lesson_policy"))
     _opinion("MasterPrompt", f"Neuer MasterPrompt (v{snap['version']}):\n{snap['text']}\n"
+                             f"Grundregeln für Lektionen: {snap['lesson_policy']}\n"
                              f"Harte Regeln: {snap['rules']}")
     return {"status": "success", "master_prompt": snap}
 
