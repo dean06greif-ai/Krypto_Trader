@@ -89,3 +89,94 @@
    `optuna`, `xgboost`, `scikit-learn` – bereits in `requirements.txt`).
 3. Demo-Daten der Entwicklungsumgebung optional entfernen: `python scripts/seed_ai_lab_demo.py --clean`.
 4. Nach ~50 echten abgeschlossenen Trades ML-Training erneut laufen lassen (AUC wird erst dann aussagekräftig).
+
+---
+
+# Update 2 (30.07.2026) – RegimeLab: Regime-Modi, adaptive Glättung, Deep-Test, Local Worker
+
+## Problemstellung (Original, gekürzt)
+> Produktive externe Daytrading-Website (Repo `dean06greif-ai/Krypto_Trader`, Branch `NEWEST-29.07`).
+> Großes Ziel: die Regime-Bestimmung nahezu perfekt machen. Konkret:
+> (1) Local Worker meldet "veraltet", im Download-Paket fehlen `requirements.txt`, `README` und
+> `worker.py` – Regime-Lab/Backtester/Strategie-Discovery lokal nicht nutzbar.
+> (2) 9 Regime sind zu viele und zu unpräzise – zusätzlich 5er- und 3er-Einteilung; Marktrauschen
+> darf nicht als Trendwechsel gelten; Einstellungen (z.B. Mindest-Tage) sollen sich sinnvoll an den
+> Zeitraum (360 vs. 2000 Tage) anpassen.
+> (3) Farbprinzip grün/gelb/rot ist gut, aber die blassen Abstufungen sind nicht unterscheidbar.
+> (4) Dynamische Strategien: funktionieren sie im Backtester mit Konfigurationswechsel? Aktivierung
+> soll direkt beim Start-Screen (Live/Paper einer Strategie) möglich sein, Wechsel im Backtester
+> sichtbar; bitte erklären, wie es funktioniert.
+> (5) Deep-Test: alle Indikator-Kombinationen mit je ~50 Optimierungen, Indikatoren austauschen,
+> daraus belastbare Schlüsse ziehen – auch pro Regime im Regime-Lab.
+
+## Nutzer-Entscheidungen
+- Regime-Modi **3 / 5 / 9 wählbar, Default 5**.
+- Adaptive Glättung automatisch + manueller Override; verschiedene Glättungen begründet prüfen.
+- Deep-Test als **Häkchen** im Strategie-Finder/Optimierer, längere Laufzeit akzeptiert.
+- Regime im Chart einfärben.
+- Local Worker läuft unter **Windows**.
+
+## Umgesetzt
+### Local Worker (Blocker behoben)
+- Ursache: Der Ordner `local_worker/` war nie im Repo → das ZIP enthielt nur die Rechen-Module.
+- Neu: `/app/local_worker/worker.py` (v1.6.0 = `REQUIRED_WORKER_VERSION`), `requirements.txt`,
+  `README.md`, `start_worker.bat` (Windows-Starthilfe: venv + Abhängigkeiten + Start).
+- Worker-Jobs: `backtest`, `optimizer`, `regime_lab` (Analyse / Regime-Optimierung / Walk-Forward),
+  `data_download|update|delete`; Outbound-Polling, Fortschritt, Abbruch, gzip-Upload, Reconnect.
+- `GET /api/localworker/package` bricht bei unvollständigem Paket mit klarer Meldung ab;
+  neu `GET /api/localworker/package/manifest`.
+- Verifiziert: Worker online v1.6.0, Backtest und Regime-Lab-Analyse lokal gerechnet.
+
+### Regime-Engine (`services/regime_engine.py`)
+- `regime_mode` 3/5/9, Default 5. Im 5er-Modus ist die zweite Achse die **Trendstärke**
+  (stark/leicht, eigene Hysterese) statt der Volatilität; im 9er-Modus unverändert Vola.
+- Adaptive Glättung: Fenster als **Anteil des analysierten Zeitraums** (`ADAPT_PROFILES`
+  fein/standard/grob) → Horizonte, Bestätigungs-, Mindesthalte-, Glättungs- und Vola-Fenster.
+- `adapt_profile="auto"`: alle Profile werden gerechnet und bewertet (`_profile_quality`:
+  40 % Rückblick-Treffer + 35 % Plausibilität + 25 % Abschnittslänge); Profile mit
+  Plausibilitätsverstoß > `VALIDATE_PASS_PCT` (8 %) können nicht gewinnen. Bericht im UI.
+- Kaltstart-Abschnitte (vor Ablauf des längsten Horizonts) zählen nicht als Verstoß.
+- Oberflächen-Standard "Min. Haltezeit 2 d" hebelt die adaptive Haltedauer nicht mehr aus.
+- Messung BTC 180 d/1h, 720 d/4h, 1800 d/4h in Modus 3 und 5: 0 % Verstöße,
+  100 % Richtungs-Trefferquote, 6–17 Abschnitte.
+
+### Farben (`frontend/src/lib/regimeColors.js`)
+- Modus-abhängige Paletten; 5er: Wein-Dunkelrot → klares Rot → Gelb → klares Grün →
+  Tannen-Dunkelgrün, plus abgestufte Deckkraft der Chart-Bänder.
+
+### Deep-Test
+- Neu `services/deep_search.py`: Einzeltest → **alle Paare** → Beam-Suche (Breite 6 bzw. 10) →
+  Feintuning der Favoriten (je `iterations`) → Austausch jeder Regel gegen jede Alternative →
+  Auswertung (Beitrag je Regel per Leave-one-out, Synergie/Anti-Synergie je Paar,
+  Indikator-Häufigkeit, Fazit-Text).
+- Optimizer: `body.deep_test` + `deep_depth` (`deep`/`extreme`) → `result.deep_report`.
+- Regime-Lab: `_deep_regime_search()` in `dynamic_strategy.py`, `deep_test` in `regime_opt.py`
+  → `discovery.deep_report`; Walk-Forward-Rückfall auf kleinere Kombination bleibt erhalten.
+- UI: `opt-deep-test` (+ `opt-deep-depth`) im Optimizer, `regime-opt-deep-{id}` im Regime-Lab,
+  jeweils mit Auswertungs-Panel.
+
+## Offen / Backlog
+### P0 – nächste Phase (vom Nutzer gefordert, noch NICHT umgesetzt)
+1. **Dynamische Strategien im Backtester**: gespeicherte dynamische Strategie als Backtest fahren
+   (Regime pro Bar ohne Lookahead, Konfiguration/Sub-Strategie je Regime), Regime-Bänder im Chart,
+   Marker + Liste der Konfigurationswechsel, Vergleich gegen die statische Variante.
+2. **Aktivierung im Start-Screen**: im Strategie-/Live-Paper-Dialog direkt "dynamisch fahren"
+   wählen (Analyse, Auto-Umschaltung, Bestätigungspflicht) statt über Regime-Lab → Discovery →
+   Dynamik-Panel.
+3. End-to-End-Nachweis, dass Backtest, Paper und Live identisch umschalten.
+
+### P1
+- Erkennungs-Latenz messbar machen (wie viele Tage nach dem echten Wendepunkt schaltet die Engine
+  um – "rechtzeitig erkannt ohne Zukunftsblick").
+- Deep-Test: Zwischenstände persistieren/fortsetzbar, Zeitbudget mit Abbruch + Teilergebnis.
+
+### P2
+- Farbkontrast für farbschwache Nutzer (Muster/Schraffur zusätzlich zur Farbe).
+- `<span>` in `<option>` (React-Warnung, Altbestand).
+- Job-Endpunkte vereinheitlichen (`/status/{id}` vs. `/job/{id}`).
+
+## Test-Stand Update 2
+- `tests/test_regime_engine.py`, `test_regime_extras.py`, `test_nnfx.py`: 65 passed.
+- `tests/test_regime_deep_update.py` (Test-Agent, neu): 11 passed, keine kritischen Findings.
+- Restliche Repo-Tests scheitern teils an fest verdrahteten geseedeten Analysen (`ra_82c98807`,
+  `ra_c8206904`) und AI-Keys, die in dieser Umgebung fehlen – kein Regressionsfehler.

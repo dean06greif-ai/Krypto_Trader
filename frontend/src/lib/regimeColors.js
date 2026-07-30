@@ -13,8 +13,8 @@ export const REGIME_FALLBACK_COLORS = ['#30D158', '#FF453A', '#FFD60A', '#64D2FF
 const C3 = ['#E02B2B', '#F5C518', '#1FB855'];
 
 // 5 Regime: 0 stark ab · 1 leicht ab · 2 seitwärts · 3 leicht auf · 4 stark auf
-// (dunkles Bordeaux -> Lachs -> Gelb -> Mint -> dunkles Grün)
-const C5 = ['#7A0B12', '#FF7A6B', '#F5C518', '#5EE39B', '#0A6B34'];
+// (Wein-Dunkelrot -> klares Rot -> Gelb -> klares Grün -> Tannen-Dunkelgrün)
+const C5 = ['#6E0A2A', '#FF4D4D', '#F5C518', '#3FD67A', '#0A5C2E'];
 
 // 9 Regime: [niedrige Vola, mittlere Vola, hohe Vola] je Richtung.
 // Die Stufen wechseln nicht nur die Helligkeit, sondern auch den Farbwinkel
@@ -71,7 +71,7 @@ export function regimeOpacity(id, regimes, model) {
   const list = regimes || [];
   const mode = regimeModeOf(model, list);
   if (mode === 3) return 0.20;
-  if (mode === 5) return [0.30, 0.18, 0.16, 0.18, 0.30][Math.min(id ?? 0, 4)];
+  if (mode === 5) return [0.34, 0.22, 0.20, 0.22, 0.34][Math.min(id ?? 0, 4)];
   const r = list.find(x => x.id === id);
   const v = r?.vol ? ['low', 'mid', 'high'].indexOf(r.vol) : ((id ?? 0) % 3);
   return [0.14, 0.20, 0.28][v < 0 ? 1 : v];
