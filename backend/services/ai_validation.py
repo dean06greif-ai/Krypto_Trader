@@ -14,7 +14,7 @@ produziert – auch ohne belastbare Datengrundlage. Jetzt gilt:
 Die Bewertungslogik ist rein und damit direkt testbar.
 """
 import logging
-from typing import Dict, Optional, Tuple, Tuple
+from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

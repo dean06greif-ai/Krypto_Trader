@@ -70,11 +70,41 @@ Zu verbessern war der **KI Trader**:
   `test_ai_governance_api.py` (29 API-Tests, vom Testing-Agent ergänzt),
   `test_ai_learning.py` um Validierungs-/MasterPrompt-Fälle erweitert.
 
+## Iteration 2 – umgesetzt (30.06.2026)
+- **Analyse-Zeitplan** (`services/ai_schedule.py`): Intervall je Zeitfenster (Berlin, auch über
+  Mitternacht), Presets „Nacht 30 min" / „US-Open 5 min", Standard-Intervall als Rückfall.
+  Endpunkte `GET/POST /api/ai/schedule`, UI im MasterPrompt-Panel (`AIScheduleEditor.js`).
+  Der Rhythmus steht auch im Analyse-Prompt, damit Stops/Ziele bis zum nächsten Lauf tragen.
+- **MasterPrompt regelt jetzt auch Lektionen**: neues Feld `lesson_policy` (Grundregeln für jede
+  Lektion) + harte `forbidden_terms`. Beides wird im Lernlauf als bindend eingespielt;
+  widersprechende Lektionen werden verworfen und im „Lernen"-Tab als abgelehnt gelistet.
+- **Struktur-/Makro-Parameter geschützt** (`ai_validation.MACRO_KEYS`): SL, CRV, Hebel,
+  Konfidenz, Trailing usw. brauchen große Stichprobe (25) UND mehrere Bestätigungen derselben
+  Richtung (3, Fenster 14 Tage); jede Änderung wird zusätzlich auf kleine Schritte begrenzt
+  (`clamp_step`, max. 20 % des Werts + harte Leitplanken). Status `needs_confirmation` mit
+  Zähler; der Trader kann geparkte Vorschläge jederzeit selbst freigeben.
+- **Makro-Parameter pro KI-Strategie**: Kandidaten haben eigene `macro_params`
+  (`POST /api/ai/strategies/{id}/macro`, UI-Formular). Signale des Kandidaten nutzen dessen
+  SL/CRV/Hebel/TP1-Anteil (`cfg_overrides` im AutoTrader); die Validierung rechnet mit der
+  Stichprobe genau dieser Strategie (Overfitting-Schutz).
+- **Limit-/Fallback-Transparenz** (`ai_providers.record_result/health_status`): Banner im
+  KI-Panel („Fallback aktiv: provider/model", „Limit erreicht – frei in ca. X min", Backup-Key),
+  Endpunkt `GET /api/ai/providers/health`, zusätzlich in `/api/ai/status`.
+- **Telegram-Spam-Bremse** (`services/notify_guard.py`): identische Setups (Coin + Strategie +
+  Richtung, Preisabweichung < 0.15 %) werden innerhalb der Sperrzeit (Standard 15 min,
+  einstellbar) nur einmal gemeldet.
+- **Daytrader-Review – zusätzlich eingebaut**: Tages-Verlustlimit und max. Trades/Tag als harte
+  MasterPrompt-Regeln (`check_day_rules`, Prüfung vor jedem Signal), Ghost-Trade-Timeout
+  (Standard 240 min → `expired`, zählt nicht als Ergebnis), echte Trade-Statistik pro Kandidat
+  (`stats.real`), eigener Ghost-Cooldown (Simulationen blockieren echte Signale nicht mehr).
+- **Tests**: `tests/test_ai_iter2_governance.py` (19), `tests/test_ai_iter3_api.py`,
+  `tests/test_iter4_master_prompt_lesson_policy.py`; Regressionslauf 117/117 grün.
+
 ## Backlog
 - **P0**: LLM-Provider-Keys in dieser Umgebung fehlen → Analyse-/Lern-/Chat-Läufe und die
   KI-Meinung zu Trader-Änderungen konnten nicht end-to-end geprüft werden (Produktion hat Keys).
-- **P1**: Ghost-Trades zusätzlich mit Zeit-Limit/Timeout schließen; Ghost-Auswertung auch bei
-  ausgeschalteter KI-Engine; Kandidaten löschen (statt nur `rejected`).
+- **P1**: Ghost-Auswertung auch bei ausgeschalteter KI-Engine; Kandidaten wirklich löschen
+  (statt nur `rejected`).
 - **P1**: Meinungs-Einträge (`role='opinion'`) im KI-Feed farblich hervorheben + Filter.
 - **P2**: MasterPrompt-Historie im UI anzeigen/zurückrollen; Kandidaten-Backtest direkt aus dem
   Strategie-Labor starten (Job-Verlinkung zum Optimizer).
