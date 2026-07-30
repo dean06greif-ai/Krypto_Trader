@@ -1,0 +1,38 @@
+{
+  "summary": "Erste Testrunde für das Regime/Deep-Test Update. Backend: 11/11 pytest-Tests bestanden (Worker-Package Manifest+Zip vollständig, Worker online v1.6.0, Local-Backtest läuft durch, Regime-Engine-Defaults default_regime_mode=5 und regime_modes 3/5/9 mit 3/5/9 Taxonomie-Einträgen sowie adapt_profiles fein/standard/grob, Regime-Analysen mit mode=3/5/9 liefern korrekte Labels und adapt.report.candidates mit 3 Profilen (quality/passes), Deep-Test im Optimizer erzeugt deep_report mit allen Feldern und Rules, ohne Deep-Test ist deep_report null, Regime-Lab-Optimize mit deep_test liefert discovery.deep_report + top5). Frontend: Admin-Login, Regime-Lab-Modal, regime-mode-select mit 3/5/9 (Default 5), regime-adapt-profile-select mit auto/fein/standard/grob/off, Umschalten 3/9/5 ohne JS-Fehler; QA-5-Regime-Analyse zeigt Header '5-Regime-Modus · Horizonte 5.761d/... · Glättung fein · Mindesthaltedauer 8.6d', regime-adapt-report zeigt 3 geprüfte Profile (fein 81.3, grob 74.1, standard 88.3 ✕), Chart-Bänder in 5 klar unterscheidbaren Farben (dunkelrot/hellrot/gelb/hellgrün/dunkelgrün); Optimizer opt-deep-test und opt-deep-depth erscheinen in combo/discovery mit deep/deeper Optionen und Phasen-Beschreibung.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Regime-Lab Chart (5-Regime)", "issues": ["Die zwei roten Abstufungen (Starker vs. Leichter Abwärtstrend) sowie die zwei grünen Abstufungen (Starker vs. Leichter Aufwärtstrend) sind unterscheidbar, aber vor allem im Hellrot vs. Ockergelb-Übergang optisch nur moderat kontrastiert – für farbschwache Nutzer u.U. grenzwertig. Legende und Farbcodes sind aber sauber."]},
+      {"screen": "Konsole (existing, nicht Teil dieses Updates)", "issues": ["React-Hydration-Warnung: '<span> cannot be a child of <option>' – existiert im select mit farbigem Bullet vor dem Text, harmlos aber sauber lösbar (Bullet außerhalb des <option> rendern)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_regime_deep_update.py",
+    "/app/test_reports/pytest/regime_deep_update.xml"
+  ],
+  "action_items": [
+    "Optional: Farb-Kontrast zwischen 'Leichter Abwärtstrend' und 'Seitwärtsmarkt' (Ocker/Gelb) sowie zwischen 'Leichter Aufwärtstrend' und 'Seitwärtsmarkt' minimal verstärken (z.B. leicht andere Sättigung), damit auch Farbschwache die 5 Abstufungen sicher trennen können.",
+    "Optional (Vorbestand): <span> mit Farb-Bullet aus <option> entfernen, um die React-Hydration-Warnung zu beseitigen."
+  ],
+  "critical_code_review_comments": [
+    "adapt.report.candidates enthält korrekt {profile, quality, passes} für alle 3 Profile – die Auto-Wahl greift auch, wenn das beste 'quality'-Profil nicht 'passes', dann wird das nächstbeste (passes=true) genommen (im Test: standard=88.3 ✕ → fein=81.3 gewählt). Sinnvolles Fallback.",
+    "adaptive Werte skalieren sichtbar (min_hold_days ≈ 4.32d bei 720d/4h statt 2d, horizons_days ≈ [2.7,6.3,14.4,30.6,59.5] statt [5,10,20,50,100]) – Feature funktioniert.",
+    "Regime-Lab Job-Status-Endpoint ist gemeinsam für analyze/optimize (/api/regime-lab/status/{job_id}); Optimizer nutzt /api/optimizer/status/{job_id} – die Namensgebung ist inkonsistent (job vs status), aber funktional."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_regime_deep_update.py (neu, 11 Tests)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% der zu testenden Flows"},
+  "test_credentials": "Admin/admin (siehe /app/memory/test_credentials.md); Worker-Test unter /root/wtest läuft (v1.6.0)",
+  "seed_data_creation": "Während des Tests wurden folgende Regime-Analysen angelegt: QA 3 Regime (ra_0328cb39), QA 5 Regime (ra_b5eea212), QA 9 Regime (ra_50daa67a), QA opt-deep (ra_2db611a2), QA probe (ra_cd5e7765). Können ggf. gelöscht werden.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test-Worker läuft unter /root/wtest (nohup python worker.py). Backend-Regressionstests unter /app/backend/tests/test_regime_deep_update.py laufen serial (kein xdist wegen Job-Locking). Nutze pytest mit '-o addopts=' um die default-parallele Ausführung zu deaktivieren.",
+  "rca of the issue": "Keine Issues – alle geforderten Features (Worker-Paket vollständig, Worker v1.6.0 online, Regime-Modi 3/5/9 mit Default 5, adaptive Glättung mit 3 geprüften Profilen, Deep-Test in Optimizer und Regime-Lab-Optimize) funktionieren wie spezifiziert."
+}
