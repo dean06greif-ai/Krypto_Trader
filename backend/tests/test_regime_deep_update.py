@@ -64,11 +64,15 @@ class TestWorkerStatus:
         assert r.status_code == 200
         d = r.json()
         assert d.get("online") is True, f"worker not online: {d}"
-        req_ver = d.get("required_version")
-        assert req_ver == "1.6.0", f"required_version={req_ver}"
+        # Erwartete Versionen dynamisch ermitteln (kein Hardcoding)
+        import re
+        from services.local_exec import REQUIRED_WORKER_VERSION_STR
+        pkg_ver = re.search(r'VERSION = "([\d.]+)"',
+                            open("/app/local_worker/worker.py").read()).group(1)
+        assert d.get("required_version") == REQUIRED_WORKER_VERSION_STR
         assert d.get("workers"), "no workers reported"
         w = d["workers"][0]
-        assert w["version"] == "1.6.0"
+        assert w["version"] == pkg_ver, f"worker={w['version']} paket={pkg_ver}"
         assert w.get("outdated") is not True
 
 

@@ -5,6 +5,11 @@ from datetime import datetime, timezone, timedelta
 import pytest, requests
 from pymongo import MongoClient
 
+# Dieser Test startet das Backend mehrfach neu und killt damit parallel
+# laufende Tests (xdist) – nur gezielt mit RUN_RESTART_TESTS=1 ausführen.
+pytestmark = pytest.mark.skipif(os.environ.get("RUN_RESTART_TESTS") != "1",
+                                reason="Backend-Neustart – nur mit RUN_RESTART_TESTS=1")
+
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://balance-control-hub-1.preview.emergentagent.com").rstrip("/")
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.environ.get("DB_NAME", "test_database")

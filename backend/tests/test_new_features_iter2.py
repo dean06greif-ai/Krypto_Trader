@@ -110,7 +110,9 @@ class TestBacktestNewFields:
         if act:
             assert act["id"] == job_id
         # Verify clamp: params.days should be 365
-        assert payload.get("params", {}).get("days") == 365
+        # Seit Local-Worker-Support sind lange Zeiträume erlaubt (Clamp erst
+        # bei 5500 Tagen) -> 400 bleibt 400
+        assert payload.get("params", {}).get("days") == 400
         # Cancel this long job
         r4 = admin.post(f"{BASE_URL}/api/backtest/cancel/{job_id}")
         assert r4.status_code == 200

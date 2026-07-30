@@ -31,7 +31,23 @@ def _load_backend_url():
 
 
 BASE_URL = _load_backend_url()
-CUSTOM_STRAT = "custom_3a7f5e25"
+
+
+def _resolve_custom_strat():
+    """Erste existierende Custom-Strategie nehmen (kein Hardcoding auf
+    eine ggf. gelöschte ID)."""
+    try:
+        d = requests.get(f"{BASE_URL}/api/strategies", timeout=15).json()
+        strats = d.get("strategies", d) if isinstance(d, dict) else d
+        for s in strats:
+            if str(s.get("id", "")).startswith("custom_"):
+                return s["id"]
+    except Exception:
+        pass
+    return "custom_3a7f5e25"  # Fallback (historischer Wert)
+
+
+CUSTOM_STRAT = _resolve_custom_strat()
 
 
 @pytest.fixture(scope="module")

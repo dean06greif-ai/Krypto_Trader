@@ -24,7 +24,8 @@ TIMEOUT = 30
 # ---------- fixture-style helper ----------
 def _login_admin():
     r = requests.post(f"{BASE_URL}/api/auth/login",
-                      json={"username": "Admin", "password": "admin123"},
+                      json={"username": os.environ.get("ADMIN_USER", "Admin"),
+                            "password": os.environ.get("ADMIN_PASSWORD", "admin")},
                       timeout=TIMEOUT)
     assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
     return r.json()["token"]
@@ -69,7 +70,8 @@ class TestStrategies:
 class TestAuth:
     def test_login_admin_ok(self):
         r = requests.post(f"{BASE_URL}/api/auth/login",
-                          json={"username": "Admin", "password": "admin123"},
+                          json={"username": os.environ.get("ADMIN_USER", "Admin"),
+                                "password": os.environ.get("ADMIN_PASSWORD", "admin")},
                           timeout=TIMEOUT)
         assert r.status_code == 200
         assert "token" in r.json()

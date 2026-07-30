@@ -94,6 +94,20 @@ class TestCurrentRegime:
 
 # ---- 3. Existing analysis ra_82c98807 --------------------------------------
 
+def _seed_analysis_exists() -> bool:
+    try:
+        r = requests.get(f"{BASE_URL}/api/regime-lab/ra_82c98807", timeout=20)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+requires_seed_analysis = pytest.mark.skipif(
+    not _seed_analysis_exists(),
+    reason="Seed-Analyse ra_82c98807 nicht in der DB vorhanden")
+
+
+@requires_seed_analysis
 class TestExistingAnalysis:
     def test_ra_82c98807_v2(self, api):
         r = api.get(f"{BASE_URL}/api/regime-lab/ra_82c98807")
@@ -209,6 +223,7 @@ class TestStrategies:
 DYN_ID = "dyn_80384eba"
 
 
+@requires_seed_analysis
 class TestBuildNnfx:
     """POST /api/regime-lab/{aid}/build-nnfx — maps all 9 regimes to NNFX
     strategies, creates a dyn strategy, and writes assignments back."""

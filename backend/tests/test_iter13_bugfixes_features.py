@@ -36,8 +36,19 @@ class TestWorkerGate:
     def test_local_dynamic_gate_present(self, auth):
         # Reset first to avoid 409 (already running)
         requests.post(f"{BASE_URL}/api/optimizer/reset", headers=auth, timeout=10)
+        # Existierende Custom-Strategie dynamisch auflösen (kein Hardcoding)
+        sid = None
+        try:
+            d = requests.get(f"{BASE_URL}/api/strategies", timeout=15).json()
+            strats = d.get("strategies", d) if isinstance(d, dict) else d
+            sid = next((s["id"] for s in strats
+                        if str(s.get("id", "")).startswith("custom_")), None)
+        except Exception:
+            pass
+        if not sid:
+            pytest.skip("Keine Custom-Strategie vorhanden")
         body = {"mode": "dynamic", "execution": "local",
-                "strategy_id": "custom_dyntest", "symbols": ["BTCUSDT"],
+                "strategy_id": sid, "symbols": ["BTCUSDT"],
                 "days": 3, "timeframe": "5m"}
         r = requests.post(f"{BASE_URL}/api/optimizer/run", json=body, headers=auth, timeout=10)
         # Expected: 503 (no worker), 409 (outdated), or 200 (worker>=1.3.0 online).
@@ -68,8 +79,12 @@ class TestWorkerGate:
         local_exec.WORKERS.clear()
 
     def test_worker_py_version(self):
+        import re
         content = open("/app/local_worker/worker.py").read()
-        assert 'WORKER_VERSION = "1.3.0"' in content
+        m = re.search(r'^VERSION = "([\d.]+)"', content, re.M)
+        assert m, "VERSION fehlt in worker.py"
+        # Dynamik-Gate braucht Worker >= 1.3.0
+        assert tuple(int(x) for x in m.group(1).split(".")) >= (1, 3, 0)
 
 
 # ---------- BUGFIX 2: OOM Guard on /api/optimizer/equity ----------

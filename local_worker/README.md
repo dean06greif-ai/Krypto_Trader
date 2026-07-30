@@ -1,4 +1,4 @@
-# Krypto_Trader – Lokaler Worker (v1.6.0)
+# Krypto_Trader – Lokaler Worker (v1.6.1)
 
 Rechnet **Backtests**, **Optimierungen / Strategie-Suche**, **Regime-Lab-Jobs**
 (Analyse, Regime-Optimierung, Walk-Forward) und **Kerzen-Downloads** auf dem
@@ -61,8 +61,10 @@ Die Angaben landen in `worker_config.json` (bleibt lokal, wird **nicht** mit
 dem Paket ausgeliefert). Alternativ direkt per Parameter:
 
 ```
-python worker.py --url https://meine-app.example.com --token DEIN_TOKEN --name "Gaming-PC"
+python worker.py --server https://meine-app.example.com --token DEIN_TOKEN --name "Gaming-PC"
 ```
+
+(`--url` funktioniert weiterhin als Alias für `--server`.)
 
 Windows-Komfort: `start_worker.bat` doppelklicken (legt venv an, installiert
 Abhängigkeiten, startet den Worker).

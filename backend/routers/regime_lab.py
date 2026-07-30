@@ -127,6 +127,8 @@ async def cancel_job(job_id: str, _: bool = Depends(require_admin)):
     job["cancel"] = True
     if job.get("status") == "running":
         job["phase"] = "Wird abgebrochen..."
+    from services import local_exec
+    local_exec.check_stale()  # wartende lokale Jobs sofort stornieren
     return {"status": "cancelling"}
 
 

@@ -23,10 +23,12 @@ from services import regime_lab as rlab
 
 logger = logging.getLogger(__name__)
 
-WORKER_TIMEOUT = 90        # Sekunden ohne Heartbeat -> offline (kulant für Disk-IO
-                           # beim Laden großer Kerzen-Caches / Ergebnis-Upload)
+WORKER_TIMEOUT = 15        # Sekunden ohne Heartbeat -> offline (Worker pollt alle ~2s,
+                           # Rechenlast läuft in Threads/Prozessen und blockiert das Polling nicht)
 QUEUED_TIMEOUT = 300       # Job wartet ohne Worker -> Fehler (kurze Reconnects tolerieren)
-STALE_TIMEOUT = 900        # Worker meldet keinen Fortschritt mehr -> Fehler
+STALE_TIMEOUT = 300        # Worker online, aber Job meldet keinen Fortschritt mehr -> Fehler
+OFFLINE_JOB_TIMEOUT = 20   # laufender Job + Worker offline -> Job sofort als Fehler beenden
+CANCEL_GRACE = 10          # Abbruch angefordert, Worker bestätigt nicht -> hart abbrechen
 MAX_RESULT_TRADES = 50000  # wie Cloud-Persistierung
 
 DEFAULT_SETTINGS = {
@@ -337,6 +339,11 @@ async def apply_result(job_id: str, data: Dict, db):
     if job is None:
         logger.warning(f"local_exec: result for unknown job {job_id} ({kind})")
         return
+    if meta is None and job.get("status") != "running":
+        # Job wurde server-seitig bereits beendet (z.B. hart abgebrochen oder
+        # Worker-Trennung erkannt) -> verspätetes Ergebnis verwerfen.
+        logger.info(f"local_exec: late result for finished job {job_id} ignored")
+        return
     job["status"] = status
     job["error"] = data.get("error")
     # Der Worker kennt seinen eigenen Ausführungsmodus nicht -> hier stempeln,
@@ -411,12 +418,31 @@ def _mark_error(job: Dict, msg: str):
     job["phase"] = "Fehler"
 
 
+def _finalize_cancel(jid: str, job: Dict):
+    job["status"] = "cancelled"
+    job["phase"] = "Abgebrochen"
+    COMPUTE_QUEUE[:] = [i for i in COMPUTE_QUEUE if i["job_id"] != jid]
+    if jid in DATA_QUEUE:
+        DATA_QUEUE.remove(jid)
+    LOCAL_JOBS.pop(jid, None)
+
+
 def check_stale():
     for jid, meta in list(LOCAL_JOBS.items()):
         job = _get_job(jid, meta["kind"])
         if job is None or job.get("status") not in ("running", "queued"):
             LOCAL_JOBS.pop(jid, None)
             continue
+        # ---- Abbruch: wartende Jobs sofort, laufende nach kurzer Frist hart ----
+        if job.get("cancel"):
+            if meta.get("state") == "queued":
+                _finalize_cancel(jid, job)
+                continue
+            if not meta.get("cancel_at"):
+                meta["cancel_at"] = _now()
+            elif _now() - meta["cancel_at"] > CANCEL_GRACE:
+                _finalize_cancel(jid, job)
+                continue
         if meta.get("state") == "queued":
             if _now() - meta.get("enqueued_at", 0) > QUEUED_TIMEOUT and not worker_online():
                 _mark_error(job, "Kein lokaler Worker verbunden – Job abgebrochen. "
@@ -426,7 +452,13 @@ def check_stale():
                     DATA_QUEUE.remove(jid)
                 LOCAL_JOBS.pop(jid, None)
         elif meta.get("state") == "claimed":
-            if _now() - meta.get("last_update", 0) > STALE_TIMEOUT:
+            w = WORKERS.get(meta.get("worker_id") or "")
+            offline = not w or _now() - w.get("last_seen", 0) > WORKER_TIMEOUT
+            if offline and _now() - meta.get("last_update", 0) > OFFLINE_JOB_TIMEOUT:
+                _mark_error(job, "Verbindung zum lokalen Worker verloren – Job abgebrochen. "
+                                 "Worker neu starten und Job erneut ausführen.")
+                LOCAL_JOBS.pop(jid, None)
+            elif _now() - meta.get("last_update", 0) > STALE_TIMEOUT:
                 _mark_error(job, "Lokaler Worker antwortet nicht mehr (Verbindung verloren)")
                 LOCAL_JOBS.pop(jid, None)
 
@@ -437,7 +469,7 @@ async def _watchdog_loop():
             check_stale()
         except Exception as e:
             logger.warning(f"local_exec watchdog: {e}")
-        await asyncio.sleep(12)
+        await asyncio.sleep(5)
 
 
 def ensure_watchdog():

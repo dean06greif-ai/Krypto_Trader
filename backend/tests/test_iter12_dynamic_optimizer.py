@@ -45,11 +45,21 @@ def admin_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}"}
 
 
-def _reset_optimizer(admin_headers):
-    try:
-        requests.post(f"{BASE_URL}/api/optimizer/reset", headers=admin_headers, timeout=10)
-    except Exception:
-        pass
+def _start_when_free(body, admin_headers, tries=40, wait_s=6):
+    """Optimizer-Lauf starten, ohne fremde Jobs zu canceln.
+
+    Zwei Klassen dieser Datei laufen via xdist parallel – ein reset würde den
+    Lauf der jeweils anderen Klasse abbrechen. Stattdessen: bei 409 warten,
+    bis der Optimizer frei ist, dann erneut starten."""
+    last = None
+    for _ in range(tries):
+        r = requests.post(f"{BASE_URL}/api/optimizer/run", json=body,
+                          headers=admin_headers, timeout=30)
+        last = r
+        if r.status_code != 409:
+            return r
+        time.sleep(wait_s)
+    return last
 
 
 def _poll(job_id, timeout=240, interval=3):
@@ -78,7 +88,6 @@ class TestDiscoveryOptimizer:
         assert admin_token
 
     def test_start_discovery(self, admin_headers):
-        _reset_optimizer(admin_headers)
         body = {
             "mode": "discovery",
             "symbols": ["BTCUSDT"],
@@ -93,8 +102,7 @@ class TestDiscoveryOptimizer:
             "dd_filter": {"enabled": True, "max_dd_pct": 60},
             "constancy": {"enabled": True, "chunk_days": 1, "max_deviation_pct": 100},
         }
-        r = requests.post(f"{BASE_URL}/api/optimizer/run", json=body,
-                          headers=admin_headers, timeout=30)
+        r = _start_when_free(body, admin_headers)
         assert r.status_code == 200, r.text
         TestDiscoveryOptimizer.job_id = r.json()["job_id"]
         assert TestDiscoveryOptimizer.job_id
@@ -158,12 +166,19 @@ class TestDiscoveryOptimizer:
             assert col in header, f"missing col {col} in {header}"
 
     def test_history_checks(self):
-        r = requests.get(f"{BASE_URL}/api/optimizer/history", params={"limit": 5}, timeout=15)
+        r = requests.get(f"{BASE_URL}/api/optimizer/history", params={"limit": 25}, timeout=15)
         assert r.status_code == 200, r.text
         j = r.json()
         items = j.get("history") if isinstance(j, dict) else j
         assert isinstance(items, list) and items, "history empty"
-        target = items[0]
+        # Deterministisch: den Discovery-Lauf DIESER Klasse prüfen (andere
+        # parallele Läufe verschmutzen die History).
+        target = next((t for t in items
+                       if t.get("id") == TestDiscoveryOptimizer.job_id), None)
+        if target is None:
+            target = next((t for t in items
+                           if isinstance(t.get("checks_enabled"), (int, float))), None)
+        assert target is not None, f"no history entry with checks: {items[:3]}"
         assert isinstance(target.get("checks_passed"), (int, float)), f"checks_passed missing: {target}"
         assert isinstance(target.get("checks_enabled"), (int, float)), f"checks_enabled missing: {target}"
         assert "fail_reasons" in target
@@ -254,7 +269,6 @@ class TestDynamicOptimizer:
     dyn_id = None
 
     def test_start_dynamic(self, admin_headers):
-        _reset_optimizer(admin_headers)
         body = {
             "mode": "dynamic",
             "strategy_id": "bollinger_reversion",
@@ -268,8 +282,7 @@ class TestDynamicOptimizer:
                         "confidence_min": 70, "min_hold_days": 1},
             "walk_forward": {"enabled": True, "train_pct": 75, "mode": "single"},
         }
-        r = requests.post(f"{BASE_URL}/api/optimizer/run", json=body,
-                          headers=admin_headers, timeout=30)
+        r = _start_when_free(body, admin_headers)
         assert r.status_code == 200, r.text
         TestDynamicOptimizer.job_id = r.json()["job_id"]
 

@@ -29,6 +29,13 @@ API = f"{BASE_URL}/api"
 def http():
     s = requests.Session()
     s.headers.update({"Content-Type": "application/json"})
+    # Admin-Token für Schreib-Endpunkte (Auth wurde nachträglich eingeführt)
+    r = s.post(f"{API}/auth/login",
+               json={"username": os.environ.get("ADMIN_USER", "Admin"),
+                     "password": os.environ.get("ADMIN_PASSWORD", "admin")},
+               timeout=15)
+    assert r.status_code == 200, f"admin login failed: {r.status_code} {r.text}"
+    s.headers.update({"Authorization": f"Bearer {r.json()['token']}"})
     return s
 
 

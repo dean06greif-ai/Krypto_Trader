@@ -180,3 +180,54 @@
 - `tests/test_regime_deep_update.py` (Test-Agent, neu): 11 passed, keine kritischen Findings.
 - Restliche Repo-Tests scheitern teils an fest verdrahteten geseedeten Analysen (`ra_82c98807`,
   `ra_c8206904`) und AI-Keys, die in dieser Umgebung fehlen – kein Regressionsfehler.
+
+# Update 3 (30.07.2026) – Worker-Befehl, schneller Abbruch, schnelle Offline-Erkennung
+
+## Problemstellung (Nutzer)
+1. Abbruch-Button muss schneller wirken.
+2. Trennt man den Local Worker, dauert die Erkennung zu lange.
+3. Der Startbefehl war früher `python worker.py --server <URL> --token <TOKEN>` –
+   die neue worker.py kannte nur `--url`, der aus der UI kopierte Befehl schlug fehl.
+
+## Umgesetzt
+### Worker v1.6.1 (`/app/local_worker/worker.py`)
+- argparse: `--server` (primär, wie früher) + `--url` als Alias; Config-Kompat (`server`-Key).
+- PROGRESS_INTERVAL 2s → 1s (Abbruch-Flag kommt im Progress-Response schneller an).
+- Vor dem Ergebnis-Upload wird "Ergebnis wird übertragen..." gemeldet (Anti-Stale).
+- REQUIRED_WORKER_VERSION bleibt 1.6.0 → keine "veraltet"-Meldung für 1.6.0-Worker.
+
+### Server (`services/local_exec.py`)
+- WORKER_TIMEOUT 90s → 15s (offline-Erkennung; Worker pollt alle 2s, Compute in Threads/Prozessen).
+- Neu OFFLINE_JOB_TIMEOUT=20s: laufender Job + Worker offline → sofort Fehler mit klarer Meldung.
+- Neu CANCEL_GRACE=10s: Abbruch angefordert, Worker bestätigt nicht → hart abbrechen;
+  wartende (queued) Jobs werden bei Abbruch SOFORT storniert.
+- STALE_TIMEOUT 900s → 300s; Watchdog-Intervall 12s → 5s.
+- apply_result verwirft verspätete Ergebnisse bereits beendeter Jobs (kein Überschreiben).
+- Cancel-Endpoints (backtest/optimizer/regime-lab) rufen check_stale() → sofortige Stornierung.
+
+### E2E verifiziert (im Pod mit echtem Worker aus dem ZIP-Paket)
+- `python worker.py --server <URL> --token <TOKEN>` verbindet (v1.6.1, "aktuell").
+- Abbruch laufender lokaler Backtest: **1,5s** bis Status "cancelled".
+- Worker hart gekillt: offline nach **13,8s**, Job-Fehler nach **20,1s** (vorher 90s/900s).
+
+### Test-Suite-Hygiene (vorbestehende Probleme behoben)
+- `test_settings_persistence.py` + `test_krypto_alert_features.py`: Admin-Auth-Header ergänzt
+  (Endpoints verlangen inzwischen Admin; Tests stammten aus der Zeit davor).
+- `test_new_features.py`: Passwort admin123 → env (ADMIN_PASSWORD, Default "admin").
+- Restart-Tests (`test_14_settings_survive_backend_restart`, `test_winrate_bug.py`) nur noch mit
+  `RUN_RESTART_TESTS=1` – sie starteten das Backend MITTEN im xdist-Lauf neu und rissen alle
+  parallelen Tests mit (Ursache der großen Fehlerblöcke in Vollläufen).
+- Hartkodierte, gelöschte Seeds dynamisch/geskippt: `custom_3a7f5e25` → erste existierende
+  Custom-Strategie (iter15/iter16/iter13); `ra_82c98807`/`ra_c8206904` → skip wenn nicht in DB
+  (regime_v2/v3/lab). Worker-Version-Asserts dynamisch statt "1.6.0"/"1.1.0"/"1.3.0".
+- `test_ai_trader`: GEMINI-Key-Assert → skip ohne Key; enabled-Liste (mutable Setting) nicht mehr
+  hart geprüft. `test_backtest_optimizer`: ==9 Strategien → >=9.
+- Neu `tests/run_suite_serial.sh`: Job-startende Testdateien seriell (Datei für Datei), Rest
+  parallel – vermeidet 409-Kollisionen, wenn mehrere Dateien gleichzeitig Jobs starten.
+- Bekannte Umgebungs-Grenzen: uvicorn --reload überwacht auch tests/ (Testdatei-Edit = Backend-
+  Neustart = kurze 502s); Multi-Asset-Daten (QQQ/SPY/Forex/GOLD) im Pod teils nicht ladbar.
+
+## Testergebnis-Verlauf Volllauf
+- Vorher (mit Restart-Tests + Kollisionen): 86-122 failed.
+- Nach Fixes (paralleler Volllauf): 18 failed / 499 passed / 42 skipped – alle 18 sind
+  nachweislich Job-Kollisionen (bestehen einzeln bzw. im seriellen Lauf).

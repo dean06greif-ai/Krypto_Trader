@@ -32,6 +32,20 @@ if not BASE_URL:
 
 TIMEOUT = 15
 
+_TOKEN = None
+
+
+def _auth_headers():
+    global _TOKEN
+    if _TOKEN is None:
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": os.environ.get("ADMIN_USER", "Admin"),
+                                "password": os.environ.get("ADMIN_PASSWORD", "admin")},
+                          timeout=TIMEOUT)
+        assert r.status_code == 200, f"admin login failed: {r.status_code} {r.text}"
+        _TOKEN = r.json()["token"]
+    return {"Authorization": f"Bearer {_TOKEN}"}
+
 
 def _get_settings():
     r = requests.get(f"{BASE_URL}/api/settings", timeout=TIMEOUT)
@@ -40,7 +54,8 @@ def _get_settings():
 
 
 def _post_settings(payload):
-    r = requests.post(f"{BASE_URL}/api/settings", json=payload, timeout=TIMEOUT)
+    r = requests.post(f"{BASE_URL}/api/settings", json=payload,
+                      headers=_auth_headers(), timeout=TIMEOUT)
     assert r.status_code == 200, f"POST /api/settings failed: {r.status_code} {r.text}"
     return r.json()
 
@@ -212,6 +227,9 @@ class TestSettingsPersistence:
         )
 
     # ---- Persistence across backend restart ----
+    @pytest.mark.skipif(os.environ.get("RUN_RESTART_TESTS") != "1",
+                        reason="Backend-Neustart killt parallel laufende Tests "
+                               "(xdist) – nur gezielt mit RUN_RESTART_TESTS=1")
     def test_14_settings_survive_backend_restart(self):
         marker_sessions = [
             {"start": "07:15", "end": "09:45", "name": "TEST_Marker_A", "enabled": True},
@@ -254,7 +272,8 @@ class TestSettingsPersistence:
 
     # ---- Telegram keepalive: POST /api/telegram/test still works ----
     def test_15_telegram_test_endpoint(self):
-        r = requests.post(f"{BASE_URL}/api/telegram/test", timeout=30)
+        r = requests.post(f"{BASE_URL}/api/telegram/test",
+                          headers=_auth_headers(), timeout=30)
         # Telegram may or may not be configured in this env - both are valid.
         # Configured => 200 + status=success. Not configured => 400 + detail.
         assert r.status_code in (200, 400), (

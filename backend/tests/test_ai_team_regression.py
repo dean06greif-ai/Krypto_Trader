@@ -119,7 +119,14 @@ def test_role_chain_inherits_engine_default():
     rm = AIRoleManager()
     chain = rm.chain("analyst", ENGINE_CFG)
     assert chain[0] == ("gemini", "gemini-3.5-flash")
-    assert all(p == "gemini" for p, _ in chain)
+    # Primär-Kette (gemini) steht vorn; danach dürfen Provider mit gesetztem
+    # API-Key als letzte Rettung folgen (gewolltes Verhalten von chain()).
+    non_gemini_seen = False
+    for p, _ in chain:
+        if p != "gemini":
+            non_gemini_seen = True
+        else:
+            assert not non_gemini_seen, "gemini-Eintrag nach fremdem Provider"
 
 
 def test_role_chain_custom_model_and_fallback():

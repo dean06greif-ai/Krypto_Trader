@@ -27,7 +27,7 @@ import time
 import uuid
 from pathlib import Path
 
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "worker_config.json"
@@ -43,7 +43,7 @@ logging.basicConfig(
 logger = logging.getLogger("worker")
 
 POLL_INTERVAL = 2.0
-PROGRESS_INTERVAL = 2.0
+PROGRESS_INTERVAL = 1.0   # schnelle Abbruch-Erkennung (Server meldet cancel im Response)
 
 # Wird nach dem ersten Poll (Einstellungen vom Server) gesetzt – die
 # Rechen-Module lesen ihre Grenzen aus Umgebungsvariablen beim Import,
@@ -78,8 +78,11 @@ def ask(prompt: str, default: str = "") -> str:
 
 def ensure_config(args) -> dict:
     cfg = load_config()
-    if args.url:
-        cfg["base_url"] = args.url
+    # Kompatibilität: ältere Configs nutzten den Schlüssel "server"
+    if not cfg.get("base_url") and cfg.get("server"):
+        cfg["base_url"] = cfg.pop("server")
+    if args.server:
+        cfg["base_url"] = args.server
     if args.token:
         cfg["token"] = args.token
     if args.name:
@@ -371,6 +374,11 @@ class Worker:
         out["kind"] = kind
         dur = time.perf_counter() - t0
         logger.info(f"Job {job_id} ({kind}) {out.get('status')} in {dur:.1f}s")
+        # Lebenszeichen vor dem (ggf. großen) Upload, damit der Server den Job
+        # nicht als hängend einstuft.
+        if out.get("status") == "done":
+            job["phase"] = "Ergebnis wird übertragen..."
+            await self._report(job_id, job)
         big = kind in ("backtest", "optimizer", "regime_lab")
         for attempt in range(3):
             try:
@@ -440,7 +448,8 @@ async def amain(args):
 
 def main():
     p = argparse.ArgumentParser(description=f"Krypto_Trader Local Worker v{VERSION}")
-    p.add_argument("--url", help="Server-URL (überschreibt worker_config.json)")
+    p.add_argument("--server", "--url", dest="server",
+                   help="Server-URL (überschreibt worker_config.json)")
     p.add_argument("--token", help="Worker-Token")
     p.add_argument("--name", help="Anzeigename dieses Rechners")
     p.add_argument("--version", action="store_true", help="Version ausgeben")

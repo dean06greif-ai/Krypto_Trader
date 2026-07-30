@@ -62,7 +62,8 @@ class TestStrategies:
         data = r.json()
         strategies = data.get("strategies", [])
         ids = {s["id"] for s in strategies}
-        assert len(strategies) == 9, f"expected 9, got {len(strategies)}: {ids}"
+        # Mindestens die 9 Kern-Strategien; Custom-Strategien kommen dazu
+        assert len(strategies) >= 9, f"expected >=9, got {len(strategies)}: {ids}"
         for sid in NEW_STRATEGIES:
             assert sid in ids, f"missing new strategy {sid}"
         # verify params metadata is present for the new ones

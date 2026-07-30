@@ -141,8 +141,14 @@ def test_worker_status():
     workers = d.get("workers", [])
     assert len(workers) >= 1
     w = workers[0]
-    assert isinstance(w.get("sim_workers"), int) and w["sim_workers"] >= 1
-    assert w.get("version") == "1.1.0", w
+    # sim_workers kommt vom Worker als int oder numerischer String ("0" = alle Kerne)
+    sw = w.get("sim_workers")
+    assert sw is not None and int(sw) >= 0, w
+    # Version dynamisch gegen das ausgelieferte Paket pruefen (kein Hardcoding)
+    import re
+    pkg_ver = re.search(r'VERSION = "([\d.]+)"',
+                        open("/app/local_worker/worker.py").read()).group(1)
+    assert w.get("version") == pkg_ver, w
 
 
 # ---------- LOCAL Multi-Core Backtest ----------
