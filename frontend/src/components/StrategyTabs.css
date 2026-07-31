@@ -6,6 +6,10 @@
   border-bottom: 1px solid #2A2D3A;
   padding: 6px 8px;
   min-height: 48px;
+  /* Verhindert, dass viele Strategie-Chips den Chart-Bereich (grid 1fr)
+     auf 0 zusammendrücken. Cappt Höhe des Balkens; überzählige Chips
+     bekommen einen internen Scroll. */
+  max-height: min(28vh, 220px);
   gap: 8px;
 }
 .strategy-tabs-scroll {
@@ -13,9 +17,11 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-width: 0;
+  align-self: stretch;
   padding: 0;
 }
 .strategy-tab {
