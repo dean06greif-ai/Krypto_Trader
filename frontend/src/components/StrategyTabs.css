@@ -6,24 +6,31 @@
   border-bottom: 1px solid #2A2D3A;
   padding: 6px 8px;
   min-height: 48px;
-  /* Verhindert, dass viele Strategie-Chips den Chart-Bereich (grid 1fr)
-     auf 0 zusammendrücken. Cappt Höhe des Balkens; überzählige Chips
-     bekommen einen internen Scroll. */
-  max-height: min(28vh, 220px);
+  /* Harter Cap: Bar kann den Chart (grid 1fr) nie mehr auf 0 drücken */
+  max-height: min(22vh, 160px);
+  overflow: hidden;      /* Sicherheitsnetz gegen Overflow nach unten */
+  flex-shrink: 0;
   gap: 8px;
 }
+
 .strategy-tabs-scroll {
   display: flex;
   align-items: center;
+  align-content: flex-start; /* gewrappte Zeilen oben andocken */
   flex-wrap: wrap;
   gap: 6px;
-  overflow-y: auto;
+  overflow-y: auto;          /* überzählige Chips intern scrollen */
   overflow-x: hidden;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  max-height: 100%;          /* respektiert den Cap der Bar */
   align-self: stretch;
   padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #2A2D3A transparent;
 }
+
 .strategy-tab {
   display: flex;
   align-items: center;
@@ -38,6 +45,7 @@
   color: #A1A4B0;
   font-size: 13px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 .strategy-tab:hover { border-color: #3A3D4A; transform: translateY(-1px); }
 .strategy-tab-active {
@@ -103,10 +111,20 @@
   color: #fff;
 }
 
-.strategy-tabs-actions { display: flex; gap: 6px; flex-shrink: 0; position: sticky; top: 6px; }
+.strategy-tabs-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 6px;
+}
 .strategy-tab-action {
   display: flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border: 1px solid #2A2D3A; border-radius: 8px;
+  background: #151515; color: #A1A4B0; cursor: pointer; transition: all 0.15s;
+}
+.strategy-tab-action:hover { border-color: #00FF66; color: #00FF66; }
+.strategy-tab-action.add:hover { border-color: #00A8FF; color: #00A8FF; }
   background: #151515; color: #A1A4B0; cursor: pointer; transition: all 0.15s;
 }
 .strategy-tab-action:hover { border-color: #00FF66; color: #00FF66; }
