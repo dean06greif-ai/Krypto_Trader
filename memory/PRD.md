@@ -77,3 +77,31 @@ identifizieren, Regressionstests ergänzen.
 - P2: Autonomie-Review auch per Cron statt nur nach Analyse-/Lernläufen.
 - P2: `<option><span>…</span></option>`-React-Warnung im Frontend bereinigen (kosmetisch,
   bestand vorher schon).
+
+## Umgesetzt (Iteration 5 – UI/Analyse-Fixes, neue Umgebung trader-refine)
+1. **Chart-Bug (zusammengezogen)**: `.main-content` nutzt `grid-template-rows: auto minmax(300px,1fr) auto`,
+   `.chart-wrap min-height: 296px`, SignalPanel-Höhe an Viewport gekoppelt (`max-height: min(400px, 32vh)`).
+   Chart hat dadurch auf JEDEM Gerät eine garantierte Mindesthöhe (verifiziert bei 760px Viewport: 475px).
+2. **Scrollleiste neben Plus**: `StrategyTabs.css` – Action-Buttons (⚙/+) absolut rechts in der Bar,
+   Chips-Scrollcontainer über volle Breite (padding-right 88px) → Scrollleiste sitzt ganz rechts neben dem Plus.
+3. **Analyse „Heute"**: „Letzte Signale" und „KI-Analyse starten" entfernt; Heute-Zahlen bleiben je aktiver Strategie.
+4. **Top Coins**: jetzt dauerhaft beste Win-Rates NUR der aktiven Strategie (aus `performance.by_strategy`),
+   Anzeige W/L; „Gesamt-Analyse (dauerhaft)" darunter verschoben.
+5. **Zeit-Analyse**: Backend `/api/analytics/time-based/{symbol}?strategy_id=` rückwärtskompatibel erweitert um
+   `by_hour`, `by_weekday`, `by_combo` (PRE_SIGNAL exkl., Win-Rate aus entschiedenen Signalen).
+   Frontend: Dropdown „Gesamt (alle Strategien)"/je Strategie + Tabs Uhrzeiten/Wochentage/Kombi, beste zuerst.
+6. **Trades → Performance je Strategie**: Zeilen werden aus den ECHTEN Trades des Coins abgeleitet
+   (inkl. KI Trader, keine leeren Strategien mehr).
+7. **Top-10-Collapse-Fix**: `CoinSidebar` – erzwungenes Offenhalten der Gruppe des gewählten Coins entfernt.
+8. **Login-Bug (Paper-Blitz)**: `GET /api/autotrade/strategy_coin_configs` ist öffentlich (read-only,
+   Schreibzugriffe bleiben admin-only) → Blitz-Status auch ohne Login sichtbar. Zusätzlich lädt App.js nach
+   erfolgreichem Login `loadAutotrade/loadStrategies/loadControlState/loadPerformance` neu → kein Seiten-Reload nötig.
+9. **Settings nur über X**: `SafeOverlay` hat Prop `closeOnOutside` (default true); SettingsPanel und
+   StrategyAutoTradeModal schließen nicht mehr bei Klick daneben.
+10. **Iteration-4-KI-Features verifiziert** (Testlauf war zuvor abgebrochen): 11/11 Unit-Tests
+   (`test_iter_ai_supervisor_auto.py`) + 22/22 neue E2E-Tests (`backend/tests/test_iter5_api.py`) grün –
+   Supervisor auto/history/rollback, Quick-Prompts serverseitig, apply-assist. Cleanup (Defaults) erfolgt.
+
+## Offener Backlog-Punkt (vom User vorgeschlagen, noch NICHT umgesetzt)
+- Supervisor: bei „schwach"-Bewertung automatisch auf Fallback-Modell umschalten (mit Log & Rückfall) –
+  würde 503-Ausfälle einzelner Modelle ohne Zutun abfangen.
