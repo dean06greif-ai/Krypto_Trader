@@ -560,6 +560,124 @@ async def get_time_based(symbol: str, strategy_id: str = None):
         key=lambda x: (-(x.get("win_rate", 0) if x.get("decided") else -1), -x.get("total_signals", 0)),
     )
 
+    # ---- Zusätzlich: echter Trade-PnL je Stunde/Wochentag/Kombi ----
+    # Basis: geschlossene auto_trades desselben Coins (optional je Strategie).
+    # Gruppierung nach OPEN-Zeitpunkt in BERLIN-Zeit, damit die Tages-Rhythmen
+    # dem entsprechen, was der Nutzer im UI sieht.
+    trade_match: Dict = {"symbol": symbol, "status": "closed", "opened_at": {"$ne": None}}
+    if strategy_id:
+        trade_match["strategy_id"] = strategy_id
+
+    async def _trade_grouped(group_id: Dict):
+        # Berlin ist Europe/Berlin (UTC+1/+2). MongoDB's $hour/$dayOfWeek
+        # unterstützen "timezone". opened_at ist als ISO-String gespeichert,
+        # daher zuerst per $dateFromString parsen.
+        # $dayOfWeek: 1=Sunday..7=Saturday -> normalisieren auf 0=Mo..6=So.
+        pipe = [
+            {"$match": trade_match},
+            {"$addFields": {
+                "_openDt": {
+                    "$cond": [
+                        {"$eq": [{"$type": "$opened_at"}, "date"]},
+                        "$opened_at",
+                        {"$dateFromString": {"dateString": "$opened_at", "onError": None, "onNull": None}},
+                    ]
+                }
+            }},
+            {"$match": {"_openDt": {"$ne": None}}},
+            {"$addFields": {
+                "_hour": {"$hour": {"date": "$_openDt", "timezone": "Europe/Berlin"}},
+                "_dow": {"$dayOfWeek": {"date": "$_openDt", "timezone": "Europe/Berlin"}},
+            }},
+            {"$addFields": {
+                # Mongo dayOfWeek 1=So..7=Sa -> 0=Mo..6=So
+                "_wd": {"$mod": [{"$add": [{"$subtract": ["$_dow", 2]}, 7]}, 7]},
+            }},
+            {"$group": {
+                "_id": {
+                    **({"hour": "$_hour"} if "hour" in group_id else {}),
+                    **({"weekday": "$_wd"} if "weekday" in group_id else {}),
+                },
+                "trades": {"$sum": 1},
+                "wins": {"$sum": {"$cond": [{"$eq": ["$result", "win"]}, 1, 0]}},
+                "losses": {"$sum": {"$cond": [{"$eq": ["$result", "loss"]}, 1, 0]}},
+                "pnl": {"$sum": {"$ifNull": ["$realized_pnl", 0]}},
+                "best_trade": {"$max": {"$ifNull": ["$realized_pnl", 0]}},
+                "worst_trade": {"$min": {"$ifNull": ["$realized_pnl", 0]}},
+            }},
+        ]
+        rows = await state.db.auto_trades.aggregate(pipe).to_list(1000)
+        out = {}
+        for r in rows:
+            gid = r.get("_id") or {}
+            key_parts = []
+            if "hour" in gid:
+                key_parts.append(("hour", int(gid["hour"])))
+            if "weekday" in gid:
+                key_parts.append(("weekday", int(gid["weekday"])))
+            key = tuple(key_parts)
+            trades = int(r.get("trades", 0))
+            wins = int(r.get("wins", 0))
+            losses = int(r.get("losses", 0))
+            pnl = round(float(r.get("pnl") or 0), 2)
+            out[key] = {
+                "trades": trades,
+                "trade_wins": wins,
+                "trade_losses": losses,
+                "trade_win_rate": round(wins / (wins + losses) * 100, 1) if (wins + losses) else 0.0,
+                "pnl": pnl,
+                "avg_pnl": round(pnl / trades, 2) if trades else 0.0,
+                "best_trade": round(float(r.get("best_trade") or 0), 2),
+                "worst_trade": round(float(r.get("worst_trade") or 0), 2),
+            }
+        return out
+
+    def _merge(entries, group_id_shape, trade_map):
+        """Merge PnL-Daten in Signal-Einträge und ergänze Trade-Only-Buckets."""
+        seen = set()
+        for e in entries:
+            key_parts = []
+            if "hour" in group_id_shape:
+                key_parts.append(("hour", int(e.get("hour", 0))))
+            if "weekday" in group_id_shape:
+                key_parts.append(("weekday", int(e.get("weekday_index", 0))))
+            key = tuple(key_parts)
+            seen.add(key)
+            tdata = trade_map.get(key)
+            if tdata:
+                e.update(tdata)
+            else:
+                # Keine Trades in diesem Bucket
+                e.update({"trades": 0, "trade_wins": 0, "trade_losses": 0,
+                          "trade_win_rate": 0.0, "pnl": 0.0, "avg_pnl": 0.0,
+                          "best_trade": 0.0, "worst_trade": 0.0})
+        # Buckets, die NUR Trades (aber keine Signale) haben, ergänzen
+        for key, tdata in trade_map.items():
+            if key in seen:
+                continue
+            entry = {"total_signals": 0, "wins": 0, "losses": 0, "decided": 0,
+                     "win_rate": 0.0, "avg_crv": 0.0}
+            for name, val in key:
+                if name == "hour":
+                    entry["hour"] = val
+                elif name == "weekday":
+                    entry["weekday_index"] = val
+                    entry["weekday"] = weekdays[val] if 0 <= val <= 6 else str(val)
+            entry.update(tdata)
+            entries.append(entry)
+        return entries
+
+    trade_by_hour = await _trade_grouped({"hour": "$_hour"})
+    trade_by_weekday = await _trade_grouped({"weekday": "$_wd"})
+    trade_by_combo = await _trade_grouped({"hour": "$_hour", "weekday": "$_wd"})
+
+    by_hour = sorted(_merge(by_hour, {"hour"}, trade_by_hour), key=lambda x: x.get("hour", 0))
+    by_weekday = sorted(_merge(by_weekday, {"weekday"}, trade_by_weekday), key=lambda x: x.get("weekday_index", 0))
+    by_combo = sorted(
+        _merge(by_combo, {"hour", "weekday"}, trade_by_combo),
+        key=lambda x: (-(x.get("pnl", 0) if x.get("trades") else -999999), -(x.get("win_rate", 0) if x.get("decided") else -1)),
+    )
+
     return {"symbol": symbol, "strategy_id": strategy_id,
             "time_analytics": stats,
             "best_hours": sorted(stats, key=lambda x: x["win_rate"], reverse=True)[:5],

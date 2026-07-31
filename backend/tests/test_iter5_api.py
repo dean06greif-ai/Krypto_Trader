@@ -217,6 +217,119 @@ class TestTimeBasedAnalyticsExtended:
         print(f"✓ Unknown strategy handled gracefully: by_hour={len(data['by_hour'])}, by_weekday={len(data['by_weekday'])}")
 
 
+    def test_pnl_fields_present_in_all_groupings(self):
+        """Iter 5.2: All groupings should have PnL fields from auto_trades."""
+        r = requests.get(f"{BASE}/api/analytics/time-based/BTCUSDT", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        
+        # Required PnL fields added in Iter 5.2
+        pnl_fields = ["trades", "trade_wins", "trade_losses", "trade_win_rate",
+                     "pnl", "avg_pnl", "best_trade", "worst_trade"]
+        
+        # Test by_hour
+        by_hour = data["by_hour"]
+        if by_hour:
+            entry = by_hour[0]
+            for field in pnl_fields:
+                assert field in entry, f"by_hour missing PnL field: {field}"
+            # Validate types
+            assert isinstance(entry["trades"], int), "trades should be int"
+            assert isinstance(entry["pnl"], (int, float)), "pnl should be numeric"
+            assert isinstance(entry["trade_win_rate"], (int, float)), "trade_win_rate should be numeric"
+            print(f"✓ by_hour has all PnL fields: hour={entry['hour']}, trades={entry['trades']}, pnl={entry['pnl']}")
+        
+        # Test by_weekday
+        by_weekday = data["by_weekday"]
+        if by_weekday:
+            entry = by_weekday[0]
+            for field in pnl_fields:
+                assert field in entry, f"by_weekday missing PnL field: {field}"
+            print(f"✓ by_weekday has all PnL fields: {entry['weekday']}, trades={entry['trades']}, pnl={entry['pnl']}")
+        
+        # Test by_combo
+        by_combo = data["by_combo"]
+        if by_combo:
+            entry = by_combo[0]
+            for field in pnl_fields:
+                assert field in entry, f"by_combo missing PnL field: {field}"
+            print(f"✓ by_combo has all PnL fields: {entry['weekday']} {entry['hour']}:00, trades={entry['trades']}, pnl={entry['pnl']}")
+    
+    def test_pnl_calculations_correct(self):
+        """Iter 5.2: Validate PnL calculations (trade_win_rate, avg_pnl)."""
+        r = requests.get(f"{BASE}/api/analytics/time-based/BTCUSDT", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        
+        by_hour = data["by_hour"]
+        # Find entries with trades to validate calculations
+        entries_with_trades = [e for e in by_hour if e.get("trades", 0) > 0]
+        
+        if entries_with_trades:
+            entry = entries_with_trades[0]
+            wins = entry["trade_wins"]
+            losses = entry["trade_losses"]
+            total = wins + losses
+            
+            # Validate trade_win_rate
+            if total > 0:
+                expected_wr = round(wins / total * 100, 1)
+                assert entry["trade_win_rate"] == expected_wr, \
+                    f"trade_win_rate mismatch: expected {expected_wr}, got {entry['trade_win_rate']}"
+            else:
+                assert entry["trade_win_rate"] == 0.0, "trade_win_rate should be 0 when no decided trades"
+            
+            # Validate avg_pnl
+            if entry["trades"] > 0:
+                expected_avg = round(entry["pnl"] / entry["trades"], 2)
+                assert entry["avg_pnl"] == expected_avg, \
+                    f"avg_pnl mismatch: expected {expected_avg}, got {entry['avg_pnl']}"
+            
+            print(f"✓ PnL calculations correct: hour={entry['hour']}, trades={entry['trades']}, "
+                  f"win_rate={entry['trade_win_rate']}%, avg_pnl={entry['avg_pnl']}")
+        else:
+            print("✓ No trades found to validate calculations (data-dependent)")
+    
+    def test_strategy_filter_with_pnl(self):
+        """Iter 5.2: Strategy filter should also filter PnL data."""
+        # Test with a strategy that likely has trades
+        r = requests.get(f"{BASE}/api/analytics/time-based/BTCUSDT?strategy_id=scalping_4_rules", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        
+        assert data["strategy_id"] == "scalping_4_rules"
+        
+        # Check that PnL fields are present even with filter
+        by_hour = data.get("by_hour", [])
+        if by_hour:
+            entry = by_hour[0]
+            pnl_fields = ["trades", "trade_wins", "trade_losses", "pnl"]
+            for field in pnl_fields:
+                assert field in entry, f"Filtered data missing PnL field: {field}"
+            print(f"✓ Strategy filter preserves PnL fields: hour={entry.get('hour')}, trades={entry.get('trades')}")
+    
+    def test_zero_trade_entries_have_zero_pnl(self):
+        """Iter 5.2: Entries with 0 trades should have PnL fields set to 0."""
+        r = requests.get(f"{BASE}/api/analytics/time-based/BTCUSDT", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        
+        by_hour = data["by_hour"]
+        zero_trade_entries = [e for e in by_hour if e.get("trades", 0) == 0]
+        
+        if zero_trade_entries:
+            entry = zero_trade_entries[0]
+            assert entry["pnl"] == 0.0, f"Expected pnl=0.0, got {entry['pnl']}"
+            assert entry["avg_pnl"] == 0.0, f"Expected avg_pnl=0.0, got {entry['avg_pnl']}"
+            assert entry["best_trade"] == 0.0, f"Expected best_trade=0.0, got {entry['best_trade']}"
+            assert entry["worst_trade"] == 0.0, f"Expected worst_trade=0.0, got {entry['worst_trade']}"
+            assert entry["trade_win_rate"] == 0.0, f"Expected trade_win_rate=0.0, got {entry['trade_win_rate']}"
+            print(f"✓ Zero-trade entries have zero PnL: hour={entry['hour']}, all PnL fields=0")
+        else:
+            print("✓ All entries have trades (data-dependent)")
+
+
+
 # ========== TASK 3: Iteration-4 AI Features Verification ==========
 class TestAISupervisorSettings:
     """Test AI Supervisor settings endpoints."""

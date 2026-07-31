@@ -142,6 +142,20 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ PASSED: Rückwärtskompatibel (time_analytics/best_hours vorhanden), neue Felder (by_hour/by_weekday/by_combo) korrekt strukturiert, win_rate-Berechnung validiert, strategy_id-Filter funktioniert, unbekannte strategy_id liefert leere Listen (kein 500). Test: backend/tests/test_iter5_api.py::TestTimeBasedAnalyticsExtended (7/7 tests passed)."
+  - task: "Iter 5.2: Zeit-Analyse mit echten Trade-PnL-Feldern (trades, trade_wins, trade_losses, trade_win_rate, pnl, avg_pnl, best_trade, worst_trade)"
+    implemented: true
+    working: true
+    file: "backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Iter 5.2: by_hour/by_weekday/by_combo enthalten jetzt zusätzlich echten Trade-PnL aus state.db.auto_trades (status: closed, gruppiert nach opened_at in Europe/Berlin-Zeitzone). Neue Felder: trades, trade_wins, trade_losses, trade_win_rate, pnl, avg_pnl, best_trade, worst_trade. _merge-Logik ergänzt Trade-Only-Buckets."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED (Iter 5.2): Alle PnL-Felder in by_hour/by_weekday/by_combo vorhanden und korrekt berechnet. Tests: (1) Endpoint liefert 200 mit allen Feldern, (2) PnL-Felder in allen Gruppierungen vorhanden (auch bei 0 Trades), (3) trade_win_rate und avg_pnl korrekt berechnet, (4) strategy_id-Filter funktioniert mit PnL-Daten, (5) Nonexistent strategy_id liefert 200 mit leeren Listen, (6) Rückwärtskompatibilität (time_analytics/best_hours unverändert), (7) Keine Regression in /api/performance. Test-Dateien: /app/backend_test.py (24/24 passed), backend/tests/test_iter5_api.py::TestTimeBasedAnalyticsExtended (11/11 passed inkl. 4 neue Iter-5.2-Tests). Beispiel-Daten: Di 1:00 → 1 Trade, pnl=5.49 USDT; Stunde 4 → 2 Trades, pnl=-79.22 USDT, avg_pnl=-39.61."
   - task: "Iteration-4 KI-Features verifizieren (Supervisor auto/history/rollback, Quick-Prompts serverseitig, apply-assist)"
     implemented: true
     working: true
@@ -197,8 +211,8 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "5.0"
-  test_sequence: 2
+  version: "5.2"
+  test_sequence: 3
   run_ui: false
 
 test_plan:
@@ -212,13 +226,18 @@ agent_communication:
     comment: >
   - agent: "testing"
     comment: >
-      Backend-Tests abgeschlossen (Iteration 5). Alle 3 Backend-Tasks erfolgreich getestet:
+      Backend-Tests abgeschlossen (Iteration 5 + 5.2). Alle 4 Backend-Tasks erfolgreich getestet:
       1) GET /api/autotrade/strategy_coin_configs: Öffentlich, nested dict, 19 Strategien, Schreib-Schutz OK
       2) GET /api/analytics/time-based/{symbol}: Rückwärtskompatibel, neue Felder (by_hour/by_weekday/by_combo), 
          win_rate-Berechnung korrekt, strategy_id-Filter funktioniert, unbekannte IDs → leere Listen
       3) Iteration-4 KI-Features: Unit-Tests 11/11, E2E 9/9 (Supervisor settings/history/rollback, 
          Quick-Prompts, apply-assist). Alle Defaults wiederhergestellt.
-      Test-Datei: backend/tests/test_iter5_api.py (22/22 E2E tests passed).
+      4) Iter 5.2 - Zeit-Analyse mit Trade-PnL: Alle 8 neuen PnL-Felder (trades, trade_wins, trade_losses, 
+         trade_win_rate, pnl, avg_pnl, best_trade, worst_trade) in by_hour/by_weekday/by_combo vorhanden 
+         und korrekt berechnet. strategy_id-Filter funktioniert mit PnL-Daten. _merge-Logik korrekt 
+         (Trade-Only-Buckets erscheinen). Rückwärtskompatibilität gewahrt. Keine Regression in /api/performance.
+      Test-Dateien: backend/tests/test_iter5_api.py (26/26 E2E tests passed inkl. 4 neue Iter-5.2-Tests), 
+      /app/backend_test.py (24/24 comprehensive tests passed).
       KEINE kritischen Fehler gefunden. Backend vollständig funktionsfähig.
 
       Backend läuft lokal auf Port 8001, erreichbar über https://trader-refine.preview.emergentagent.com/api

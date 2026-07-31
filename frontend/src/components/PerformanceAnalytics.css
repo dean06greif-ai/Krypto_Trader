@@ -230,6 +230,40 @@
   font-weight: 600;
 }
 
+/* Zeit-Buckets mit echten Trades hervorheben */
+.time-item-has-trades {
+  border-left: 3px solid #00A8FF;
+  padding-left: 9px;
+}
+
+.time-pnl-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #12141C;
+  border: 1px solid #2A2D3A;
+  border-left: 3px solid #00A8FF;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.time-pnl-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.time-trades-badge {
+  background: rgba(0, 168, 255, 0.14);
+  color: #00A8FF;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: help;
+}
+
 /* --- Clear analytics data (browser-history style) --- */
 .analytics-header { display: flex; align-items: flex-start; justify-content: space-between; }
 .clear-data-btn { background: #FF336618; border: 1px solid #FF336640; color: #FF3366; border-radius: 8px; padding: 7px 9px; cursor: pointer; display: inline-flex; align-items: center; transition: background-color 0.15s ease; }

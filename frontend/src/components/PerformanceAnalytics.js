@@ -523,8 +523,15 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
             if (!rows.length) {
               return <div className="no-data">Noch keine Zeit-Daten{timeStrategy ? ' für diese Strategie' : ''}. Sobald Signale kommen, siehst du hier die Auswertung.</div>;
             }
-            // Beste zuerst: entschiedene Einträge nach Win-Rate, dann nach Anzahl
+            // Sortier-Priorität: (1) Zeilen mit echten Trades nach PnL absteigend
+            // (bester PnL zuerst), (2) danach nur-Signal-Zeilen nach WR.
             const sorted = [...rows].sort((a, b) => {
+              const aT = (a.trades || 0) > 0 ? 1 : 0;
+              const bT = (b.trades || 0) > 0 ? 1 : 0;
+              if (aT !== bT) return bT - aT;
+              if (aT && bT) {
+                if ((b.pnl || 0) !== (a.pnl || 0)) return (b.pnl || 0) - (a.pnl || 0);
+              }
               const aDec = a.decided > 0 ? 1 : 0;
               const bDec = b.decided > 0 ? 1 : 0;
               if (aDec !== bDec) return bDec - aDec;
@@ -535,26 +542,62 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
               : timeView === 'weekdays'
                 ? r.weekday
                 : `${r.weekday} · ${String(r.hour).padStart(2, '0')}:00`;
+
+            // PnL-Gesamt-Summe für die Zusammenfassung
+            const totalPnl = sorted.reduce((s, r) => s + (r.pnl || 0), 0);
+            const totalTrades = sorted.reduce((s, r) => s + (r.trades || 0), 0);
+            const bucketsWithTrades = sorted.filter(r => (r.trades || 0) > 0).length;
+
             return (
               <div className="time-section">
                 <div className="time-subtitle text-long">
                   {timeStrategy ? (activeStratList.find(s => s.id === timeStrategy)?.name || timeStrategy) : 'COIN GESAMT'} · BESTE ZUERST
                 </div>
-                {sorted.map((r, i) => (
-                  <div key={i} className="time-item" data-testid={`time-row-${i}`}>
-                    <div className="time-info"><span className="mono">{label(r)}</span></div>
-                    <div className="time-stats">
-                      <span className={`mono ${r.decided > 0 ? (r.win_rate >= 50 ? 'text-long' : 'text-short') : 'text-muted'}`}>
-                        {r.decided > 0 ? `${r.win_rate.toFixed(0)}% WR` : '— WR'}
-                      </span>
-                      <span className="text-muted">·</span>
-                      <span className="mono text-long">{r.wins}W</span>
-                      <span className="mono text-short">{r.losses}L</span>
-                      <span className="text-muted">·</span>
-                      <span className="mono">{r.total_signals}x</span>
-                    </div>
+                {totalTrades > 0 && (
+                  <div className="time-pnl-summary" data-testid="time-pnl-summary">
+                    <span className="text-muted">Ø PnL-Beitrag:</span>
+                    <span className={`mono ${totalPnl >= 0 ? 'text-long' : 'text-short'}`} data-testid="time-pnl-total">
+                      {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)} USDT
+                    </span>
+                    <span className="text-muted">· {totalTrades} Trades in {bucketsWithTrades} Buckets</span>
                   </div>
-                ))}
+                )}
+                {sorted.map((r, i) => {
+                  const hasTrades = (r.trades || 0) > 0;
+                  const pnl = r.pnl || 0;
+                  return (
+                    <div key={i} className={`time-item ${hasTrades ? 'time-item-has-trades' : ''}`} data-testid={`time-row-${i}`}>
+                      <div className="time-info"><span className="mono">{label(r)}</span></div>
+                      <div className="time-stats">
+                        {hasTrades ? (
+                          <>
+                            <span className={`mono time-pnl-value ${pnl >= 0 ? 'text-long' : 'text-short'}`} data-testid={`time-pnl-${i}`}>
+                              {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                            </span>
+                            <span className="text-muted">·</span>
+                            <span className="mono time-trades-badge" title={`Ø ${(r.avg_pnl || 0).toFixed(2)} USDT · Best ${(r.best_trade || 0).toFixed(2)} · Worst ${(r.worst_trade || 0).toFixed(2)}`}>
+                              {r.trades}T
+                            </span>
+                            <span className={`mono ${(r.trade_win_rate || 0) >= 50 ? 'text-long' : 'text-short'}`}>
+                              {(r.trade_win_rate || 0).toFixed(0)}%
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className={`mono ${r.decided > 0 ? (r.win_rate >= 50 ? 'text-long' : 'text-short') : 'text-muted'}`}>
+                              {r.decided > 0 ? `${r.win_rate.toFixed(0)}% WR` : '— WR'}
+                            </span>
+                            <span className="text-muted">·</span>
+                            <span className="mono text-long">{r.wins}W</span>
+                            <span className="mono text-short">{r.losses}L</span>
+                            <span className="text-muted">·</span>
+                            <span className="mono">{r.total_signals}x</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}
