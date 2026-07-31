@@ -1,0 +1,8 @@
+{
+  "name": "krypto-trader-root",
+  "private": true,
+  "scripts": {
+    "dev": "bash /app/start_services.sh",
+    "start": "bash /app/start_services.sh"
+  }
+}

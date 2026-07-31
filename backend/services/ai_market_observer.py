@@ -1,0 +1,252 @@
+"""Markt-Beobachter ("market_observer"-Rolle des KI-Teams).
+
+Sammelt in festen Intervallen den messbaren Marktzustand aller beobachteten
+Coins (Trend, Volatilität, ATR, RSI, Volumen, Range-Position) und legt ihn als
+Zeitreihe in `db.ai_market_snapshots` ab. Diese Snapshots sind
+
+  1. Trainingsdaten für das ML-Labor (services/ai_ml_lab.py) – "welche
+     Marktbedingungen liefern gute Ergebnisse",
+  2. Kontext für den KI Trader (aktueller Marktzustand + Veränderung),
+  3. Grundlage für die Regime-Zuordnung von Trades.
+
+Reine Feature-Berechnung (`compute_features`) ist DB-/LLM-frei und wird in den
+Regressionstests direkt geprüft. Der News-/Kalender-Teil bleibt beim
+News-Wächter – dieser Beobachter arbeitet ausschließlich datengetrieben und
+verbraucht standardmäßig KEIN LLM-Budget (optionale Kurz-Einschätzung via
+Rollen-Feld `llm_summary`).
+"""
+import logging
+import statistics
+import time
+import uuid
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
+
+from services.ai_memory import memory
+from services.technical_indicators import TechnicalIndicators
+
+logger = logging.getLogger(__name__)
+
+OBSERVER_SYSTEM = (
+    "Du bist der 'Markt-Beobachter' im KI-Team einer Krypto-Daytrading-Plattform. "
+    "Du bewertest ausschließlich den gemessenen Marktzustand (Trend, Volatilität, "
+    "Volumen, Range-Position) – keine Trades, keine News. Antworte AUSSCHLIESSLICH mit "
+    "validem JSON ohne Markdown:\n"
+    '{"regime": "trend_up|trend_down|range|volatil|ruhig", '
+    '"summary": "2-4 Sätze auf Deutsch: Marktzustand + was das für Daytrading bedeutet", '
+    '"watchlist": ["BTCUSDT"]}'
+)
+
+MAX_SNAPSHOTS = 20000
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def compute_features(candles: List[Dict]) -> Optional[Dict]:
+    """Marktzustands-Features aus 1m-Kerzen (rein, ohne Seiteneffekte)."""
+    if not candles or len(candles) < 60:
+        return None
+    ti = TechnicalIndicators
+    closes = [float(c["close"]) for c in candles][-240:]
+    price = closes[-1]
+    if price <= 0:
+        return None
+    rsi_arr = ti.calculate_rsi(closes, 14)
+    rsi = float(rsi_arr[-1]) if rsi_arr and rsi_arr[-1] is not None else 50.0
+    ema20 = ti.calculate_ema(closes, 20)[-1]
+    ema50 = ti.calculate_ema(closes, 50)[-1] if len(closes) >= 50 else ema20
+    trend_pct = (ema20 - ema50) / price * 100 if ema50 else 0.0
+    try:
+        atr = float(ti.calculate_atr(candles, 14)[-1] or 0.0)
+    except Exception:
+        atr = 0.0
+    rets = [(closes[i] - closes[i - 1]) / closes[i - 1] * 100
+            for i in range(1, len(closes)) if closes[i - 1]]
+    vol_pct = statistics.pstdev(rets[-60:]) if len(rets) >= 10 else 0.0
+    vols = [float(c.get("volume", 0) or 0) for c in candles]
+    v_recent = sum(vols[-5:]) / 5 if len(vols) >= 5 else 0.0
+    v_base = (sum(vols[-60:]) / 60) if len(vols) >= 60 else 0.0
+    vol_ratio = (v_recent / v_base) if v_base else 1.0
+    hi = max(float(c["high"]) for c in candles[-60:])
+    lo = min(float(c["low"]) for c in candles[-60:])
+    range_pos = (price - lo) / (hi - lo) * 100 if hi > lo else 50.0
+    chg_60 = (price - closes[-60]) / closes[-60] * 100 if len(closes) >= 60 and closes[-60] else 0.0
+    return {
+        "price": round(price, 8),
+        "rsi": round(rsi, 2),
+        "trend_pct": round(trend_pct, 4),
+        "atr_pct": round(atr / price * 100, 4),
+        "volatility_pct": round(vol_pct, 4),
+        "volume_ratio": round(vol_ratio, 3),
+        "range_pos": round(range_pos, 2),
+        "change_60m_pct": round(chg_60, 3),
+        "regime": classify_regime(trend_pct, vol_pct, range_pos),
+    }
+
+
+def classify_regime(trend_pct: float, vol_pct: float, range_pos: float) -> str:
+    """Grobe, deterministische Regime-Zuordnung (Label für Prompt & ML-Feature)."""
+    if vol_pct >= 0.35:
+        base = "volatil"
+    elif vol_pct <= 0.06:
+        base = "ruhig"
+    else:
+        base = "normal"
+    if trend_pct > 0.08:
+        return f"trend_up_{base}"
+    if trend_pct < -0.08:
+        return f"trend_down_{base}"
+    return f"range_{base}" if 20 <= range_pos <= 80 else f"breakout_{base}"
+
+
+def snapshot_to_text(snap: Dict) -> str:
+    f = snap.get("features") or {}
+    return (f"{snap.get('symbol')}: {f.get('regime')} | RSI {f.get('rsi')} | "
+            f"Trend {f.get('trend_pct'):+.2f}% | Vola {f.get('volatility_pct')}% | "
+            f"ATR {f.get('atr_pct')}% | Vol x{f.get('volume_ratio')} | "
+            f"Range-Pos {f.get('range_pos')}%")
+
+
+class MarketObserver:
+    ROLE = "market_observer"
+
+    def __init__(self):
+        self.engine = None
+        self.last_run: Optional[str] = None
+        self.last_error: Optional[str] = None
+        self.snapshots: Dict[str, Dict] = {}     # symbol -> letzter Snapshot
+        self.last_summary: Optional[Dict] = None
+        self._next_due = 0.0
+        self._pruned_at = 0.0
+
+    def setup(self, engine):
+        self.engine = engine
+
+    @property
+    def db(self):
+        return self.engine.db if self.engine else None
+
+    def _cfg(self) -> Dict:
+        from services.ai_roles import role_manager
+        return role_manager.role_cfg(self.ROLE)
+
+    def _symbols(self) -> List[str]:
+        return list(getattr(self.engine, "symbols", []) or [])
+
+    # ---------------- collection ----------------
+    async def collect(self, persist: bool = True) -> List[Dict]:
+        out: List[Dict] = []
+        scanner = getattr(self.engine, "scanner", None)
+        if scanner is None:
+            return out
+        ts = _now_iso()
+        for sym in self._symbols():
+            feats = compute_features(scanner.candle_buffer.get(sym, []))
+            if not feats:
+                continue
+            snap = {"id": str(uuid.uuid4()), "symbol": sym, "ts": ts, "features": feats}
+            self.snapshots[sym] = snap
+            out.append(snap)
+        if persist and out and self.db is not None:
+            try:
+                await self.db.ai_market_snapshots.insert_many([dict(s) for s in out])
+            except Exception as e:
+                logger.warning(f"Markt-Snapshots speichern fehlgeschlagen: {e}")
+        return out
+
+    def features_for(self, symbol: str) -> Dict:
+        """Letzte Features eines Coins (für ML-Vorhersagen & Prompt-Blöcke)."""
+        return dict((self.snapshots.get(symbol) or {}).get("features") or {})
+
+    async def run_check(self, manual: bool = False) -> Dict:
+        cfg = self._cfg()
+        if not manual and not cfg.get("enabled", True):
+            return {"status": "skipped", "detail": "Rolle deaktiviert"}
+        try:
+            snaps = await self.collect()
+            self.last_run = _now_iso()
+            self.last_error = None
+            result = {"status": "ok", "snapshots": len(snaps), "ts": self.last_run}
+            if cfg.get("llm_summary") and snaps and self.engine and self.engine.key:
+                result["summary"] = await self._llm_summary(snaps)
+            return result
+        except Exception as e:
+            self.last_error = str(e)[:300]
+            logger.error(f"Markt-Beobachter fehlgeschlagen: {e}")
+            return {"status": "error", "detail": self.last_error}
+
+    async def _llm_summary(self, snaps: List[Dict]) -> Optional[str]:
+        try:
+            body = "\n".join(snapshot_to_text(s) for s in snaps[:15])
+            text, provider, model = await self.engine.generate_for_role(
+                self.ROLE, f"=== GEMESSENER MARKTZUSTAND ===\n{body}\n\n"
+                           "Bewerte den Gesamtmarkt als JSON.", OBSERVER_SYSTEM,
+                temperature=0.3)
+            data = self.engine._parse_json(text)
+            summary = str(data.get("summary", ""))[:900]
+            self.last_summary = {"regime": data.get("regime"), "summary": summary,
+                                 "watchlist": [str(w)[:12] for w in (data.get("watchlist") or [])][:8],
+                                 "model": f"{provider}/{model}", "ts": _now_iso()}
+            await memory.remember("market_observation",
+                                  f"Marktzustand {self.last_summary['ts'][:16]}", summary,
+                                  meta=self.last_summary, tags=["market"], weight=1,
+                                  source=f"market_observer/{model}")
+            return summary
+        except Exception as e:
+            logger.warning(f"Markt-Beobachter LLM-Einschätzung fehlgeschlagen: {str(e)[:140]}")
+            return None
+
+    async def context_text(self, limit: int = 12) -> str:
+        if not self.snapshots:
+            return ""
+        lines = ["=== MARKT-BEOBACHTER (gemessener Marktzustand) ==="]
+        for snap in list(self.snapshots.values())[:limit]:
+            lines.append("- " + snapshot_to_text(snap))
+        if self.last_summary:
+            lines.append(f"Einschätzung ({self.last_summary.get('regime')}): "
+                         f"{self.last_summary.get('summary')}")
+        return "\n".join(lines)
+
+    def status(self) -> Dict:
+        cfg = self._cfg()
+        return {
+            "enabled": bool(cfg.get("enabled", True)),
+            "interval_min": int(cfg.get("interval_min", 15) or 15),
+            "llm_summary": bool(cfg.get("llm_summary", False)),
+            "last_run": self.last_run,
+            "last_error": self.last_error,
+            "symbols_tracked": len(self.snapshots),
+            "last_summary": self.last_summary,
+        }
+
+    # ---------------- loop ----------------
+    async def tick(self):
+        cfg = self._cfg()
+        if not cfg.get("enabled", True) or self.db is None:
+            return
+        now = time.time()
+        if now < self._next_due:
+            return
+        self._next_due = now + max(1, int(cfg.get("interval_min", 15) or 15)) * 60
+        await self.run_check()
+        if now - self._pruned_at > 3600:
+            self._pruned_at = now
+            await self._prune()
+
+    async def _prune(self):
+        try:
+            total = await self.db.ai_market_snapshots.count_documents({})
+            if total <= MAX_SNAPSHOTS:
+                return
+            old = await self.db.ai_market_snapshots.find().sort("ts", 1) \
+                .limit(total - MAX_SNAPSHOTS).to_list(total)
+            ids = [o.get("id") for o in old if o.get("id")]
+            if ids:
+                await self.db.ai_market_snapshots.delete_many({"id": {"$in": ids}})
+        except Exception as e:
+            logger.warning(f"Markt-Snapshot-Housekeeping fehlgeschlagen: {e}")
+
+
+market_observer = MarketObserver()
