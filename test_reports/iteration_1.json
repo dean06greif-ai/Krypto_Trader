@@ -1,0 +1,40 @@
+{
+  "summary": "Vollständige Verifikation der Iteration 'Chat-Kommandos & ADJUST_SL-Clamp'. 12 Unit-Tests (test_ai_chat_commands_and_fixes.py) + 16 neue E2E-API-Tests gegen https://trader-refactor.preview.emergentagent.com (test_iter_chat_cmds_e2e.py) = 28/28 PASS. Frontend-Playwright verifiziert Admin-Login, KI-Trader-Panel, Lernen-Tab (Testlektion sichtbar), Strategie-Labor mit neuen Buttons strategy-form-assist und strategy-assist-<cid>. LLM-freie Pfade (Chat SSE, Strategie-Assist mit thesis) liefern erwartungsgemäss saubere 'Kein API-Key'-Meldungen ohne 500 – exakt wie im Request beschrieben.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/ai/strategies", "issue": "Antwort enthaelt status='ok' statt gewuenschtem 'success' (Router {'status':'success', **res} wird durch res['status']='ok' ueberschrieben). Frontend-tolerant, aber inkonsistent zur Signatur anderer Endpoints (POST /api/ai/lessons -> 'success')."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_chat_commands_and_fixes.py",
+    "/app/backend/tests/test_iter_chat_cmds_e2e.py",
+    "/app/test_reports/pytest/iter_chat_cmds_e2e.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: In routers/ai_governance.py `create_candidate` -> `return {\"status\": \"success\", **{k:v for k,v in res.items() if k!='status'}}` fuer konsistente API-Antworten.",
+    "OPTIONAL: Um lokal Paper-Trades via POST /api/ai/trade/open ohne Vorbedingung testen zu koennen, koennte `open_trade` mit source='manuell' die strategy_coin_configs=off-Blockade optional umgehen (aktuell muss ai_trader/BTCUSDT vorher via /api/autotrade/strategy/ai_trader/coin/BTCUSDT auf mode='paper' gesetzt werden, sonst wird das Signal von der Pipeline verworfen). Kein Bug, aber User-Erwartung: 'Trade open funktioniert lokal' war nur nach Bootstrap erfuellt."
+  ],
+  "critical_code_review_comments": [
+    "clamp_level (services/ai_trade_manager.py Zeile 128-155) ist sauber implementiert, buffer_pct=0.1% ist vernuenftig, sowohl SL als auch TP werden korrekt korrigiert. E2E-Test bestaetigt reale Wirkung: LONG SL auf entry*1.05 wird auf ~entry*0.999 unter den Kurs korrigiert.",
+    "ai_chat_commands.match_trades / looks_like_command sind pure Funktionen mit Unit-Tests – gute Trennung von IO.",
+    "strategy_lab.assist() liefert klaren 400 'Kein API-Key...' ohne LLM. Kein Crash-Pfad.",
+    "insights liefert lesson_candidates konsistent (auch bei leerer Liste).",
+    "validation_gate.update clamped min_lesson_confirmations korrekt in Range 1-10 (Werte 999 -> 10)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_chat_cmds_e2e.py (neu)"
+  ],
+  "success_rate": {"backend": "100% (28/28)", "frontend": "100% (kritische Flows)"},
+  "test_credentials": "Admin / Dean06Greif! (aus /app/memory/test_credentials.md, funktioniert)",
+  "seed_data_creation": "Waehrend der Tests wurden angelegt und wieder aufgeraeumt: TEST_UI_Lesson (Lektion), TEST_UI_NoRules + TEST_RSI_Rule + TEST_NoRules (Strategie-Kandidaten), 1 Paper-Trade auf BTCUSDT. Cleanup am Ende: Lektion geloescht, Kandidaten rejected, Paper-Trade geschlossen, ai_trader/BTCUSDT wieder auf mode='off' zurueckgesetzt, min_lesson_confirmations zurueck auf 2.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Fuer POST /api/ai/trade/open (source=manuell) muss vorher /api/autotrade/strategy/ai_trader/coin/BTCUSDT mit {enabled:true, mode:'paper'} gesetzt werden, sonst verwirft process_signal() das Signal ('Coin/Strategie aus'). Diesen Bootstrap uebernimmt das paper_trade-Fixture bereits automatisch. Alle Tests sind idempotent und raeumen auf.",
+  "rca_of_issues": "Kein Bug gefunden. Der urspruenglich in der Aufgabenbeschreibung genannte Bug 'SL 73.62 bei Kurs 73.64' wird sowohl im Unit-Test (test_clamp_sl_short_wrong_side_is_corrected) als auch im echten E2E-Test (test_adjust_sl_wrong_side_gets_clamped: LONG SL auf entry*1.05 -> knapp unter aktuellen Kurs) reproduziert und bestaetigt korrekt geloest."
+}
