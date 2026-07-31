@@ -1,0 +1,47 @@
+{
+  "summary": "Backend-only Verifikation der Iteration 'KI-Sicht auf alle offenen Trades + Indikator-Cache-API'. 44/44 Tests grün (21 targeted Units + 16 vorhandene E2E-Regression + 7 neue E2E gegen https://trader-refactor.preview.emergentagent.com). Verifiziert: (1) AIEngine._open_trades_text zeigt paper+live sowie ALLE Strategien und liefert bei Fokus-Filter zusätzlich die 'WEITERE offene Positionen außerhalb des Fokus: N [paper x, live y] auf SYMBOLS'-Zeile, (2) ai_chat_commands._extract holt jetzt bis zu 200 offene Trades inkl. mode + strategy_name/strategy_id in den Prompt, (3) POST /api/ai/chat mit coins=['BTCUSDT'] wirft kein 500, liefert sauberen SSE-Stream und terminiert mit 'Kein API-Key'-Warnung (lokal ohne LLM-Keys erwartet), (4) GET /api/system/indicator-cache liefert alle Pflichtfelder (mem_items, mem_limit, disk_enabled, disk_files, disk_bytes, disk_mb, dir, hits, misses, hit_ratio), (5) POST /api/system/indicator-cache/clear erfordert Admin-Auth, antwortet mit status='cleared' + files_removed, danach zeigt Stats mem_items=0/disk_files=0.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/ai/chat (services/ai_engine.chat_stream)",
+        "issue": "unverified: LLM-Provider-Pfad wurde nicht end-to-end mit echter KI-Antwort getestet (lokal keine LLM-Keys gesetzt, per test_credentials.md so vorgegeben). Der Coin-Fokus-Kontext-Aufbau (_context_brief -> _open_trades_text) wurde indirekt via 'kein 500 im SSE + saubere Kein-Key-Warnung' verifiziert, aber nicht per echter LLM-Antwort mit Verweis auf out-of-focus Trades. Zum Verifizieren der KI-Antwortqualität muss Produktion (Render) mit gesetzten GEMINI_API_KEY/OPENROUTER_API_KEY... geprüft werden."
+      },
+      {
+        "endpoint": "POST /api/ai/chat -> chat_stream() early return",
+        "issue": "Ohne LLM-Key wird die User-Nachricht bewusst NICHT in db.ai_chat gespeichert (early return VOR insert_one, ai_engine.py Zeile 2087-2089). Kein Bug (spart Rauschen im Verlauf), aber es entsteht ein leichter Inkonsistenz-Effekt: der Nutzer sieht seine Nachricht im UI vielleicht nur temporär. Zum Info an Main Agent."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_ai_open_trades_view.py",
+    "/app/backend/tests/test_indicator_cache.py",
+    "/app/backend/tests/test_iter2_open_trades_and_indicator_cache_api.py",
+    "/app/test_reports/pytest/iteration_2_targeted.xml",
+    "/app/test_reports/pytest/iteration_2_e2e.xml",
+    "/app/test_reports/pytest/iteration_2_full.xml"
+  ],
+  "action_items": [
+    "Optional: In services/ai_engine.chat_stream() die User-Nachricht bereits VOR dem chain-Check speichern, damit der Nutzer seine Historie auch ohne LLM-Key sieht (kosmetisch).",
+    "Manuelle Verifikation der KI-Antwortqualität auf Render (mit Keys): einen Trade in ETH öffnen, im Chat mit coins=['BTCUSDT'] fragen 'habe ich noch andere Positionen?' – Antwort muss ETH erwähnen (dank _open_trades_text-Hinweiszeile)."
+  ],
+  "critical_code_review_comments": [
+    "services/ai_engine.py::_open_trades_text (Zeile 433-496) ist sauber implementiert: rows immer bis 200 gelistet, Fokus-Filter blendet nicht komplett aus, sondern liefert kompakte Zusatz-Zeile mit paper/live-Counts + Symbolliste. Kein Blindflug mehr.",
+    "services/ai_chat_commands.py::_extract (Zeile 146) nutzt jetzt limit(200).to_list(200) inklusive mode + strategy_name/strategy_id im trade_lines-Prompt – so weiß der Kommando-Parser bei 'schließe alle Paper-Positionen' präzise, was er trifft.",
+    "services/indicator_cache.py: sauberer Fingerprint-Ansatz (ts+n+first/last close), LRU-MEM mit Konfigurierbarkeit über ENV, Disk+Memory-Get/Put mit atomarem os.replace für tmp->final, robuste Fehlerbehandlung bei kaputten .npy-Dateien (unlink + neu). stats() liefert vollständige Diagnostik-Felder.",
+    "services/fast_sim.py::FastSeries.get() prüft len(cached) == self.n und rechnet bei Länge-Mismatch neu – schützt vor Cross-Series-Kollisionen mit gleichem Fingerprint.",
+    "routers/general.py: /api/system/indicator-cache liest-only (keine Auth nötig – nur Zahlen), /clear ist Admin-geschützt via Depends(require_admin). Konsistent mit anderen /api/system/*-Endpunkten.",
+    "Minor: routers/ai.py::ai_chat (Zeile 92) validiert `message` – Feldname `text` würde 400 werfen. Frontend nutzt bereits `message`, kein Bug."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter2_open_trades_and_indicator_cache_api.py (neu)"
+  ],
+  "success_rate": {"backend": "100% (44/44)", "frontend": "N/A (backend only)"},
+  "test_credentials": "Admin / Dean06Greif! (aus /app/memory/test_credentials.md, funktioniert)",
+  "seed_data_creation": "Keine dauerhaften Seed-Daten. Der Chat-SSE-Test sendet 2 kurze Nachrichten ('[TEST_...] ...'), die lokal wegen fehlender LLM-Keys per early-return in chat_stream() NICHT persistiert werden (kein Cleanup nötig).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Alle 21 Unit-Tests + 16 vorhandene E2E + 7 neue E2E = 44 Tests laufen deterministisch. Set REACT_APP_BACKEND_URL beim pytest-Aufruf explizit (die pytest.ini erbt keine env vars) – Beispiel: REACT_APP_BACKEND_URL=https://trader-refactor.preview.emergentagent.com python -m pytest tests/test_iter2_open_trades_and_indicator_cache_api.py -v. Für echte LLM-Antwort-Verifikation muss GEMINI_API_KEY (o.ä.) in backend/.env gesetzt sein – lokal per Design nicht der Fall.",
+  "rca_of_issue": "Kein Bug gefunden. Iteration umgesetzt wie im Request beschrieben: _open_trades_text zeigt paper+live+alle Strategien und Out-of-Focus-Hinweis, _extract fütter 200 Trades statt 30, Indikator-Cache-API funktioniert vollständig, kein Regression in bestehenden Chat/Trade/Lesson-Flows."
+}
