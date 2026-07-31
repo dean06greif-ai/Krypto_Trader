@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from typing import Callable, Dict, List, Optional
 
-from services import gpu_accel, vec
+from services import gpu_accel, indicator_cache, vec
 from services.candles import CandleArray
 from services.technical_indicators import TechnicalIndicators as TI
 from strategies.custom_strategy import INDICATORS
@@ -37,6 +37,12 @@ class FastSeries:
             self.low = np.array([c["low"] for c in candles], dtype=float)
             self.vol = np.array([c.get("volume", 0) or 0 for c in candles], dtype=float)
         self._cache: Dict[tuple, np.ndarray] = {}
+        self._fp: Optional[str] = None
+
+    def _fingerprint(self) -> str:
+        if self._fp is None:
+            self._fp = indicator_cache.candles_fingerprint(self.candles)
+        return self._fp
 
     def get(self, name: str, d: Dict) -> np.ndarray:
         def p(key, default):
@@ -104,8 +110,16 @@ class FastSeries:
 
         if key in self._cache:
             return self._cache[key]
+        # Persistente Bibliothek: identische (Serie, Indikator+Parameter)
+        # muss nicht neu berechnet werden – speziell hilfreich für Deep Tests.
+        fp = self._fingerprint()
+        cached = indicator_cache.get(fp, key)
+        if cached is not None and len(cached) == self.n:
+            self._cache[key] = cached
+            return cached
         arr = self._compute(name, key)
         self._cache[key] = arr
+        indicator_cache.put(fp, key, arr)
         return arr
 
     def _compute(self, name: str, key: tuple) -> np.ndarray:

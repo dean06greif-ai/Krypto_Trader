@@ -157,6 +157,21 @@ async def system_cache_clear(_: bool = Depends(require_admin)):
     return {"status": "cleared", "candles_freed": before}
 
 
+@router.get("/api/system/indicator-cache")
+async def indicator_cache_stats():
+    """Statistiken der Indikator-Bibliothek (Deep-Test-Beschleuniger)."""
+    from services import indicator_cache
+    return indicator_cache.stats()
+
+
+@router.post("/api/system/indicator-cache/clear")
+async def indicator_cache_clear(_: bool = Depends(require_admin)):
+    """Indikator-Bibliothek leeren (Disk + Memory)."""
+    from services import indicator_cache
+    removed = indicator_cache.clear()
+    return {"status": "cleared", "files_removed": removed}
+
+
 @router.post("/api/telegram/test")
 async def test_telegram(_: bool = Depends(require_admin)):
     if not telegram.bot:

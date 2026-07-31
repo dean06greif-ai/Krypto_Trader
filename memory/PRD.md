@@ -76,3 +76,17 @@ Gemeldete Probleme / Wünsche (alle vom User priorisiert):
 - P2: Vorschlags-Historie-Ansicht (auto_applied-Log) im UI.
 - P2: Lektions-Kandidaten manuell im UI freigeben/verwerfen können.
 - P2: Konsistenz weiterer Response-Signaturen (status ok/success) – teilweise behoben.
+
+## Feb 2026 – Indikator-Bibliothek für Deep Test
+- NEU `services/indicator_cache.py`: persistenter Disk+Memory-Cache (numpy `.npy`)
+  für Indikator-Serien. Key = (Kerzen-Fingerprint, Indikator+Parameter-Tuple).
+  Fingerprint aus (first_ts, last_ts, n, first_close, last_close) → deterministisch,
+  ohne komplette Daten zu hashen. LRU-Memory-Layer (1024 Items) + atomarer Disk-Write.
+- `services/fast_sim.py` FastSeries.get() prüft nun den Cache vor `_compute` und
+  persistiert das Ergebnis. Same-Serie/Same-Params in weiteren Deep-Test-Läufen
+  liefert sofort aus dem Cache statt neu zu rechnen.
+- API: `GET /api/system/indicator-cache` (Stats: hits/misses/hit_ratio/disk_mb),
+  `POST /api/system/indicator-cache/clear` (admin only).
+- ENV: `INDICATOR_CACHE_DIR` (default `/tmp/indicator_cache`),
+  `INDICATOR_CACHE_MEM_ITEMS`, `INDICATOR_CACHE_DISK=0` schaltet Disk ab.
+- Tests: `tests/test_indicator_cache.py` (5 Tests, alle grün).
