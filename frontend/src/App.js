@@ -18,6 +18,9 @@ import Optimizer from './components/Optimizer';
 import RegimeLab from './components/RegimeLab';
 import ErrorBoundary from './components/ErrorBoundary';
 import AdminLogin from './components/AdminLogin';
+// mobile.css MUST be imported LAST so its media queries override
+// the component-level CSS (Header.css, StrategyTabs.css, ...).
+import './components/mobile.css';
 import { Toaster, toast } from 'sonner';
 import { isAdmin as isAdminFn, clearToken, authHeaders } from './auth';
 

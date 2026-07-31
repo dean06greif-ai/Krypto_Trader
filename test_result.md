@@ -183,6 +183,17 @@ frontend:
     stuck_count: 0
     priority: "high"
     needs_retesting: false
+  - task: "Iter5.1: KI Trader immer in Performance je Strategie, Strategie-Tabs nach Trade-Prio sortieren, Mobile-CSS"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/PerformanceAnalytics.js, frontend/src/components/StrategyTabs.js, frontend/src/components/mobile.css, frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Screenshots verifiziert: STRAT-PERF-Rows enthalten ai_trader (auch mit 0 Trades). Tabs-Reihenfolge: alle Paper-aktiven Strategien zuerst (blaues Blitz-Icon), dann Strategien ohne Trades. Mobile (400x800) zeigt kompakten Header, horizontal scrollende Tabs, 2-Spalten Stats-Grid, KI-Trader Tab an Position 1."
 
 metadata:
   created_by: "main_agent"

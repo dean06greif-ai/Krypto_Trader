@@ -247,14 +247,24 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
     : closedTrades.reduce((a, t) => a + (t.realized_pnl || 0), 0);
   const coinPnl = coinClosedTrades.reduce((a, t) => a + (t.realized_pnl || 0), 0);
 
-  // Performance je Strategie für den GEWÄHLTEN COIN – abgeleitet aus den
-  // ECHTEN Trades (statt der Strategie-Liste). Dadurch erscheint auch der
-  // KI Trader als Strategie und komplett leere Strategien (0 Trades auf
-  // diesem Coin) werden gar nicht erst gelistet.
+  // Performance je Strategie für den GEWÄHLTEN COIN.
+  // Wir starten mit ALLEN aktivierten Strategien (damit KI Trader garantiert
+  // erscheint, auch wenn er noch keine Trades hat) und mergen dann die
+  // echten Trade-Daten ein. Strategien ohne Trades werden ausgeblendet,
+  // AUSSER dem KI Trader (der bleibt immer sichtbar).
   const activeStrategies = strategies.filter(s => enabledIds.includes(s.id));
   const activeStratList = activeStrategies.length ? activeStrategies : strategies;
 
   const stratRowsMap = {};
+  // Seed mit aktivierten Strategien (inkl. ai_trader)
+  activeStratList.forEach(s => {
+    stratRowsMap[s.id] = {
+      id: s.id,
+      name: s.name || s.id,
+      wins: 0, losses: 0, total: 0, openCount: 0, pnl: 0,
+      alwaysShow: s.id === 'ai_trader',
+    };
+  });
   [...closedTrades, ...openTrades].forEach(t => {
     if (t.symbol !== selectedCoin) return;
     const sid = t.strategy_id || 'unknown';
@@ -263,6 +273,7 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
         id: sid,
         name: stratName(t),
         wins: 0, losses: 0, total: 0, openCount: 0, pnl: 0,
+        alwaysShow: sid === 'ai_trader',
       };
     }
     const e = stratRowsMap[sid];
@@ -275,10 +286,14 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
       e.pnl += t.realized_pnl || 0;
     }
   });
-  const stratRows = Object.values(stratRowsMap).map(e => {
-    const decided = e.wins + e.losses;
-    return { ...e, wr: decided ? Math.round((e.wins / decided) * 100) : 0 };
-  }).sort((a, b) => (b.total + b.openCount) - (a.total + a.openCount));
+  const stratRows = Object.values(stratRowsMap)
+    // Strategien ohne Trades ausblenden – KI Trader bleibt immer sichtbar
+    .filter(e => e.alwaysShow || e.total > 0 || e.openCount > 0)
+    .map(e => {
+      const decided = e.wins + e.losses;
+      return { ...e, wr: decided ? Math.round((e.wins / decided) * 100) : 0 };
+    })
+    .sort((a, b) => (b.total + b.openCount) - (a.total + a.openCount));
 
   const openClear = () => {
     if (!isAdmin) { onNeedAdmin && onNeedAdmin(); return; }

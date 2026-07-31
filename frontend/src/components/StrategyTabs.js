@@ -16,9 +16,36 @@ const StrategyTabs = ({
   onEditParams,
   onOpenStrategyAutoTrade 
 }) => {
+  // Auto-Trade-Status als Sortier-Prio: LIVE (0) > PAPER (1) > OFF/none (2)
+  // Muss GENAU der Logik von getAutoTradeStatus() folgen, damit die
+  // Sortierung mit dem angezeigten Blitz-Icon konsistent ist.
+  const tradePriority = (strategyId) => {
+    const perCoin = strategyCoinConfigs?.[strategyId]?.[selectedCoin];
+    if (perCoin && perCoin.mode) {
+      // Per-Coin-Config ist maßgeblich — auch ein explizites 'off'
+      if (perCoin.mode === 'off' || perCoin.enabled === false) return 2;
+      return perCoin.mode === 'live' ? 0 : 1;
+    }
+    const override = strategyOverrides?.[strategyId];
+    if (override && override.enabled && override.mode && override.mode !== 'off') {
+      return override.mode === 'live' ? 0 : 1;
+    }
+    return 2;
+  };
+
+  // Strategien so sortieren, dass zuerst LIVE-Trades, dann PAPER-Trades,
+  // dann Strategien ohne Trades kommen. Innerhalb einer Gruppe bleibt die
+  // ursprüngliche Reihenfolge (aus enabledIds) erhalten.
   const tabs = enabledIds
-    .map(id => strategies.find(s => s.id === id))
-    .filter(Boolean);
+    .map((id, idx) => ({ strat: strategies.find(s => s.id === id), idx }))
+    .filter(x => x.strat)
+    .sort((a, b) => {
+      const pa = tradePriority(a.strat.id);
+      const pb = tradePriority(b.strat.id);
+      if (pa !== pb) return pa - pb;
+      return a.idx - b.idx;
+    })
+    .map(x => x.strat);
 
   // Get auto-trade status badge for a strategy — reflects the mode of the
   // CURRENTLY SELECTED COIN (per-strategy-per-coin config takes priority,
