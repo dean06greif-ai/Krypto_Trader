@@ -1,92 +1,79 @@
-# PRD – Daytrading-Website: KI-Trader-Verbesserungen
+# Krypto_Trader – KI Trader Verbesserungen
 
-## Original-Problemstellung
-Bestehende, produktiv laufende externe Daytrading-Website (GitHub: regimeUpdates31071509,
-React + FastAPI + MongoDB, Multi-LLM-Provider Gemini/Groq/OpenRouter/Mistral über Env-Keys).
-Grundsatz: sauber, modular, rückwärtskompatibel in die bestehende Architektur einpflegen,
-Regressionstests vor größeren Änderungen.
+Quelle: https://github.com/dean06greif-ai/Krypto_Trader (Branch `new-3007-21`)
+Stack: React (CRA/craco) + FastAPI + MongoDB (Produktion: Render + Atlas, extern gehostet – bleibt so).
 
-Gemeldete Probleme / Wünsche (alle vom User priorisiert):
-1. KI "schließt" Live-/Paper-Positionen im Chat nur verbal – auf der Website bleiben sie offen.
-2. Lektionen sollen datenbasiert validiert werden (genug Trades müssen exakt auf die
-   Änderung hinweisen, exakte Wiedererkennung), gleiches Prinzip für Einstellungs-
-   Änderungen (TP/CRV/SL etc.). Bei Autonomie=auto keine Popup-Flut für unvalidierte
-   Wünsche – KI arbeitet autonom. Direkte Trader-Anweisungen (Chat) gelten SOFORT.
-   Lektionen müssen auch im Lernen-Reiter erscheinen, nicht nur im KI-Gedächtnis.
-3. KI soll Trades autonom anpassen können (Gewinn sichern, Marge raus etc.);
-   Bug: "ADJUST_SL ... FEHLGESCHLAGEN: SL 73.62 liegt auf der falschen Seite des Preises 73.64".
-4. Strategie-Reiter: KI als Hilfstool (Feedback, Verbesserungen); Backtester-Fehler
-   "Kandidat keine maschinenlesbare Regel" → KI soll Regeln maschinenlesbar übersetzen
-   oder ehrlich sagen, wenn nicht backtestbar.
+## Grundsatz des Auftrags
+Die Website läuft produktiv. Verbesserungen werden modular und rückwärtskompatibel in die
+bestehende Architektur eingepflegt; Stabilität und saubere Struktur haben Vorrang vor
+aggressiven Änderungen. Vor grösseren Änderungen: Architektur analysieren, Risiken
+identifizieren, Regressionstests ergänzen.
 
-## Architektur (relevant)
-- Backend: FastAPI, `services/` (ai_engine, ai_learning, ai_lessons, ai_validation,
-  ai_trade_manager, ai_strategy_lab, bitunix_trade …), `routers/` (ai, ai_lab,
-  ai_governance …). MongoDB via MONGO_URL. Admin-Auth: JWT (ADMIN_USER/ADMIN_PASSWORD).
-- Frontend: React (CRA/Craco), `components/AITradingPanel.js` (Chat, Lernen-Reiter,
-  Vorschlags-Strip), `AIStrategyLabPanel.js` (Strategie-Reiter).
-- LLM-Keys nur in Produktion (Render EnvVars), lokal keine → LLM-Flows liefern lokal
-  saubere "Kein API-Key"-Meldungen (erwartet).
+## Architektur (relevante Teile)
+- `backend/services/ai_engine.py` – KI Trader Kern (Analyse, Autonomie, Vorschläge/Proposals)
+- `backend/services/ai_roles.py` – KI-Team (Rollen + Modell-Ketten + Fallbacks)
+- `backend/services/ai_strategy_lab.py` – Strategie-Labor (Kandidaten, Ghost-Tests, Assist)
+- `backend/services/ai_research.py` – Forschungs-Analyst (bewertet Backtests/Optimizer)
+- `backend/services/ai_validation.py` – datenbasierte Freigabe (Stichprobe, Bestätigungen, Schrittweite)
+- `frontend/src/components/AITradingPanel.js` – KI-Panel mit Tab-Leiste (Setup, Lernen, KI-Team, …)
 
 ## Umgesetzt (31.07.2026)
-1. **Chat-Kommando-Schicht** – NEU `services/ai_chat_commands.py`:
-   Keyword-Vorerkennung + LLM-Extraktion → REALE Ausführung über bestehende
-   Sicherheits-/Audit-Wege (trade_manager, lesson_store, _handle_config_changes,
-   source="user" = sofort, ohne Validierung). Aktionen: Positionen schließen (mit
-   DB-Verifikation), Trade-Aktionen, Trade eröffnen, Lektion anlegen/ändern/löschen,
-   Einstellungs-Änderung. Echte Ergebnisse werden vor der Chat-Antwort in den
-   System-Kontext injiziert – die KI darf nur berichten, was wirklich passierte
-   (ai_engine.chat_stream + CHAT_SYSTEM_TEMPLATE).
-2. **ADJUST_SL/TP-Clamp** – `ai_trade_manager.clamp_level()`: SL/TP auf falscher
-   Kursseite wird automatisch knapp (0.1 %) auf die gültige Seite korrigiert;
-   Seiten-Regel im Trade-Manager-Prompt; Anti-Spam: identische Fehlermeldung pro
-   Trade+Aktion max. alle 30 min im Chat.
-3. **Lektions-Validierung durch Wiedererkennung** – `ai_validation`
-   (min_lesson_confirmations, Default 2) + `ai_learning`: neue KI-Lektionen landen als
-   Kandidaten in `ai_lesson_candidates` (exaktes Titel-Matching); aktiv erst nach
-   mehrfacher Wiedererkennung UND Daten-Gate. Kandidaten stehen im Lernlauf-Prompt
-   (exakter Titel!) und im Lernen-Reiter ("Lektions-Kandidaten"). Trader-Lektionen
-   (UI + Chat) gelten sofort, locked, im Lernen-Reiter sichtbar (gemeinsame Quelle
-   settings/ai_lessons → /api/ai/insights).
-4. **Kein Popup-Spam bei Autonomie=auto** – Backend: geparkte config_changes
-   (needs_data/needs_confirmation) erzeugen in auto keine Chat-Notiz; Frontend:
-   Vorschlags-Strip lädt in auto keine geparkten Vorschläge.
-5. **Strategie-Assistent** – `ai_strategy_lab.assist()` + POST /api/ai/strategies/assist:
-   Feedback, Vorschläge, geschärfte Beschreibung, maschinenlesbare rule_definition
-   (validiert via valid_rule_definition) oder ehrliche backtest_note. Frontend:
-   "KI-Hilfe zur Strategie" (Form) + "KI: Backtest-Regeln ableiten" (Kandidaten-Karte,
-   apply_rules=true registriert direkt für Backtester); rule_definition wird beim
-   Anlegen mitgespeichert. register-test-Fehlermeldung verweist auf den KI-Button.
+1. **Autonomie-Bug behoben**: Neuer Endpoint `GET /api/ai/proposals/actionable`
+   (Server ist die einzige Quelle der Wahrheit). Bei `autonomy=auto` immer `[]` →
+   es können keine „Übernehmen/Ablehnen"-Karten mehr aufblitzen.
+   Neu `AIEngine.review_parked_proposals()`: geparkte Wünsche (`needs_data`,
+   `needs_confirmation`) werden nach jedem Analyse-/Lernlauf erneut gegen die aktuelle
+   Datenlage geprüft und automatisch angewendet, sobald die bestehende Validierung
+   (MasterPrompt, Stichprobe, Bestätigungen, Schrittweite) sie freigibt.
+2. **Wischen statt Scrollbalken**: neuer Hook `frontend/src/hooks/useDragScroll.js`
+   (Maus-Drag, Mausrad, Touch nativ, Klick-Unterdrückung beim Ziehen) für Tab-Leiste,
+   Vorschlags-Karten und Asset-Chips. Scrollbalken ausgeblendet.
+3. **Chat-Vorschläge als Schnellauswahl**: `frontend/src/components/AIQuickPrompts.js` –
+   eine Zeile, seitwärts wischbar, „+" für eigene Vorschläge, Verschieben, Löschen,
+   Persistenz in `localStorage` (`krypto_ai_quick_prompts`).
+4. **Tab-Reihenfolge**: „Strategien" steht jetzt vor „MasterPrompt".
+5. **KI-Team als Vollansicht**: Chatverlauf/Eingabe werden im KI-Team-Tab aus dem DOM
+   entfernt (wie bei „Strategien"), Panel füllt die Höhe.
+6. **Asset-Fokus** (früher „Coin-Fokus") mit Schnellauswahl: Alle Assets / Alle Coins /
+   Alle Rohstoffe / Alle Indizes / Alle Forex / Nur aktuelles Asset.
+   **Voreinstellung: alle Assets.**
+7. **Strategie-Labor**: Flacker-Bug behoben (`assist` wird vor dem neuen Lauf verworfen,
+   Zuordnung über `candidate_id` aus der Antwort). Neuer Button „KI: Verbesserungen".
+   Die Strategie-KI ist jetzt die **Rolle `research_analyst`** (dieselbe KI, die die
+   Backtest-Daten des Teams auswertet) und bekommt `test_context()`: Backtests und
+   Parameter-Optimierungen **dieser** Strategie plus eigene Ghost/Real-Ergebnisse.
+   Einschätzungen landen als `assist_history` (max. 5) an der Strategie und im KI-Feed →
+   die KI nimmt beim nächsten Aufruf Bezug darauf. Neu: `GET /api/ai/strategies/{cid}/test-data`.
+8. **Lektionen bis 100** wählbar (Clamp 3..100).
+9. **Fußzeilen-Text** „Auto-Trading pro Coin über das ⚡-Symbol …" entfernt.
+10. **Aufsicht über das KI-Team**: `backend/services/ai_supervisor.py` – das Haupt-Modell
+    prüft stichprobenweise alle 9 Rollen (Modell, Aktivität, Fehler, echte Ausgaben) und
+    empfiehlt bei Bedarf einen Modellwechsel (nur aus dem erlaubten Katalog).
+    Endpoints `POST /api/ai/supervisor/review` (Hintergrund-Task) und `GET /api/ai/supervisor`.
+    UI: `AITeamSupervisor.js` mit manuellem Button „KI-Team jetzt prüfen", Polling,
+    Bericht je Rolle und Ein-Klick-Übernahme des empfohlenen Modells.
+11. **Robustheit**: `backend/services/ai_json.py` (`parse_json_lenient`) – tolerantes Lesen
+    aller KI-JSON-Antworten (Markdown-Zäune, Kommentare, Trailing-Kommas, abgeschnittene
+    Antworten). Verhindert Komplettausfälle einzelner KI-Aufrufe.
+12. **Nebenbefund gefixt**: `frontend/src/components/StrategyTabs.css` enthielt einen
+    doppelten/kaputten Block – der Frontend-Build brach mit „Unexpected }" ab.
 
 ## Tests
-- NEU `tests/test_ai_chat_commands_and_fixes.py` (12 Unit-Tests, pure Funktionen).
-- Testing-Agent: `tests/test_iter_chat_cmds_e2e.py` (16 E2E-API-Tests) – 28/28 PASS,
-  Frontend-Flows (Login, Lernen-Reiter, Strategie-Labor) verifiziert.
-- Bestehende Suite grün bis auf 2 daten-abhängige Alt-Tests (erwarten geseedete
-  Produktionsdaten: test_regime_lab test_03, test_settings_persistence test_11).
-- Hinweis E2E-Trade-Test: /api/ai/trade/open braucht vorher
-  /api/autotrade/strategy/ai_trader/coin/BTCUSDT {enabled:true, mode:'paper'}.
+- Neu: `backend/tests/test_iter_ai_supervisor_autonomy.py` (Autonomie-Review, actionable,
+  max_lessons, Supervisor-Aufbereitung) und `backend/tests/test_iter_ai_json.py`.
+- Vom Testing-Agent ergänzt: `backend/tests/test_iter3_ai_api.py`.
+- Lauf: `export REACT_APP_BACKEND_URL=<url> ADMIN_USER=Admin ADMIN_PASSWORD='…'`
+  → `python -m pytest tests -q`.
+- Bekannte, umgebungsbedingte Fehler (nicht durch diese Iteration): Tests, die einen
+  echten Analyse-/Lernlauf brauchen (Marktdaten nötig) bzw. länger als 60 s laufen und
+  am Preview-Proxy in einen 502 laufen.
 
-## Credentials
-- Admin: Admin / Dean06Greif! (backend/.env lokal; produktiv via Render EnvVars).
-
-## Backlog / offene Punkte
-- P1: LLM-abhängige Flows (Chat-Kommandos end-to-end, Lernlauf-Kandidaten-Promotion,
-  Strategie-Assistent-Antworten) in Produktion mit echten Keys verifizieren.
-- P2: Vorschlags-Historie-Ansicht (auto_applied-Log) im UI.
-- P2: Lektions-Kandidaten manuell im UI freigeben/verwerfen können.
-- P2: Konsistenz weiterer Response-Signaturen (status ok/success) – teilweise behoben.
-
-## Feb 2026 – Indikator-Bibliothek für Deep Test
-- NEU `services/indicator_cache.py`: persistenter Disk+Memory-Cache (numpy `.npy`)
-  für Indikator-Serien. Key = (Kerzen-Fingerprint, Indikator+Parameter-Tuple).
-  Fingerprint aus (first_ts, last_ts, n, first_close, last_close) → deterministisch,
-  ohne komplette Daten zu hashen. LRU-Memory-Layer (1024 Items) + atomarer Disk-Write.
-- `services/fast_sim.py` FastSeries.get() prüft nun den Cache vor `_compute` und
-  persistiert das Ergebnis. Same-Serie/Same-Params in weiteren Deep-Test-Läufen
-  liefert sofort aus dem Cache statt neu zu rechnen.
-- API: `GET /api/system/indicator-cache` (Stats: hits/misses/hit_ratio/disk_mb),
-  `POST /api/system/indicator-cache/clear` (admin only).
-- ENV: `INDICATOR_CACHE_DIR` (default `/tmp/indicator_cache`),
-  `INDICATOR_CACHE_MEM_ITEMS`, `INDICATOR_CACHE_DISK=0` schaltet Disk ab.
-- Tests: `tests/test_indicator_cache.py` (5 Tests, alle grün).
+## Backlog / nächste Schritte
+- P1: Supervisor-Prüfung optional automatisch (z. B. täglich) mit Verlaufs-Historie
+  statt nur letztem Bericht.
+- P1: Verbesserungs-Vorschläge der Strategie-KI direkt als „übernehmen"-Aktion in die
+  Regel-Definition (heute: Text + Verlauf).
+- P2: Quick-Prompts serverseitig speichern (heute pro Browser via localStorage).
+- P2: Autonomie-Review auch per Cron statt nur nach Analyse-/Lernläufen.
+- P2: `<option><span>…</span></option>`-React-Warnung im Frontend bereinigen (kosmetisch,
+  bestand vorher schon).
