@@ -238,6 +238,7 @@ async def lifespan(app: FastAPI):
     from services.ai_news_watcher import news_watcher
     news_watcher.setup(ai_engine)
     asyncio.create_task(news_watcher.run_loop())
+    asyncio.create_task(supervisor.run_loop())
     from services import dynamic_live
     asyncio.create_task(dynamic_live.watch_loop())
 

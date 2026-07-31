@@ -156,6 +156,17 @@ async def decide_candidate(cid: str, body: Dict, _: bool = Depends(require_admin
     return {"status": "success", **res}
 
 
+@router.post("/api/ai/strategies/{cid}/apply-assist")
+async def apply_candidate_assist(cid: str, body: Dict = None,
+                                 _: bool = Depends(require_admin)):
+    """Verbesserungs-Vorschläge der KI in die Strategie übernehmen
+    (optional gezielt: {"fields": ["rule_definition"]})."""
+    res = await strategy_lab.apply_assist(cid, (body or {}).get("fields"))
+    if res.get("status") != "ok":
+        raise HTTPException(status_code=400, detail=res.get("detail"))
+    return {"status": "success", **res}
+
+
 @router.get("/api/ai/strategies/{cid}/test-data")
 async def candidate_test_data(cid: str):
     """Backtest-/Optimizer-Daten zu genau dieser Strategie (Textaufbereitung,

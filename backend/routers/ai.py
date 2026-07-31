@@ -217,3 +217,59 @@ async def ai_supervisor_review(_: bool = Depends(require_admin)):
     und das Ergebnis liefert `GET /api/ai/supervisor`."""
     from services.ai_supervisor import supervisor
     return await supervisor.start_review(manual=True)
+
+
+@router.get("/api/ai/supervisor/history")
+async def ai_supervisor_history(limit: int = 10):
+    """Verlauf der Prüfberichte (neueste zuerst)."""
+    from services.ai_supervisor import supervisor
+    return {"reports": await supervisor.history(limit=limit)}
+
+
+@router.post("/api/ai/supervisor/settings")
+async def ai_supervisor_settings(updates: Dict, _: bool = Depends(require_admin)):
+    """Automatische Prüfung (täglich) und automatische Modell-Umschaltung steuern."""
+    from services.ai_supervisor import supervisor
+    return {"status": "success", "settings": await supervisor.update_settings(updates)}
+
+
+@router.post("/api/ai/supervisor/rollback")
+async def ai_supervisor_rollback(_: bool = Depends(require_admin)):
+    """Letzte automatische Modell-Umschaltung zurücknehmen."""
+    from services.ai_supervisor import supervisor
+    res = await supervisor.rollback_switches()
+    if res.get("status") != "ok":
+        raise HTTPException(status_code=400, detail=res.get("detail"))
+    return res
+
+
+# ---------------- Schnellauswahl der Chat-Vorschläge ----------------
+QUICK_PROMPTS_ID = "ai_quick_prompts"
+DEFAULT_QUICK_PROMPTS = [
+    "Wie ist deine aktuelle Performance?",
+    "Was hast du zuletzt gelernt?",
+    "Sei heute defensiv",
+    "Begründe deine letzte Entscheidung",
+]
+
+
+@router.get("/api/ai/quick-prompts")
+async def ai_quick_prompts():
+    """Vom Trader gepflegte Chat-Vorschläge (geräteübergreifend gespeichert)."""
+    doc = await ai_engine.db.settings.find_one({"_id": QUICK_PROMPTS_ID})
+    prompts = (doc or {}).get("prompts")
+    return {"prompts": prompts if isinstance(prompts, list) and prompts
+            else list(DEFAULT_QUICK_PROMPTS),
+            "customized": bool(isinstance(prompts, list) and prompts)}
+
+
+@router.post("/api/ai/quick-prompts")
+async def ai_quick_prompts_save(body: Dict, _: bool = Depends(require_admin)):
+    """Reihenfolge/Inhalt der Schnellauswahl speichern (max. 30 Einträge)."""
+    raw = body.get("prompts")
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="prompts muss eine Liste sein")
+    prompts = [str(p).strip()[:160] for p in raw if str(p).strip()][:30]
+    await ai_engine.db.settings.update_one({"_id": QUICK_PROMPTS_ID},
+                                          {"$set": {"prompts": prompts}}, upsert=True)
+    return {"status": "success", "prompts": prompts}

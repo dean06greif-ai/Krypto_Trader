@@ -15,14 +15,23 @@ automatisch – Modellwechsel bleiben eine Entscheidung des Traders.
 Reine Aufbereitungs-Funktionen (`evidence_text`, `normalize_report`) sind ohne
 DB/LLM testbar.
 """
+import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 DOC_ID = "ai_supervisor_report"
+SETTINGS_ID = "ai_supervisor_settings"
+HIST_COLL = "ai_supervisor_reports"
+
+DEFAULT_SETTINGS = {
+    "auto_enabled": False,      # täglich automatisch prüfen
+    "interval_hours": 24,
+    "auto_switch": False,       # bei "schwach" automatisch auf Fallback umschalten
+}
 
 # Rollen, die geprüft werden (Reihenfolge = Anzeige-Reihenfolge im UI)
 SUPERVISED_ROLES = ("analyst", "deep_analyst", "research_analyst", "market_observer",
@@ -145,6 +154,8 @@ class TeamSupervisor:
     def __init__(self):
         self.engine = None
         self.report: Optional[Dict] = None
+        self.settings: Dict = dict(DEFAULT_SETTINGS)
+        self.last_switches: List[Dict] = []
         self.running_now: bool = False
         self.last_error: Optional[str] = None
 
@@ -161,8 +172,143 @@ class TeamSupervisor:
             if doc:
                 doc.pop("_id", None)
                 self.report = doc
+            cfg = await self.db.settings.find_one({"_id": SETTINGS_ID})
+            if cfg:
+                cfg.pop("_id", None)
+                self.last_switches = cfg.pop("last_switches", []) or []
+                self.settings.update(self._sanitize_settings(cfg))
         except Exception as e:
             logger.warning(f"Supervisor-State laden fehlgeschlagen: {e}")
+
+    # ---------------- Einstellungen ----------------
+    @staticmethod
+    def _sanitize_settings(updates: Dict) -> Dict:
+        out: Dict = {}
+        if "auto_enabled" in updates:
+            out["auto_enabled"] = bool(updates["auto_enabled"])
+        if "auto_switch" in updates:
+            out["auto_switch"] = bool(updates["auto_switch"])
+        if "interval_hours" in updates:
+            try:
+                out["interval_hours"] = max(6, min(168, int(updates["interval_hours"])))
+            except (TypeError, ValueError):
+                pass
+        return out
+
+    async def update_settings(self, updates: Dict) -> Dict:
+        self.settings.update(self._sanitize_settings(updates or {}))
+        await self.db.settings.update_one({"_id": SETTINGS_ID},
+                                          {"$set": dict(self.settings)}, upsert=True)
+        return dict(self.settings)
+
+    async def history(self, limit: int = 10) -> List[Dict]:
+        """Verlauf der Prüfberichte (neueste zuerst)."""
+        limit = max(1, min(50, limit))
+        try:
+            rows = await self.db[HIST_COLL].find().sort("ts", -1).limit(limit).to_list(limit)
+        except Exception as e:
+            logger.warning(f"Supervisor-Historie nicht ladbar: {e}")
+            return []
+        for r in rows:
+            r.pop("_id", None)
+        return rows
+
+    def _due(self) -> bool:
+        if not self.settings.get("auto_enabled"):
+            return False
+        ts = (self.report or {}).get("ts")
+        if not ts:
+            return True
+        try:
+            last = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except ValueError:
+            return True
+        return datetime.now(timezone.utc) - last >= timedelta(
+            hours=int(self.settings.get("interval_hours", 24)))
+
+    async def run_loop(self):
+        """Täglicher Selbstlauf (nur wenn eingeschaltet)."""
+        await asyncio.sleep(120)
+        while True:
+            try:
+                if self._due() and not self.running_now:
+                    logger.info("Supervisor: automatische KI-Team-Prüfung fällig")
+                    await self.run_review(manual=False)
+            except Exception as e:
+                logger.error(f"Supervisor-Loop: {e}")
+            await asyncio.sleep(600)
+
+    # ---------------- Modellwechsel bei "schwach" ----------------
+    async def _auto_switch(self, roles: List[Dict]) -> List[Dict]:
+        """Schwache Rollen (Urteil "schwach" oder ausdrückliche Empfehlung
+        "modell_wechseln", z. B. bei 503-/Rate-Limit-Ausfällen) auf ihre
+        Fallback-KI bzw. das empfohlene Modell umstellen. Wird protokolliert und
+        ist per Rollback umkehrbar."""
+        if not self.settings.get("auto_switch"):
+            return []
+        from services.ai_roles import role_manager
+        switches: List[Dict] = []
+        for r in roles:
+            if r.get("verdict") != "schwach" and r.get("action") != "modell_wechseln":
+                continue
+            cfg = role_manager.role_cfg(r["role"])
+            if cfg.get("fallback_model"):
+                target = {"provider": cfg.get("fallback_provider"),
+                          "model": cfg["fallback_model"], "via": "Fallback-KI der Rolle"}
+            elif r.get("suggested_model"):
+                target = {"provider": r.get("suggested_provider"),
+                          "model": r["suggested_model"], "via": "Empfehlung der Aufsicht"}
+            else:
+                continue
+            prev = {"provider": cfg.get("provider"), "model": cfg.get("model")}
+            if prev.get("model") == target["model"]:
+                continue
+            try:
+                await role_manager.update(self.db, {r["role"]: {
+                    "provider": target["provider"], "model": target["model"]}})
+            except Exception as e:
+                logger.warning(f"Auto-Modellwechsel für {r['role']} fehlgeschlagen: {e}")
+                continue
+            switches.append({"role": r["role"], "from": prev, "to": target,
+                             "reason": r.get("reason", ""), "ts": _now_iso()})
+            logger.warning(f"Supervisor: Rolle {r['role']} von "
+                           f"{prev.get('model') or 'Haupt-Modell'} auf {target['model']} "
+                           f"umgestellt ({target['via']})")
+        if switches:
+            self.last_switches = switches
+            await self.db.settings.update_one(
+                {"_id": SETTINGS_ID},
+                {"$set": {**self.settings, "last_switches": switches}}, upsert=True)
+            await self.db.ai_chat.insert_one({
+                "id": str(uuid.uuid4()), "role": "supervisor",
+                "text": ("Automatischer Modellwechsel: "
+                         + "; ".join(f"{s['role']} → {s['to']['model']}" for s in switches)
+                         + ". Rückgängig über „Umschaltung zurücknehmen“."),
+                "switches": switches, "ts": _now_iso()})
+        return switches
+
+    async def rollback_switches(self) -> Dict:
+        """Letzte automatische Umschaltung(en) zurücknehmen."""
+        if not self.last_switches:
+            return {"status": "error", "detail": "Keine automatische Umschaltung vorhanden"}
+        from services.ai_roles import role_manager
+        restored = []
+        for s in self.last_switches:
+            prev = s.get("from") or {}
+            try:
+                await role_manager.update(self.db, {s["role"]: {
+                    "provider": prev.get("provider"), "model": prev.get("model")}})
+                restored.append(s["role"])
+            except Exception as e:
+                logger.warning(f"Rollback für {s.get('role')} fehlgeschlagen: {e}")
+        self.last_switches = []
+        await self.db.settings.update_one({"_id": SETTINGS_ID},
+                                          {"$set": {"last_switches": []}}, upsert=True)
+        await self.db.ai_chat.insert_one({
+            "id": str(uuid.uuid4()), "role": "supervisor",
+            "text": f"Automatische Umschaltung zurückgenommen für: {', '.join(restored) or '—'}",
+            "ts": _now_iso()})
+        return {"status": "ok", "restored": restored}
 
     # ---------------- Belege sammeln ----------------
     async def _samples(self, feed_roles: List[str], limit: int = 3) -> List[Dict]:
@@ -296,13 +442,19 @@ class TeamSupervisor:
             data = self.engine._parse_json(text)
             report = normalize_report(data, ai_providers.ALLOWED_MODELS)
             report.update({
+                "id": str(uuid.uuid4()),
                 "ts": _now_iso(),
                 "model": f"{provider}/{model}",
                 "trigger": "manual" if manual else "auto",
                 "checked_roles": len(report["roles"]),
             })
+            report["switches"] = await self._auto_switch(report["roles"])
             await self.db.settings.update_one({"_id": DOC_ID}, {"$set": dict(report)},
                                               upsert=True)
+            try:
+                await self.db[HIST_COLL].insert_one(dict(report))
+            except Exception as e:
+                logger.warning(f"Supervisor-Historie nicht gespeichert: {e}")
             self.report = report
             self.last_error = None
             await self.db.ai_chat.insert_one({
@@ -333,7 +485,6 @@ class TeamSupervisor:
     async def start_review(self, manual: bool = True) -> Dict:
         """Prüflauf im Hintergrund starten (dauert je Modell >60s – der Client
         pollt anschliessend `GET /api/ai/supervisor`)."""
-        import asyncio
         if self.running_now:
             return {"status": "busy", "detail": "Team-Prüfung läuft bereits"}
         if not self.engine or self.db is None:
@@ -355,7 +506,8 @@ class TeamSupervisor:
 
     def status(self) -> Dict:
         return {"report": self.report, "running": self.running_now,
-                "last_error": self.last_error, "roles": list(SUPERVISED_ROLES)}
+                "last_error": self.last_error, "roles": list(SUPERVISED_ROLES),
+                "settings": dict(self.settings), "last_switches": self.last_switches}
 
 
 supervisor = TeamSupervisor()

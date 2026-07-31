@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Flask, CheckCircle, XCircle, ArrowCounterClockwise, ChartLine, Ghost, SlidersHorizontal, Sparkle } from '@phosphor-icons/react';
+import { Flask, CheckCircle, XCircle, ArrowCounterClockwise, ChartLine, Ghost, SlidersHorizontal, Sparkle, Check } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
 import './AIGovernance.css';
@@ -26,6 +26,25 @@ export const AIStrategyLabPanel = () => {
   const [assist, setAssist] = useState(null);
   const [assistBusy, setAssistBusy] = useState(false);
   const [assistCid, setAssistCid] = useState(null);
+  const [applyBusy, setApplyBusy] = useState(false);
+
+  // Verbesserungs-Vorschläge der KI in die Strategie übernehmen
+  const applyAssist = async (cid, fields) => {
+    setApplyBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/api/ai/strategies/${cid}/apply-assist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(fields ? { fields } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Übernahme fehlgeschlagen');
+      toast.success(`Übernommen: ${(data.applied || []).join(', ')}`
+        + (data.registered?.status === 'ok' ? ' · für Backtest registriert' : ''));
+      setAssist(null);
+      load();
+    } catch (e) { toast.error(e.message); } finally { setApplyBusy(false); }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -360,6 +379,32 @@ export const AIStrategyLabPanel = () => {
                     </ul>
                   )}
                   {assist.backtest_note && <div><i>Backtest: {assist.backtest_note}</i></div>}
+                  <div className="gov-card-actions">
+                    {assist.rule_definition && (
+                      <button className="gov-btn primary" disabled={applyBusy}
+                        onClick={() => applyAssist(c.id, ['rule_definition'])}
+                        title="Abgeleitete Backtest-Regeln übernehmen und für Backtester/Optimizer registrieren"
+                        data-testid={`strategy-apply-rules-${c.id}`}>
+                        <Check size={13} weight="bold" /> Regeln übernehmen
+                      </button>
+                    )}
+                    {(assist.improved_thesis || assist.improved_rules_text) && (
+                      <button className="gov-btn" disabled={applyBusy}
+                        onClick={() => applyAssist(c.id, ['thesis', 'rules_text'])}
+                        title="Verbesserte Idee und Regel-Beschreibung übernehmen"
+                        data-testid={`strategy-apply-text-${c.id}`}>
+                        <Check size={13} weight="bold" /> Beschreibung übernehmen
+                      </button>
+                    )}
+                    {(assist.rule_definition || assist.improved_thesis) && (
+                      <button className="gov-btn" disabled={applyBusy}
+                        onClick={() => applyAssist(c.id, null)}
+                        title="Alle Vorschläge der KI übernehmen"
+                        data-testid={`strategy-apply-all-${c.id}`}>
+                        <Check size={13} weight="bold" /> Alles übernehmen
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {(c.assist_history || []).length > 0 && (

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ShieldCheck, ArrowsClockwise, CheckCircle } from '@phosphor-icons/react';
+import { ShieldCheck, ArrowsClockwise, CheckCircle, ArrowUUpLeft } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
 
@@ -19,14 +19,25 @@ const ACTION_LABEL = {
   deaktivieren: 'Rolle deaktivieren',
 };
 
+const fmt = (ts) => {
+  try {
+    return new Date(ts).toLocaleString('de-DE', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+      timeZone: 'Europe/Berlin',
+    });
+  } catch { return ''; }
+};
+
 /**
- * Aufsicht des Haupt-Modells über das KI-Team: manuell startbare
- * Stichproben-Prüfung aller Rollen + Ergebnis-Bericht. Empfohlene
- * Modellwechsel übernimmt der Trader per Klick (`onApplyModel`).
+ * Aufsicht des Haupt-Modells über das KI-Team: manuell oder täglich automatisch
+ * startbare Stichproben-Prüfung, Bericht je Rolle, Verlauf und – optional –
+ * automatische Umschaltung schwacher Rollen auf ihre Fallback-KI (mit Rollback).
  */
 const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -34,6 +45,14 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
       setState(data && typeof data === 'object' ? data : null);
       return data;
     } catch (e) { return null; }
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const data = await fetch(`${API_URL}/api/ai/supervisor/history?limit=10`)
+        .then(r => r.json());
+      setHistory(data.reports || []);
+    } catch (e) { /* silent */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -48,11 +67,12 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
         if (data.last_error) toast.error(data.last_error);
         else if (data.report) {
           toast.success(`Team-Prüfung fertig: ${data.report.roles?.length || 0} Rollen bewertet`);
+          if (showHistory) loadHistory();
         }
       }
     }, 4000);
     return () => clearInterval(t);
-  }, [busy, state?.running, load]);
+  }, [busy, state?.running, load, loadHistory, showHistory]);
 
   const runReview = async () => {
     setBusy(true);
@@ -71,15 +91,38 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
     } catch (e) { toast.error('Verbindungsfehler'); setBusy(false); }
   };
 
-  const report = state?.report;
-  const fmt = (ts) => {
+  const saveSettings = async (patch) => {
+    setState(s => ({ ...s, settings: { ...(s?.settings || {}), ...patch } }));
     try {
-      return new Date(ts).toLocaleString('de-DE', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-        timeZone: 'Europe/Berlin',
+      const res = await fetch(`${API_URL}/api/ai/supervisor/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(patch),
       });
-    } catch { return ''; }
+      if (!res.ok) throw new Error();
+      load();
+    } catch (e) { toast.error('Einstellung konnte nicht gespeichert werden'); load(); }
   };
+
+  const rollback = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/ai/supervisor/rollback`, {
+        method: 'POST', headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Rollback fehlgeschlagen');
+      toast.success(`Umschaltung zurückgenommen: ${(data.restored || []).join(', ') || '—'}`);
+      load();
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const toggleHistory = () => {
+    setShowHistory(v => !v);
+    if (!showHistory && !history.length) loadHistory();
+  };
+
+  const report = state?.report;
+  const settings = state?.settings || {};
+  const switches = state?.last_switches || [];
 
   return (
     <div className="ai-supervisor" data-testid="ai-supervisor-panel">
@@ -87,6 +130,7 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
         <span className="ai-supervisor-title">
           <ShieldCheck size={14} weight="fill" /> Aufsicht des Haupt-Modells
           {report?.ts ? ` · zuletzt ${fmt(report.ts)}` : ''}
+          {report?.trigger === 'auto' ? ' (automatisch)' : ''}
           {report?.model ? ` · ${report.model}` : ''}
         </span>
         <button className="ai-action-btn" onClick={runReview}
@@ -98,8 +142,48 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
       <div className="ai-team-hint">
         Das Haupt-Modell prüft stichprobenweise die Ausgaben jeder Rolle: arbeitet sie
         zuverlässig, ist die Qualität ausreichend oder sollte das Modell gewechselt werden?
-        Angewendet wird nichts automatisch – du entscheidest.
       </div>
+      <div className="ai-supervisor-settings">
+        <label title="Prüft das KI-Team automatisch im gewählten Rhythmus">
+          <input type="checkbox" checked={!!settings.auto_enabled}
+            onChange={e => saveSettings({ auto_enabled: e.target.checked })}
+            data-testid="ai-supervisor-auto-toggle" />
+          automatisch prüfen
+        </label>
+        <label>
+          alle
+          <select value={settings.interval_hours || 24}
+            onChange={e => saveSettings({ interval_hours: Number(e.target.value) })}
+            data-testid="ai-supervisor-interval-select">
+            {[6, 12, 24, 48, 72, 168].map(h => (
+              <option key={h} value={h}>{h < 24 ? `${h} h` : `${h / 24} Tag(e)`}</option>
+            ))}
+          </select>
+        </label>
+        <label title="Rollen mit Urteil schwach werden automatisch auf ihre Fallback-KI umgestellt (protokolliert und umkehrbar)">
+          <input type="checkbox" checked={!!settings.auto_switch}
+            onChange={e => saveSettings({ auto_switch: e.target.checked })}
+            data-testid="ai-supervisor-autoswitch-toggle" />
+          bei „schwach“ auf Fallback-KI umschalten
+        </label>
+        <button className="ai-quick-tool" onClick={toggleHistory}
+          title="Verlauf der Prüfberichte" data-testid="ai-supervisor-history-btn">
+          Verlauf
+        </button>
+      </div>
+      {switches.length > 0 && (
+        <div className="ai-supervisor-switches" data-testid="ai-supervisor-switches">
+          <span>
+            Automatisch umgeschaltet: {switches.map(s => (
+              `${roleLabels[s.role] || s.role}: ${s.from?.model || 'Haupt-Modell'} → ${s.to?.model}`
+            )).join(' · ')}
+          </span>
+          <button className="ai-sup-apply" onClick={rollback}
+            data-testid="ai-supervisor-rollback-btn">
+            <ArrowUUpLeft size={12} weight="bold" /> Umschaltung zurücknehmen
+          </button>
+        </div>
+      )}
       {state?.last_error && (
         <div className="ai-warning" data-testid="ai-supervisor-error">⚠ {state.last_error}</div>
       )}
@@ -137,6 +221,21 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
         <ul className="ai-lesson-list" data-testid="ai-supervisor-recommendations">
           {report.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
         </ul>
+      )}
+      {showHistory && (
+        <div className="ai-supervisor-history" data-testid="ai-supervisor-history">
+          {history.length === 0 && <div className="ai-learn-empty">Noch kein Verlauf.</div>}
+          {history.map((h, i) => (
+            <div className="ai-supervisor-hist-item" key={h.id || i}>
+              <b>{fmt(h.ts)}</b> · {h.trigger === 'auto' ? 'automatisch' : 'manuell'} · {h.model}
+              {' · '}
+              {(h.roles || []).filter(r => r.verdict !== 'gut').length} Auffälligkeiten
+              {(h.switches || []).length > 0 &&
+                ` · ${h.switches.length} Umschaltung(en)`}
+              <div className="ai-sup-reason">{h.summary}</div>
+            </div>
+          ))}
+        </div>
       )}
       {!report && (
         <div className="ai-learn-empty">

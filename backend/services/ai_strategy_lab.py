@@ -597,12 +597,17 @@ class StrategyLab:
 
     async def _remember_assist(self, cid: str, name: str, out: Dict):
         """Einschätzung dauerhaft an der Strategie ablegen (Gesprächs-Gedächtnis)
-        und im KI-Feed sichtbar machen."""
+        und im KI-Feed sichtbar machen. `last_assist` hält die vollständige
+        Antwort, damit der Trader Vorschläge später übernehmen kann."""
         entry = {k: out.get(k) for k in ("ts", "model", "feedback", "suggestions",
                                          "data_findings", "backtest_note")}
         try:
-            await self.db[COLL].update_one({"id": cid}, {"$push": {
-                "assist_history": {"$each": [entry], "$slice": -5}}})
+            await self.db[COLL].update_one({"id": cid}, {
+                "$push": {"assist_history": {"$each": [entry], "$slice": -5}},
+                "$set": {"last_assist": {k: out.get(k) for k in (
+                    "ts", "model", "feedback", "suggestions", "data_findings",
+                    "improved_thesis", "improved_rules_text", "rule_definition",
+                    "backtest_note")}}})
             await self._refresh_cache()
         except Exception as e:
             logger.warning(f"Assist-Verlauf für {cid} nicht gespeichert: {e}")
@@ -621,6 +626,45 @@ class StrategyLab:
                 tags=["strategy", "assist"], weight=2, source="strategy_lab")
         except Exception as e:
             logger.debug(f"Assist-Feed für {cid}: {e}")
+
+    async def apply_assist(self, cid: str, fields: Optional[List[str]] = None) -> Dict:
+        """Verbesserungs-Vorschläge der KI in die Strategie übernehmen.
+
+        `fields` wählt aus: "rule_definition" (Backtest-Regeln, danach direkt für
+        Backtester/Optimizer registriert), "thesis" und "rules_text". Ohne Angabe
+        wird alles übernommen, was die KI geliefert hat. Der Verlauf bleibt
+        erhalten – nichts wird überschrieben, was die KI nicht vorgeschlagen hat."""
+        cand = await self.get(cid)
+        if not cand:
+            return {"status": "error", "detail": "Kandidat nicht gefunden"}
+        last = cand.get("last_assist") or {}
+        if not last:
+            return {"status": "error", "detail": "Noch keine KI-Einschätzung vorhanden"}
+        wanted = set(fields or ["rule_definition", "thesis", "rules_text"])
+        patch: Dict = {}
+        if "thesis" in wanted and last.get("improved_thesis"):
+            patch["thesis"] = str(last["improved_thesis"])[:1500]
+        if "rules_text" in wanted and last.get("improved_rules_text"):
+            patch["rules_text"] = str(last["improved_rules_text"])[:1500]
+        rd = last.get("rule_definition")
+        if "rule_definition" in wanted and valid_rule_definition(rd):
+            patch["rule_definition"] = rd
+        if not patch:
+            return {"status": "error",
+                    "detail": "Die KI hat für diese Auswahl nichts vorgeschlagen"}
+        patch["updated_at"] = _now_iso()
+        await self.db[COLL].update_one({"id": cid}, {"$set": patch})
+        await self._refresh_cache()
+        out = {"status": "ok", "applied": [k for k in patch if k != "updated_at"]}
+        if "rule_definition" in patch:
+            out["registered"] = await self.register_for_testing(cid)
+        await self.db.ai_chat.insert_one({
+            "id": str(uuid.uuid4()), "role": "strategy",
+            "text": (f"Verbesserungs-Vorschläge für „{cand['name']}“ übernommen: "
+                     f"{', '.join(out['applied'])}."),
+            "candidate_id": cid, "ts": _now_iso()})
+        out["candidate"] = await self.get(cid)
+        return out
 
     async def register_for_testing(self, cid: str) -> Dict:
         """Kandidat mit Regel-Definition als Custom-Strategie registrieren, damit
