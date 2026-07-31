@@ -32,10 +32,27 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
     try {
       const data = await fetch(`${API_URL}/api/ai/supervisor`).then(r => r.json());
       setState(data && typeof data === 'object' ? data : null);
-    } catch (e) { /* silent */ }
+      return data;
+    } catch (e) { return null; }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Läuft eine Prüfung, alle 4s nachfragen bis der Bericht steht
+  useEffect(() => {
+    if (!busy && !state?.running) return undefined;
+    const t = setInterval(async () => {
+      const data = await load();
+      if (data && !data.running) {
+        setBusy(false);
+        if (data.last_error) toast.error(data.last_error);
+        else if (data.report) {
+          toast.success(`Team-Prüfung fertig: ${data.report.roles?.length || 0} Rollen bewertet`);
+        }
+      }
+    }, 4000);
+    return () => clearInterval(t);
+  }, [busy, state?.running, load]);
 
   const runReview = async () => {
     setBusy(true);
@@ -44,14 +61,14 @@ const AITeamSupervisor = ({ roleLabels = {}, onApplyModel }) => {
         method: 'POST', headers: authHeaders(),
       });
       const data = await res.json();
-      if (!res.ok || data.status !== 'ok') {
+      if (!res.ok || (data.status !== 'started' && data.status !== 'busy')) {
         toast.error(data.detail || 'Team-Prüfung fehlgeschlagen');
-      } else {
-        toast.success(`Team-Prüfung fertig: ${data.report?.roles?.length || 0} Rollen bewertet`);
+        setBusy(false);
+        return;
       }
+      toast.message('Das Haupt-Modell prüft jetzt das KI-Team – das dauert ein bis zwei Minuten.');
       load();
-    } catch (e) { toast.error('Verbindungsfehler'); }
-    setBusy(false);
+    } catch (e) { toast.error('Verbindungsfehler'); setBusy(false); }
   };
 
   const report = state?.report;

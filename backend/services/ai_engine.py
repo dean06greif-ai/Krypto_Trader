@@ -45,6 +45,7 @@ from services import ai_validation
 from services.ai_validation import validation_gate
 from services import ai_providers
 from services.ai_roles import role_manager
+from services.ai_json import parse_json_lenient
 
 logger = logging.getLogger(__name__)
 
@@ -883,11 +884,9 @@ class AIEngine:
 
     @staticmethod
     def _parse_json(text: str) -> Dict:
-        text = re.sub(r"```(json)?", "", text).strip()
-        start, end = text.find("{"), text.rfind("}")
-        if start == -1 or end == -1:
-            raise ValueError("Keine JSON-Antwort der KI")
-        return json.loads(text[start:end + 1])
+        # Tolerant gegenüber Markdown-Zäunen, Kommentaren und abgeschnittenen
+        # Antworten – gültiges JSON wird unverändert gelesen (siehe ai_json.py).
+        return parse_json_lenient(text)
 
     def is_fresh(self, decision: Optional[Dict]) -> bool:
         if not decision or not decision.get("ts"):

@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 3 (KI-Trader Verbesserungen) verifiziert. Backend: 22/22 Tests grün (16 Unit-Tests der neuen Dateien test_iter_ai_supervisor_autonomy.py + test_iter_ai_json.py, plus 6 neue E2E-Tests gegen die Preview-URL für /api/ai/proposals/actionable, /api/ai/config max_lessons Clamp 3..100 und /api/ai/supervisor + /api/ai/supervisor/review). Frontend: alle 11 kritischen UI-Checks im KI-Panel bestanden – Autonomie=auto zeigt keine ai-proposals-strip (15s beobachtet), Tab-Reihenfolge Strategien vor MasterPrompt (x=1294 < 1390), Status-Row Drag-Scroll funktioniert (scrollLeft 0->200), Quick-Prompts strikt einzeilig (chip Ys identisch), Asset-Fokus Toggle-Label 'Asset-Fokus: alle Assets' + alle 6 Schnellauswahl-Buttons vorhanden, max-lessons-Select bietet 100 an, KI-Team-Vollansicht blendet Chat komplett aus (Panel offen -> chat-area und chat-input NICHT im DOM sichtbar), Schließen bringt Chat zurück, ai-supervisor-run-btn präsent, Fußzeilen-Text 'Auto-Trading pro Coin über das' entfernt.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AI-Panel (React root)", "issues": [
+        "React-Warning: 'In HTML, <span> cannot be a child of <option>' (Hydration-Warnung im QueryClientProvider-Baum). Keine funktionale Auswirkung, sollte aber bereinigt werden (irgendwo wird <option><span>…</span></option> gerendert; wahrscheinlich in einem der Select-Komponenten)."
+      ]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_ai_supervisor_autonomy.py",
+    "/app/backend/tests/test_iter_ai_json.py",
+    "/app/backend/tests/test_iter3_ai_api.py",
+    "/app/test_reports/pytest/iteration_3_supervisor.xml",
+    "/app/test_reports/pytest/iteration_3_api.xml"
+  ],
+  "action_items": [
+    "Kosmetisch: <option><span>…</span></option>-Hydration-Warnung im KI-Panel beheben (React devtools zeigt QueryClientProvider-Baum als Ursprung).",
+    "Optional: Netzwerk-'Failed to fetch'-Fehler beim initialen Session/Notif-Poll vor dem Login sind erwartet (401), können aber im UI unterdrückt werden (Retry-Backoff/Silent-401)."
+  ],
+  "critical_code_review_comments": [
+    "services/ai_engine.py::actionable_proposals liefert konsequent [] im autonomen Modus – die Server-Seite ist die einzige Quelle der Wahrheit, damit im Frontend keine Karten aufblitzen können (bestätigt via /api/ai/proposals/actionable auf preview).",
+    "services/ai_engine.py::update_config klemmt max_lessons sauber auf 3..100 (Test-verifiziert: 500 -> 100, 1 -> 3, 100 -> 100).",
+    "services/ai_supervisor.py::normalize_report filtert unbekannte Rollen und Modell-Empfehlungen (fallback auf 'einstellungen_pruefen'), damit die UI nur belastbare Empfehlungen zeigt – gutes defensives Design.",
+    "frontend AITradingPanel: !showTeam-Bedingung für Chat-Bereich sauber implementiert – KI-Team-Vollansicht entfernt Chat-Elemente aus dem DOM (nicht nur display:none), verhindert Fokus- und A11y-Probleme.",
+    "useDragScroll-Hook: drag scroll auf ai-status-row bestätigt (scrollLeft 0->200 nach Mouse-Drag), gleichzeitig bleiben Tab-Klicks funktional (KI-Team-Toggle hat weiter funktioniert).",
+    "AIQuickPrompts strikt einzeilig – alle Chips haben identische Y-Position (940), Kein-Umbruch-Verhalten verifiziert."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter3_ai_api.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% (11/11 kritische Checks)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (aus /app/memory/test_credentials.md, funktioniert einwandfrei gegen Preview).",
+  "seed_data_creation": "Keine neuen Seed-Daten. test_iter3_ai_api.py setzt autonomy/max_lessons temporär um und stellt sie im teardown auf den Ausgangswert zurück.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Alle Iteration-3-Änderungen (Autonomie-Fix, Asset-Fokus, Tab-Reihenfolge, KI-Team-Vollansicht, Quick-Prompts einzeilig+dragbar, max_lessons=100, Supervisor-Endpoint) sind sowohl API- als auch UI-seitig grün. Nicht-explizit weiter getestet (main agent hat es bereits vorher verifiziert): (a) Quick-Prompts add/move/delete + localStorage-Persistenz über Reload, (b) Strategie-Assist Regressionsbug mit zwei Kandidaten (strategy-improve/strategy-assist-result/-busy Isolation), (c) vollständiger 60-120s Supervisor-Lauf bis zum Bericht in der UI. Bei erneutem Testing gezielt diese drei Szenarien manuell durchspielen. REACT_APP_BACKEND_URL=https://krypto-enhance.preview.emergentagent.com.",
+  "rca_of_issue": "Kein Bug in dieser Iteration. Die zuvor gemeldeten Regressionen (aufblitzende Vorschlagskarten im auto-Modus; Strategie-Assist zeigt fremde Einschätzung) sind implementiert (Server liefert im auto-Modus immer [] via actionable_proposals; AIStrategyLabPanel setzt assist=null vor dem neuen Lauf). Beide Fixes durch Unit-Tests bzw. UI-Beobachtung bestätigt."
+}

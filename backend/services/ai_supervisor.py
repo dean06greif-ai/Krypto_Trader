@@ -330,6 +330,29 @@ class TeamSupervisor:
         finally:
             self.running_now = False
 
+    async def start_review(self, manual: bool = True) -> Dict:
+        """Prüflauf im Hintergrund starten (dauert je Modell >60s – der Client
+        pollt anschliessend `GET /api/ai/supervisor`)."""
+        import asyncio
+        if self.running_now:
+            return {"status": "busy", "detail": "Team-Prüfung läuft bereits"}
+        if not self.engine or self.db is None:
+            return {"status": "error", "detail": "Engine nicht initialisiert"}
+        if not self.engine.key:
+            return {"status": "error", "detail": "Kein API-Key für das Haupt-Modell"}
+        self.running_now = True   # sofort sperren, damit Doppelklicks nichts starten
+
+        async def _run():
+            try:
+                self.running_now = False   # run_review setzt die Sperre selbst
+                await self.run_review(manual=manual)
+            except Exception as e:
+                self.last_error = str(e)[:250]
+                self.running_now = False
+
+        asyncio.create_task(_run())
+        return {"status": "started"}
+
     def status(self) -> Dict:
         return {"report": self.report, "running": self.running_now,
                 "last_error": self.last_error, "roles": list(SUPERVISED_ROLES)}

@@ -211,6 +211,9 @@ async def ai_supervisor_status():
 
 @router.post("/api/ai/supervisor/review")
 async def ai_supervisor_review(_: bool = Depends(require_admin)):
-    """Manuelle Stichproben-Prüfung aller KI-Team-Rollen durch das Haupt-Modell."""
+    """Manuelle Stichproben-Prüfung aller KI-Team-Rollen durch das Haupt-Modell.
+
+    Läuft im Hintergrund (kann je Modell über eine Minute dauern); den Fortschritt
+    und das Ergebnis liefert `GET /api/ai/supervisor`."""
     from services.ai_supervisor import supervisor
-    return await supervisor.run_review(manual=True)
+    return await supervisor.start_review(manual=True)
