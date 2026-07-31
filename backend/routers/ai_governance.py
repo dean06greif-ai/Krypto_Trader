@@ -128,7 +128,7 @@ async def create_candidate(body: Dict, _: bool = Depends(require_admin)):
     _opinion("Neue Strategie-Vorgabe des Traders",
              f"{res['candidate']['name']}: {res['candidate']['thesis']} "
              f"Regeln: {res['candidate']['rules_text']}")
-    return {"status": "success", **res}
+    return {**res, "status": "success"}
 
 
 @router.post("/api/ai/strategies/assist")
