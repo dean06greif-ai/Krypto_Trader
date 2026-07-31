@@ -360,6 +360,11 @@ class AIEngine:
                                           {"$set": dict(self.config)}, upsert=True)
         if self.config.get("enabled") and not was_enabled:
             self._next_due = 0  # run analysis immediately after enabling
+        elif "schedule" in updates or "interval_min" in updates:
+            # Neues (kürzeres) Intervall soll sofort greifen, nicht erst nach dem
+            # alten Wartefenster.
+            interval = max(1, self.current_interval()[0]) * 60
+            self._next_due = min(self._next_due, time.time() + interval)
         return dict(self.config)
 
     # ---------------- market context ----------------

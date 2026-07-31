@@ -198,7 +198,14 @@ class AILearning:
         try:
             doc = await self.db.settings.find_one({"_id": "ai_lessons"})
             if doc:
-                self._lessons_cache = doc.get("lessons", [])
+                raw = doc.get("lessons", []) or []
+                lessons = ai_lessons.normalize_all(raw)
+                # Migration: Alt-Bestand hatte keine ids/origin – ohne id können
+                # Lektionen im UI nicht bearbeitet oder gelöscht werden.
+                if any(not (l or {}).get("id") for l in raw if isinstance(l, dict)):
+                    await lesson_store.save_all(lessons)
+                    logger.info(f"AI lessons migriert: {len(lessons)} Lektionen mit id versehen")
+                self._lessons_cache = lessons
                 self.last_learn = doc.get("updated_at")
         except Exception as e:
             logger.warning(f"AI lessons load failed: {e}")
@@ -268,7 +275,7 @@ class AILearning:
         self._lessons_cache = None
 
     async def get_lessons(self) -> List[Dict]:
-        if self._lessons_cache is None:
+        if not self._lessons_cache:
             try:
                 self._lessons_cache = await lesson_store.all()
             except Exception as e:

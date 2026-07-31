@@ -5,6 +5,7 @@ import { authHeaders } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';
 import AILabPanel from './AILabPanel';
 import AIGovernancePanel from './AIGovernancePanel';
+import AIScheduleEditor from './AIScheduleEditor';
 import AIStrategyLabPanel from './AIStrategyLabPanel';
 import './AITradingPanel.css';
 
@@ -70,6 +71,30 @@ const coinLabel = assetLabel;
 const COIN_STORE_KEY = (coin) => `krypto_ai_chat_coins::${coin || 'BTCUSDT'}`;
 const CHAT_FOCUS_STORE_KEY = 'krypto_ai_chat_focus_open';
 
+/** Technische KI-Fehler in eine verständliche Erklärung übersetzen. */
+const AI_ERROR_HINTS = [
+  [/Kein API-Key|no api key|API_KEY/i,
+   'Für die eingestellten KI-Provider ist kein API-Key hinterlegt – die KI kann nicht denken. Trage einen Key in den Server-Umgebungsvariablen ein (z.B. GEMINI_API_KEY).'],
+  [/rate.?limit|quota|429|RESOURCE_EXHAUSTED/i,
+   'Das Modell hat sein Limit erreicht (zu viele Anfragen/Kontingent aufgebraucht). Die KI weicht automatisch auf ein Fallback-Modell aus; sonst später erneut versuchen oder Intervall erhöhen.'],
+  [/location is not supported|FAILED_PRECONDITION/i,
+   'Der Server-Standort wird von Google für den Free-Tier gesperrt.'],
+  [/timeout|timed out|deadline/i,
+   'Das Modell hat zu lange gebraucht (Timeout). Meist vorübergehend – der nächste Zyklus versucht es erneut.'],
+  [/401|403|invalid.?api.?key|unauthorized/i,
+   'Der API-Key wurde vom Anbieter abgelehnt (ungültig oder abgelaufen). Bitte Key prüfen/erneuern.'],
+  [/JSON|parse/i,
+   'Die Antwort des Modells war unvollständig/kein gültiges JSON. Die KI verwirft diesen Lauf und versucht es beim nächsten Zyklus erneut.'],
+  [/network|connection|ECONN|DNS/i,
+   'Netzwerkproblem beim Erreichen des KI-Anbieters. Meist vorübergehend.'],
+];
+
+const friendlyAiError = (raw) => {
+  const text = String(raw || '');
+  const hit = AI_ERROR_HINTS.find(([re]) => re.test(text));
+  return hit ? hit[1] : text;
+};
+
 const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
   const { symbols: ALL_COINS } = useInstruments();
   const [status, setStatus] = useState(null);
@@ -95,6 +120,31 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
   const [editLesson, setEditLesson] = useState(null);
   const [newLesson, setNewLesson] = useState(null);
   const [deepRunning, setDeepRunning] = useState(false);
+  // Tab-Zeile: eine Zeile, seitwärts scrollbar (Touch nativ, Mausrad + Ziehen ergänzt)
+  const statusRowRef = useRef(null);
+  const onStatusWheel = useCallback((e) => {
+    const el = statusRowRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, []);
+  const onStatusDragStart = useCallback((e) => {
+    const el = statusRowRef.current;
+    if (!el || e.pointerType === 'touch' || e.target.closest('button, input, select, label')) return;
+    const startX = e.clientX;
+    const startScroll = el.scrollLeft;
+    const move = (ev) => { el.scrollLeft = startScroll - (ev.clientX - startX); };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      el.classList.remove('dragging');
+    };
+    el.classList.add('dragging');
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }, []);
   // "Coin-Fokus"-Bereich ein-/ausklappbar (Standard: eingeklappt, persistiert in localStorage)
   const [showChatFocus, setShowChatFocus] = useState(() => {
     try { return localStorage.getItem(CHAT_FOCUS_STORE_KEY) === '1'; } catch (e) { return false; }
@@ -707,7 +757,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
           </div>
         </div>
 
-        {!status?.has_key && (
+        {status?.enabled && !status?.has_key && (
           <div className="ai-warning" data-testid="ai-key-warning">
             ⚠ Für den Provider „{cfg.provider || 'gemini'}“ ist kein API-Key gesetzt (Render EnvVars:
             GEMINI_API_KEY / GROQ_API_KEY / OPENROUTER_API_KEY / MISTRAL_API_KEY /
@@ -716,7 +766,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
           </div>
         )}
         {/* Limit-/Fallback-Anzeige: welches Modell aktuell wirklich arbeitet */}
-        {(status?.providers_health?.rate_limited?.length > 0
+        {status?.enabled && (status?.providers_health?.rate_limited?.length > 0
           || status?.providers_health?.fallback_active) && (
           <div className="ai-limit-banner" data-testid="ai-limit-banner">
             <div className="ai-limit-head">
@@ -742,9 +792,10 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
             ))}
           </div>
         )}
-        {status?.last_error && (
+        {status?.enabled && status?.last_error && (
           <div className="ai-warning" data-testid="ai-error-banner">
-            ⚠ {status.last_error}
+            ⚠ {friendlyAiError(status.last_error)}
+            <div className="ai-error-raw">Technisch: {status.last_error}</div>
             {/FAILED_PRECONDITION|User location is not supported|location is not supported/i.test(status.last_error) && (
               <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
                 Google blockiert deinen Server-Standort für den Gemini Free-Tier. Lösungen:
@@ -757,7 +808,9 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
         )}
 
         {/* Status row */}
-        <div className="ai-status-row">
+        <div className="ai-status-row" ref={statusRowRef}
+          onWheel={onStatusWheel} onPointerDown={onStatusDragStart}
+          data-testid="ai-status-row">
           <button className="ai-action-btn" onClick={analyzeNow} disabled={analyzing || status?.analyzing} data-testid="ai-analyze-now-btn">
             <ArrowsClockwise size={14} weight="bold" className={analyzing || status?.analyzing ? 'spin' : ''} />
             {analyzing || status?.analyzing ? 'Analysiert…' : 'Jetzt analysieren'}
@@ -875,7 +928,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
               <ol className="ai-lesson-list" data-testid="ai-lesson-list">
                 {insights.lessons.map((l, i) => (
                   <li key={l.id || i} data-testid={`ai-lesson-${l.id || i}`}>
-                    {editLesson?.id === l.id ? (
+                    {editLesson && l.id && editLesson.id === l.id ? (
                       <div className="ai-lesson-edit">
                         <input value={editLesson.title}
                           onChange={e => setEditLesson({ ...editLesson, title: e.target.value })}
@@ -1033,6 +1086,9 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
               Jede Rolle kann ein eigenes Modell, aktive Handelszeiten (Berlin) und eine Fallback-KI haben.
               Ohne eigene Auswahl erbt die Rolle das Haupt-Modell. Backup-Keys (z.B. OPENROUTER_API_KEY_BACKUP)
               greifen automatisch bei Rate-Limits. Lektionen &amp; Analysen stärkerer Modelle werden höher gewichtet.
+            </div>
+            <div className="ai-team-schedule">
+              <AIScheduleEditor />
             </div>
             {ROLE_DEFS.map(rd => {
               const rc = roles?.[rd.key] || {};
