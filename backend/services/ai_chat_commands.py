@@ -143,11 +143,13 @@ class ChatCommandExecutor:
     async def _extract(self, engine, text: str) -> List[Dict]:
         from services.ai_knowledge import tunable_spec_text
         from services.ai_lessons import lesson_store
-        trades = await engine.db.auto_trades.find({"status": "open"}).limit(30).to_list(30)
+        trades = await engine.db.auto_trades.find({"status": "open"}).limit(200).to_list(200)
         trade_lines = "\n".join(
-            f"- id={t.get('id')} {t.get('symbol')} {t.get('side')} ({t.get('mode')}) "
+            f"- id={t.get('id')} {t.get('symbol')} {t.get('side')} "
+            f"[{t.get('mode')}/{t.get('strategy_name') or t.get('strategy_id') or '?'}] "
             f"Entry {t.get('entry')} SL {t.get('sl')} TP1 {t.get('tp1')} TPf {t.get('tpf')} "
-            f"Hebel {t.get('leverage')}x" for t in trades) or "(keine offenen Trades)"
+            f"Hebel {t.get('leverage')}x Qty {t.get('qty_remaining', t.get('qty'))}/{t.get('qty')}"
+            for t in trades) or "(keine offenen Trades)"
         lessons = await lesson_store.all()
         lesson_lines = "\n".join(
             f"- id={l.get('id')} „{l.get('title')}“" for l in lessons) or "(keine Lektionen)"

@@ -431,17 +431,69 @@ class AIEngine:
         return filtered or list(self.symbols)
 
     async def _open_trades_text(self, allowed: Optional[List[str]] = None) -> str:
-        rows = await self.db.auto_trades.find({"status": "open"}).to_list(50)
-        if allowed is not None:
-            allow = {s.upper() for s in allowed}
-            rows = [t for t in rows if str(t.get("symbol", "")).upper() in allow]
+        """Text-Übersicht aller offener Trades (jede Strategie, Paper + Live).
+
+        Wenn `allowed` gesetzt ist, werden nur die passenden Symbole detailliert
+        gezeigt – die übrigen offenen Positionen erscheinen als kompakte Zeile,
+        damit die KI weiß, dass sie existieren (kein Blindflug bei Fokus-Chats).
+        """
+        rows = await self.db.auto_trades.find({"status": "open"}).to_list(200)
         if not rows:
             return "(keine offenen Positionen)"
-        out = []
-        for t in rows:
-            out.append(f"- {t.get('symbol')} {t.get('side')} @ {t.get('entry')} "
-                       f"(SL {t.get('sl')}, TP1 {t.get('tp1')}, Modus {t.get('mode')})")
-        return "\n".join(out)
+
+        def _age(iso: str) -> str:
+            try:
+                dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+                mins = int((datetime.now(timezone.utc) - dt).total_seconds() // 60)
+                if mins < 60:
+                    return f"{mins}m"
+                if mins < 60 * 24:
+                    return f"{mins // 60}h{mins % 60:02d}m"
+                return f"{mins // 1440}d{(mins % 1440) // 60}h"
+            except (ValueError, TypeError):
+                return "?"
+
+        def _fmt(t: Dict) -> str:
+            flags = []
+            if t.get("tp1_hit"):
+                flags.append("TP1✓")
+            if t.get("breakeven_moved"):
+                flags.append("BE")
+            if t.get("profit_secured"):
+                flags.append("Profit-Lock")
+            if t.get("liquidated"):
+                flags.append("LIQ")
+            flag_txt = f" [{' '.join(flags)}]" if flags else ""
+            strat = t.get("strategy_name") or t.get("strategy_id") or "?"
+            qty_rem = t.get("qty_remaining", t.get("qty"))
+            pnl = t.get("realized_pnl")
+            pnl_txt = f", realPnL {pnl:+.2f}USDT" if isinstance(pnl, (int, float)) else ""
+            return (
+                f"- id={t.get('id')} {t.get('symbol')} {t.get('side')} "
+                f"[{t.get('mode')}/{strat}] Entry {t.get('entry')} "
+                f"SL {t.get('sl')} TP1 {t.get('tp1')} TPf {t.get('tpf')} "
+                f"Hebel {t.get('leverage')}x Qty {qty_rem}/{t.get('qty')}"
+                f"{pnl_txt} Alter {_age(t.get('opened_at'))}{flag_txt}"
+            )
+
+        if allowed is None:
+            focus = rows
+            others: List[Dict] = []
+        else:
+            allow = {s.upper() for s in allowed}
+            focus = [t for t in rows if str(t.get("symbol", "")).upper() in allow]
+            others = [t for t in rows if str(t.get("symbol", "")).upper() not in allow]
+
+        lines = [_fmt(t) for t in focus] if focus else ["(keine offenen Positionen im Fokus)"]
+        if others:
+            paper = sum(1 for t in others if t.get("mode") == "paper")
+            live = sum(1 for t in others if t.get("mode") == "live")
+            syms = sorted({str(t.get("symbol", "")) for t in others})
+            lines.append(
+                f"(WEITERE offene Positionen außerhalb des Fokus: {len(others)} "
+                f"[paper {paper}, live {live}] auf {', '.join(syms)})"
+            )
+        return "\n".join(lines)
 
     async def _context_brief(self, coins=None) -> str:
         cadence = ai_schedule.schedule_text(self.config.get("schedule"),
