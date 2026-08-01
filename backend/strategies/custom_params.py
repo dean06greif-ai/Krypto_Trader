@@ -312,6 +312,16 @@ def build_param_meta(definition: Dict) -> Dict[str, Dict]:
     return meta
 
 
+def rule_text(rule: Dict) -> str:
+    """Kompakte, lesbare Regel-Darstellung („rsi < 35") für UI-Vergleiche."""
+    if not isinstance(rule, dict):
+        return str(rule)
+    val = rule.get("value")
+    if isinstance(val, float):
+        val = round(val, 4)
+    return f"{rule.get('indicator')} {rule.get('op')} {val}"
+
+
 def apply_params(definition: Dict, params: Dict) -> Dict:
     """Optimierte Parameter in eine Definition schreiben (neue Kopie).
 

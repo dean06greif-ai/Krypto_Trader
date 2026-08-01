@@ -11,6 +11,7 @@ from core.auth import require_admin
 from core.config import ALL_SYMBOLS
 from core.state import scanner, autotrader, strategy_coin_toggles
 from strategies.registry import registry as strategy_registry
+from strategies import custom_params
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,73 @@ async def get_strategies():
             "active": scanner.settings.get("active_strategy", "scalping_4_rules"),
             "enabled": scanner.enabled_strategies(),
             "signals_enabled": scanner.settings.get("strategy_signals_enabled", {})}
+
+
+@router.get("/api/strategies/{strategy_id}/param-diff")
+async def strategy_param_diff(strategy_id: str):
+    """Vorher/Nachher-Vergleich der Strategie-Parameter (inkl. Regel-Schwellen).
+
+    „Vorher"  = Ausgangswert der Strategie-Definition (bei KI-Strategien also die
+                Werte, die die KI im Strategie-Labor erzeugt hat).
+    „Nachher" = aktuell aktive Werte (vom Parameter-Optimierer übernommen bzw.
+                manuell gesetzt), global und pro Coin.
+    Rein lesend – dient der Transparenz, ändert nichts.
+    """
+    strat = strategy_registry.get(strategy_id)
+    if not strat:
+        raise HTTPException(status_code=404, detail="Strategie nicht gefunden")
+
+    meta = dict(getattr(strat, "DEFAULT_PARAMS", {}) or {})
+    global_params = dict(scanner.settings.get("strategy_params", {}).get(strategy_id, {}))
+    coin_params = dict(scanner.settings.get("coin_params", {}).get(strategy_id, {}))
+
+    params = []
+    for key, m in meta.items():
+        before = m.get("value")
+        after = global_params.get(key, before)
+        params.append({
+            "key": key, "label": m.get("label") or key,
+            "before": before, "after": after,
+            "changed": after != before,
+            "min": m.get("min"), "max": m.get("max"), "step": m.get("step"),
+        })
+    params.sort(key=lambda p: (not p["changed"], p["key"]))
+
+    rules = None
+    if getattr(strat, "IS_CUSTOM", False):
+        before_def = strat.definition
+        after_def = strat.effective_definition(global_params)
+        rules = {}
+        for side in ("long_rules", "short_rules"):
+            rows = []
+            for i, r in enumerate(before_def.get(side) or []):
+                a = (after_def.get(side) or [])[i] if i < len(after_def.get(side) or []) else r
+                b_txt, a_txt = custom_params.rule_text(r), custom_params.rule_text(a)
+                rows.append({"index": i, "before": b_txt, "after": a_txt,
+                             "changed": b_txt != a_txt,
+                             "param_key": custom_params.rule_param_key(side, i)})
+            rules["long" if side == "long_rules" else "short"] = rows
+
+    coins = []
+    for sym, cp in sorted(coin_params.items()):
+        if not cp:
+            continue
+        rows = []
+        for key, value in cp.items():
+            base = global_params.get(key, (meta.get(key) or {}).get("value"))
+            rows.append({"key": key, "label": (meta.get(key) or {}).get("label") or key,
+                         "before": base, "after": value, "changed": value != base})
+        if rows:
+            coins.append({"symbol": sym, "params": rows})
+
+    return {"strategy_id": strategy_id,
+            "strategy_name": getattr(strat, "STRATEGY_NAME", strategy_id),
+            "is_custom": bool(getattr(strat, "IS_CUSTOM", False)),
+            "timeframe": scanner.settings.get("strategy_timeframes", {}).get(
+                strategy_id, getattr(strat, "STRATEGY_TIMEFRAME", None)),
+            "has_changes": any(p["changed"] for p in params) or bool(coins),
+            "params": params, "rules": rules, "coins": coins,
+            "rule_problems": list(getattr(strat, "rule_problems", []) or [])}
 
 
 # ---- custom strategy CRUD ----
