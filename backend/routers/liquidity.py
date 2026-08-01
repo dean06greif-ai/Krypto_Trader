@@ -25,12 +25,26 @@ router = APIRouter(prefix="/api/liquidity", tags=["liquidity"])
 
 DEFAULT_INTERVAL = "15m"
 MAX_CANDLES = 400
+CANDLE_TTL = 30          # s – Kerzen ändern sich intraday langsamer als Klicks
+_candle_cache: dict = {}
 
 
 async def _candles(symbol: str, interval: str, limit: int):
+    """Kerzen mit kurzem TTL-Cache (verhindert Doppel-Requests bei Panel-Wechsel)."""
+    import time
+    key = (symbol.upper(), interval, min(limit, MAX_CANDLES))
+    hit = _candle_cache.get(key)
+    if hit and time.time() - hit[0] < CANDLE_TTL:
+        return hit[1]
     data = await mc.historical_candles(symbol.upper(), interval=interval,
                                        limit=min(limit, MAX_CANDLES))
-    return data.get("candles") or []
+    candles = data.get("candles") or []
+    if candles:
+        _candle_cache[key] = (time.time(), candles)
+        if len(_candle_cache) > 40:
+            oldest = min(_candle_cache, key=lambda k: _candle_cache[k][0])
+            _candle_cache.pop(oldest, None)
+    return candles
 
 
 @router.get("/context")
