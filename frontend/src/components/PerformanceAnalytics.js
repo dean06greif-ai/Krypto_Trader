@@ -126,6 +126,17 @@ const TradeDetailCard = ({ t, stratName, getCoinName }) => {
   );
 };
 
+// Kompakte Zeit für den Lösch-Verlauf (Europe/Berlin)
+const fmtClearTime = (iso) => {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('de-DE', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+      timeZone: 'Europe/Berlin',
+    });
+  } catch { return '—'; }
+};
+
 const CLEAR_RANGES = [
   { key: 'hour', label: 'Letzte Stunde' },
   { key: '24h', label: 'Letzte 24 Stunden' },
@@ -144,6 +155,7 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
   const [clearScope, setClearScope] = useState('all');
   const [clearing, setClearing] = useState(false);
   const [clearPreview, setClearPreview] = useState(null);
+  const [clearHistory, setClearHistory] = useState([]);
   const [pnlFilter, setPnlFilter] = useState('all');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReview, setAiReview] = useState(null);
@@ -276,6 +288,16 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
     }).then(r => (r.ok ? r.json() : null)).then(setClearPreview).catch(() => {});
   }, [showClear, clearScope, clearRange, selectedCoin, selectedStrategy]);
 
+  // Lösch-Verlauf: was wurde zuletzt gelöscht?
+  const loadClearHistory = useCallback(() => {
+    fetch(`${API_URL}/api/analytics/clear/history?limit=8`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setClearHistory(d?.entries || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { if (showClear) loadClearHistory(); }, [showClear, loadClearHistory]);
+
   const runClear = async () => {
     setClearing(true);
     try {
@@ -291,6 +313,7 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
         const data = await res.json();
         const total = Object.values(data.deleted || {}).reduce((a, b) => a + b, 0);
         toast.success(`Analyse-Daten gelöscht (${total} Einträge · ${scopeLabel})`);
+        loadClearHistory();
         setShowClear(false);
         onCleared && onCleared();
       } else if (res.status === 401) {
@@ -331,6 +354,15 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
       : clearScope === 'strategy'
         ? `"${activeStrategyName}" bei allen Coins`
         : 'alle Coins & Strategien';
+
+  // Scope-Beschreibung für Einträge im Lösch-Verlauf (Daten kommen aus der DB)
+  const histScopeLabel = (h) => {
+    const sName = strategies.find(s => s.id === h.strategy_id)?.name || h.strategy_id;
+    if (h.scope === 'coin') return `nur ${getCoinName(h.symbol)}`;
+    if (h.scope === 'coin_strategy') return `"${sName}" bei ${getCoinName(h.symbol)}`;
+    if (h.scope === 'strategy') return `"${sName}" bei allen Coins`;
+    return 'alle Coins & Strategien';
+  };
 
   const runAiReview = async () => {
     setAiLoading(true);
@@ -605,6 +637,26 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
               )}
             </div>
             <div className="clear-warn"><Warning size={14} weight="bold" /> Gelöschte Signale &amp; Statistiken können nicht wiederhergestellt werden.</div>
+
+            <div className="clear-section-label">LÖSCH-VERLAUF</div>
+            <div className="clear-history" data-testid="clear-history">
+              {clearHistory.length === 0 && (
+                <div className="clear-history-empty" data-testid="clear-history-empty">
+                  Noch nichts gelöscht.
+                </div>
+              )}
+              {clearHistory.map((h, i) => (
+                <div key={h.id || i} className="clear-history-row" data-testid={`clear-history-row-${i}`}
+                  title={`${histScopeLabel(h)} · ${CLEAR_RANGES.find(r => r.key === h.range)?.label || h.range}`}>
+                  <span className="clear-history-time mono">{fmtClearTime(h.ts)}</span>
+                  <span className="clear-history-scope">{histScopeLabel(h)}</span>
+                  <span className="clear-history-count mono">
+                    {(h.deleted?.signals ?? 0)} Sig · {(h.deleted?.auto_trades ?? 0)} Tr
+                  </span>
+                </div>
+              ))}
+            </div>
+
             <div className="clear-actions">
               <button className="clear-cancel" onClick={() => setShowClear(false)} disabled={clearing} data-testid="clear-cancel-btn">Abbrechen</button>
               <button className="clear-confirm" onClick={runClear} disabled={clearing} data-testid="clear-confirm-btn">

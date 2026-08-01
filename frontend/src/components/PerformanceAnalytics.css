@@ -402,3 +402,13 @@
   font-weight: 700;
   opacity: 0.9;
 }
+
+/* Lösch-Verlauf im Bestätigungsdialog */
+.clear-history { display: flex; flex-direction: column; gap: 4px; max-height: 112px; margin-bottom: 4px; overflow-y: auto; background: #171923; border: 1px solid #2A2D3A; border-radius: 9px; padding: 8px 10px; }
+.clear-history-empty { font-size: 11px; color: #5C6070; }
+.clear-history-row { display: grid; grid-template-columns: 88px 1fr auto; gap: 8px; white-space: nowrap; font-size: 10.5px; align-items: center; font-size: 11px; color: #C7CAD6; padding: 3px 0; border-bottom: 1px solid #22252F; }
+.clear-history-row:last-child { border-bottom: none; }
+.clear-history-time { color: #8A8FA3; }
+.clear-history-scope { color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clear-history-range { display: none; }
+.clear-history-count { color: #FF6B6B; }

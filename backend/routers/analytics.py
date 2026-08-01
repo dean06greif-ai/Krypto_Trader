@@ -232,6 +232,29 @@ async def clear_analytics_preview(body: Dict, _: bool = Depends(require_admin)):
             "auto_trades": trades, "total": signals + trades}
 
 
+async def _log_clear(rng: str, scope: str, body: Dict, deleted: Dict[str, int]):
+    """Lösch-Verlauf schreiben (für den Bestätigungs-Dialog)."""
+    try:
+        await state.db.analytics_clear_log.insert_one({
+            "id": os.urandom(8).hex(),
+            "ts": datetime.now(BERLIN).isoformat(),
+            "range": rng, "scope": scope,
+            "symbol": body.get("symbol"), "strategy_id": body.get("strategy_id"),
+            "deleted": deleted,
+            "total": sum(int(v or 0) for v in deleted.values()),
+        })
+    except Exception as e:
+        logger.warning(f"clear log failed: {e}")
+
+
+@router.get("/api/analytics/clear/history")
+async def clear_analytics_history(limit: int = 10):
+    """Letzte Löschvorgänge (neueste zuerst)."""
+    rows = await state.db.analytics_clear_log.find().sort("ts", -1).limit(min(limit, 50)) \
+        .to_list(min(limit, 50))
+    return {"entries": [_clean(r) for r in rows]}
+
+
 @router.post("/api/analytics/clear")
 async def clear_analytics(body: Dict, _: bool = Depends(require_admin)):
     """Delete analysis data (signals, performance, daily analytics, trades).
@@ -251,6 +274,7 @@ async def clear_analytics(body: Dict, _: bool = Depends(require_admin)):
         for sym in list(scanner.rule_states.keys()):
             scanner.rule_states[sym] = {}
         await broadcast({"type": "analytics_cleared", "range": rng, "scope": scope})
+        await _log_clear(rng, scope, body, deleted)
         return {"status": "success", "range": rng, "scope": scope, "deleted": deleted}
 
     r = await state.db.signals.delete_many(sig_filter)
@@ -277,6 +301,7 @@ async def clear_analytics(body: Dict, _: bool = Depends(require_admin)):
     remaining_ids = {s["id"] for s in await state.db.signals.find({}, {"id": 1}).to_list(200000)}
     open_signal_evals[:] = [ev for ev in open_signal_evals if ev["id"] in remaining_ids]
     await broadcast({"type": "analytics_cleared", "range": rng, "scope": scope})
+    await _log_clear(rng, scope, body, deleted)
     return {"status": "success", "range": rng, "scope": scope, "deleted": deleted}
 
 

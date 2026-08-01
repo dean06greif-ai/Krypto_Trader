@@ -48,3 +48,8 @@ Bestehende, produktiv laufende deutsche Daytrading-Website (bleibt extern gehost
 - KI-Chat-Verlauf lädt beim Wiederöffnen sofort: Modul-Cache `CHAT_CACHE` (letzter Verlauf sofort sichtbar, Aktualisierung im Hintergrund), Reset beim „Chat leeren“.
 - `server.py`: neue Indizes auf `ai_chat` (`ts:-1` und `role+pinned+ts`) – ohne Index sortierte Mongo Atlas die gesamte Collection im RAM (Ursache der Ladezeit).
 - Winrate 70 % (Signal-Winrate im Lern-Panel) vs. 27,3 % (Trade-Winrate der Strategie-Gesamtübersicht): kein Bug, unterschiedliche Kennzahlen – auf Wunsch des Users NICHT geändert.
+
+## Iteration (01.06.2026 · Teil 2) – Optimizer-Vergleich & Lösch-Verlauf
+- P1 „Optimierte Werte vergleichen": `services/optimizer.py` liefert im Baseline-Dict jetzt auch `trade_params` (aktuelle TP/SL-Werte der mitoptimierten Keys). `Optimizer.js`: neue Tabelle „WERTE-VERGLEICH · aktuell vs. optimiert" (data-testid `opt-param-diff`, Zeilen `opt-diff-row-<key>`) mit Aktuell/Optimiert/Δ%, geänderte Zeilen oben, TP/SL-Tag, Styles in `Optimizer.css`.
+- P2 „Lösch-Verlauf": neue Collection `analytics_clear_log` (ts in Europe/Berlin, scope, symbol, strategy_id, range, deleted, total) + `GET /api/analytics/clear/history`. `PerformanceAnalytics.js`: Abschnitt „LÖSCH-VERLAUF" im Bestätigungsdialog (data-testid `clear-history`, `clear-history-row-<i>`, `clear-history-empty`), Styles in `PerformanceAnalytics.css`.
+- Verifiziert per curl (clear + history) und Browser (Optimizer-Verlauf-Lauf geladen → Diff-Tabelle korrekt; Löschen → Eintrag erscheint im Dialog).

@@ -493,6 +493,27 @@ export default function Optimizer({ onClose }) {
     <span key={k} className="opt-param-pill trade">{k}: <b>{String(v)}</b></span>
   ));
 
+  // Vorher/Nachher-Vergleich der Parameter: aktuelle Einstellungen vs. optimierte Werte
+  const paramDiffRows = (baseline, best) => {
+    const rows = [];
+    const push = (kind, key, oldV, newV) => rows.push({ kind, key, oldV, newV });
+    const keys = (a, b) => [...new Set([...Object.keys(a || {}), ...Object.keys(b || {})])];
+    keys(baseline?.params, best?.params).forEach(k =>
+      push('param', k, baseline?.params?.[k], best?.params?.[k] ?? baseline?.params?.[k]));
+    keys(baseline?.trade_params, best?.trade_params).forEach(k =>
+      push('trade', k, baseline?.trade_params?.[k], best?.trade_params?.[k] ?? baseline?.trade_params?.[k]));
+    return rows.sort((a, b) => {
+      const ch = (r) => (String(r.oldV ?? '–') !== String(r.newV ?? '–') ? 0 : 1);
+      return ch(a) - ch(b);
+    });
+  };
+
+  const diffPct = (oldV, newV) => {
+    const a = Number(oldV), b = Number(newV);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a === 0) return null;
+    return Math.round((b - a) / Math.abs(a) * 100);
+  };
+
   return (
     <SafeOverlay className="opt-overlay" onClose={onClose}>
       <div className="opt-panel" onClick={e => e.stopPropagation()} data-testid="optimizer-modal">
@@ -1169,6 +1190,36 @@ export default function Optimizer({ onClose }) {
                 </div>
                 {!result.best?.is_baseline && (
                   <>
+                    <div className="opt-label" style={{ marginTop: 12 }}>
+                      WERTE-VERGLEICH · aktuell vs. optimiert
+                    </div>
+                    <table className="opt-diff-table" data-testid="opt-param-diff">
+                      <thead>
+                        <tr><th>Parameter</th><th>Aktuell</th><th>Optimiert</th><th>Änderung</th></tr>
+                      </thead>
+                      <tbody>
+                        {paramDiffRows(result.baseline, result.best).map(r => {
+                          const changed = String(r.oldV ?? '–') !== String(r.newV ?? '–');
+                          const pct = changed ? diffPct(r.oldV, r.newV) : null;
+                          return (
+                            <tr key={`${r.kind}-${r.key}`} className={changed ? 'changed' : ''}
+                              data-testid={`opt-diff-row-${r.key}`}>
+                              <td>
+                                {r.key}
+                                {r.kind === 'trade' && <span className="opt-diff-tag">TP/SL</span>}
+                              </td>
+                              <td className="mono old">{r.oldV ?? '–'}</td>
+                              <td className="mono new">{r.newV ?? '–'}</td>
+                              <td className="mono">
+                                {!changed ? <span className="opt-diff-same">unverändert</span>
+                                  : pct === null ? '→'
+                                    : <span className={pct >= 0 ? 'pos' : 'neg'}>{pct > 0 ? '+' : ''}{pct}%</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                     <div className="opt-params-list" data-testid="opt-best-params">
                       {Object.entries(result.best?.params || {}).map(([k, v]) => (
                         <span key={k} className="opt-param-pill">{k}: <b>{String(v)}</b></span>

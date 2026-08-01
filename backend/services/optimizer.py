@@ -378,7 +378,11 @@ async def _optimize_params(job, strategy, histories, settings, cfg, objective,
     search_stats = {"algorithm": algo_tag, "iterations": iterations,
                     "improvements": improvements[-50:],
                     "improved_n": len(improvements)}
-    return {"params": base_params, "metrics": baseline}, best, top, search_stats
+    # Aktuelle Trade-Einstellungen (nur die mitoptimierten Keys) für den
+    # Vorher/Nachher-Vergleich im UI.
+    base_trade_params = {k: cfg.get(k) for k in trade_space if cfg.get(k) is not None}
+    return ({"params": base_params, "trade_params": base_trade_params, "metrics": baseline},
+            best, top, search_stats)
 
 
 # ---------------- Modus 2: Strategie-Discovery ----------------
