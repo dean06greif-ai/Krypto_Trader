@@ -101,3 +101,147 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## ===== ITERATION 5 (Umgebung: trader-refine.preview.emergentagent.com) =====
+
+user_problem_statement: >
+  Verbesserungen an bestehender Daytrading-Website (extern gehostet, Repo new-32.07):
+  Chart-Layout-Bug, Scrollleiste neben Plus, Analyse "Heute" nur aktive Strategie,
+  Top-Coins-Winrate je aktiver Strategie (dauerhaft), bessere Zeit-Analyse
+  (Coin gesamt/je Strategie, Stunden/Wochentage/Kombi), Trades: Performance je
+  Strategie nur mit Trades inkl. KI Trader, Top-10-Collapse-Fix, Login-Bug
+  (Paper-Blitz ohne Reload), Settings nur über X schließen. Außerdem
+  Iteration-4-KI-Features (Supervisor auto, apply-assist, Quick-Prompts serverseitig)
+  verifizieren, da vorheriger Test abgebrochen wurde.
+
+backend:
+  - task: "GET /api/autotrade/strategy_coin_configs öffentlich (read-only)"
+    implemented: true
+    working: true
+    file: "backend/routers/autotrade.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "require_admin von GET entfernt; liefert nested {strategy_id:{symbol:config}}; Schreib-Endpoints bleiben admin-only."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Endpoint ist öffentlich (200 ohne Token), liefert nested dict mit 19 Strategien, Schreib-Endpoint bleibt geschützt (401). Test: backend/tests/test_iter5_api.py::TestStrategyCoinsConfigsPublic (3/3 tests passed)."
+  - task: "Zeit-Analyse erweitert: /api/analytics/time-based/{symbol}?strategy_id= mit by_hour/by_weekday/by_combo"
+    implemented: true
+    working: true
+    file: "backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Rückwärtskompatibel: time_analytics/best_hours unverändert. Neu: by_hour, by_weekday, by_combo (PRE_SIGNAL exkl., win_rate aus decided). Optionaler strategy_id-Filter."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Rückwärtskompatibel (time_analytics/best_hours vorhanden), neue Felder (by_hour/by_weekday/by_combo) korrekt strukturiert, win_rate-Berechnung validiert, strategy_id-Filter funktioniert, unbekannte strategy_id liefert leere Listen (kein 500). Test: backend/tests/test_iter5_api.py::TestTimeBasedAnalyticsExtended (7/7 tests passed)."
+  - task: "Iter 5.2: Zeit-Analyse mit echten Trade-PnL-Feldern (trades, trade_wins, trade_losses, trade_win_rate, pnl, avg_pnl, best_trade, worst_trade)"
+    implemented: true
+    working: true
+    file: "backend/routers/analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Iter 5.2: by_hour/by_weekday/by_combo enthalten jetzt zusätzlich echten Trade-PnL aus state.db.auto_trades (status: closed, gruppiert nach opened_at in Europe/Berlin-Zeitzone). Neue Felder: trades, trade_wins, trade_losses, trade_win_rate, pnl, avg_pnl, best_trade, worst_trade. _merge-Logik ergänzt Trade-Only-Buckets."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED (Iter 5.2): Alle PnL-Felder in by_hour/by_weekday/by_combo vorhanden und korrekt berechnet. Tests: (1) Endpoint liefert 200 mit allen Feldern, (2) PnL-Felder in allen Gruppierungen vorhanden (auch bei 0 Trades), (3) trade_win_rate und avg_pnl korrekt berechnet, (4) strategy_id-Filter funktioniert mit PnL-Daten, (5) Nonexistent strategy_id liefert 200 mit leeren Listen, (6) Rückwärtskompatibilität (time_analytics/best_hours unverändert), (7) Keine Regression in /api/performance. Test-Dateien: /app/backend_test.py (24/24 passed), backend/tests/test_iter5_api.py::TestTimeBasedAnalyticsExtended (11/11 passed inkl. 4 neue Iter-5.2-Tests). Beispiel-Daten: Di 1:00 → 1 Trade, pnl=5.49 USDT; Stunde 4 → 2 Trades, pnl=-79.22 USDT, avg_pnl=-39.61."
+  - task: "Iteration-4 KI-Features verifizieren (Supervisor auto/history/rollback, Quick-Prompts serverseitig, apply-assist)"
+    implemented: true
+    working: true
+    file: "backend/services/ai_supervisor.py, backend/routers/ai.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Bereits im Branch enthalten; vorheriger Testlauf wurde abgebrochen. Bestehende Tests: backend/tests/test_iter_ai_supervisor_auto.py, backend/tests/test_iter4_ai_api.py."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED: Unit-Tests (11/11 passed in test_iter_ai_supervisor_auto.py), E2E-Tests (9/9 passed): Supervisor settings mit Clamping (1→6, 999→168), History-Endpoint, Rollback ohne aktive Umschaltung (400), Quick-Prompts öffentlich/geschützt/trim/persist, apply-assist mit nicht-existenter ID (400). Defaults wiederhergestellt."
+
+frontend:
+  - task: "Chart-Layout-Fix (minmax 300px, SignalPanel 32vh-Cap)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.css, frontend/src/components/SignalPanel.css"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Per Screenshot verifiziert: chart-wrap 475px bei 760px Viewport-Höhe."
+  - task: "Analyse-Umbau (Heute nur aktive Strategie, Top Coins je Strategie dauerhaft, Zeit-Analyse-UI, Trades je Strategie aus echten Trades)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/PerformanceAnalytics.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+  - task: "Login-Reload-Fix + Top-10-Collapse + SafeOverlay closeOnOutside + Scrollleiste neben Plus"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.js, CoinSidebar.js, SafeOverlay.js, StrategyTabs.css"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+  - task: "Iter5.1: KI Trader immer in Performance je Strategie, Strategie-Tabs nach Trade-Prio sortieren, Mobile-CSS"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/PerformanceAnalytics.js, frontend/src/components/StrategyTabs.js, frontend/src/components/mobile.css, frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Screenshots verifiziert: STRAT-PERF-Rows enthalten ai_trader (auch mit 0 Trades). Tabs-Reihenfolge: alle Paper-aktiven Strategien zuerst (blaues Blitz-Icon), dann Strategien ohne Trades. Mobile (400x800) zeigt kompakten Header, horizontal scrollende Tabs, 2-Spalten Stats-Grid, KI-Trader Tab an Position 1."
+
+metadata:
+  created_by: "main_agent"
+  version: "5.2"
+  test_sequence: 3
+  run_ui: false
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    comment: >
+  - agent: "testing"
+    comment: >
+      Backend-Tests abgeschlossen (Iteration 5 + 5.2). Alle 4 Backend-Tasks erfolgreich getestet:
+      1) GET /api/autotrade/strategy_coin_configs: Öffentlich, nested dict, 19 Strategien, Schreib-Schutz OK
+      2) GET /api/analytics/time-based/{symbol}: Rückwärtskompatibel, neue Felder (by_hour/by_weekday/by_combo), 
+         win_rate-Berechnung korrekt, strategy_id-Filter funktioniert, unbekannte IDs → leere Listen
+      3) Iteration-4 KI-Features: Unit-Tests 11/11, E2E 9/9 (Supervisor settings/history/rollback, 
+         Quick-Prompts, apply-assist). Alle Defaults wiederhergestellt.
+      4) Iter 5.2 - Zeit-Analyse mit Trade-PnL: Alle 8 neuen PnL-Felder (trades, trade_wins, trade_losses, 
+         trade_win_rate, pnl, avg_pnl, best_trade, worst_trade) in by_hour/by_weekday/by_combo vorhanden 
+         und korrekt berechnet. strategy_id-Filter funktioniert mit PnL-Daten. _merge-Logik korrekt 
+         (Trade-Only-Buckets erscheinen). Rückwärtskompatibilität gewahrt. Keine Regression in /api/performance.
+      Test-Dateien: backend/tests/test_iter5_api.py (26/26 E2E tests passed inkl. 4 neue Iter-5.2-Tests), 
+      /app/backend_test.py (24/24 comprehensive tests passed).
+      KEINE kritischen Fehler gefunden. Backend vollständig funktionsfähig.
+
+      Backend läuft lokal auf Port 8001, erreichbar über https://trader-refine.preview.emergentagent.com/api
+      (CRA-Dev-Proxy). Admin-Login lokal: Admin/admin (Env-Defaults). ACHTUNG: Verbindet auf die
+      PRODUKTIONS-Atlas-DB des Users – Tests müssen nach sich aufräumen (Settings-Defaults wiederherstellen,
+      Test-Kandidaten via /decide reject entfernen, KEINE destruktiven Clear-Aufrufe mit scope=all).
+      Backend-Neustart dauert mehrere Minuten (Bootstrap) – Tests nicht durch Backend-Codeänderungen triggern.
