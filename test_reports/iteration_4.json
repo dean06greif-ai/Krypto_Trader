@@ -1,0 +1,24 @@
+{
+  "summary": "Backend + Frontend Regression für die 3 Verbesserungen (Berlin-Zeit / Clear-Scope 'strategy' / KI-Strategie-Backtest+Optimizer). Bestehende 19 pytest-Tests (test_iter_berlin_clear_ki_backtest.py) laufen weiterhin durch. Neu erstellter E2E-Test test_ai_strategy_pipeline_e2e.py (3 Tests) validiert die komplette KI-Strategie-Pipeline gegen die Live-API: Kandidat anlegen -> custom_strategy registriert -> Regeln normalisiert (adx entfernt, macd_line->macd, crosses_above->cross_above, RSI-String->30.0) -> Backtest liefert 20 Trades bei BTCUSDT/2d -> Optimizer liefert best.params. UI-Flow: Berlin-Uhrzeit im Header korrekt (16:07 während Backend 14:03 UTC = UTC+2). Admin-Login funktioniert, Clear-Analytics-Modal zeigt alle 4 Scopes inkl. NEU 'clear-scope-strategy' (\"Scalping\" bei ALLEN Coins), Preview (data-testid clear-preview-count / clear-summary) aktualisiert sich beim Scope-Wechsel. Backtester- und Optimizer-Panels öffnen ohne JS-Fehler/weiße Seite.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter_berlin_clear_ki_backtest.py",
+    "/app/backend/tests/test_ai_strategy_pipeline_e2e.py",
+    "/app/test_reports/pytest/iter_berlin_results.xml",
+    "/app/test_reports/pytest/ai_pipeline_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Optional (nicht blockierend): GET /api/strategies liefert für Custom-Strategien die Regeln unter Key 'definition', nicht 'rule_definition'. Für Konsistenz mit dem POST /api/ai/strategies-Payload könnte man in der Antwort zusätzlich 'rule_definition' spiegeln.",
+    "Hydration-Warnung im UI-Log: '<span> cannot be a child of <option>' - harmloser React-Warning in einem Select-Element, sollte gelegentlich behoben werden."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_strategy_pipeline_e2e.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% (alle geprüften Flows OK)"},
+  "test_credentials": "Admin / admin (bereits in /app/memory/test_credentials.md hinterlegt)",
+  "seed_data_creation": "Test-Kandidaten TEST_KI_Pipeline_* + zugehörige custom_strategies wurden nach den Tests via DELETE /api/strategies/{id} sowie Mongo delete_one auf ai_strategy_candidates komplett entfernt. Verifiziert: keine TEST_-Reste mehr in der Datenbank.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Der neue Test test_ai_strategy_pipeline_e2e.py läuft gegen REACT_APP_BACKEND_URL und legt kurzlebige TEST_KI_Pipeline_*-Kandidaten an (mit sofortigem Cleanup). Auf Env-Vars achten (REACT_APP_BACKEND_URL, MONGO_URL, DB_NAME) - die werden im Fixture-Cleanup via python-dotenv aus /app/backend/.env geladen. Backtester zeigte während des Tests einmalig Ghost-Ergebnisse eines abgebrochenen Test-Runs; wurden manuell nachbereinigt.",
+  "rca of the issue": "Keine Bugs gefunden."
+}
