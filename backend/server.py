@@ -102,6 +102,10 @@ async def lifespan(app: FastAPI):
     try:
         await app.mongodb.ai_knowledge.create_index([("kind", 1), ("ts", -1)])
         await app.mongodb.ai_market_snapshots.create_index([("symbol", 1), ("ts", -1)])
+        # Chat-Verlauf: ohne Index sortiert Mongo die ganze Collection im RAM,
+        # das Öffnen des KI-Panels dauert dann sekundenlang.
+        await app.mongodb.ai_chat.create_index([("ts", -1)])
+        await app.mongodb.ai_chat.create_index([("role", 1), ("pinned", 1), ("ts", -1)])
     except Exception as e:
         logger.warning(f"AI lab index creation failed: {e}")
     _ens = list(scanner.settings.get("enabled_strategies") or [])

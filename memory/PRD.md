@@ -42,3 +42,9 @@ Bestehende, produktiv laufende deutsche Daytrading-Website (bleibt extern gehost
 - P2: `rule_definition` in GET /api/strategies zusätzlich spiegeln (Konsistenz, Hinweis Testing-Agent).
 - P2: React-Warning `<span> in <option>` in einem Select (Bestandscode) beheben.
 - P2: Optionale UI-Anzeige der `rule_issues` im Strategie-Labor-Panel.
+
+## Iteration (01.06.2026) – UI-Labels, Chat-Verlauf-Performance
+- `AITradingPanel.js`: Asset-Fokus-Schnellwahl heißt jetzt „Alle Assets“ + „Coins / Rohstoffe / Indizes / Forex“ (Wort „Alle“ nur noch beim Gesamt-Button).
+- KI-Chat-Verlauf lädt beim Wiederöffnen sofort: Modul-Cache `CHAT_CACHE` (letzter Verlauf sofort sichtbar, Aktualisierung im Hintergrund), Reset beim „Chat leeren“.
+- `server.py`: neue Indizes auf `ai_chat` (`ts:-1` und `role+pinned+ts`) – ohne Index sortierte Mongo Atlas die gesamte Collection im RAM (Ursache der Ladezeit).
+- Winrate 70 % (Signal-Winrate im Lern-Panel) vs. 27,3 % (Trade-Winrate der Strategie-Gesamtübersicht): kein Bug, unterschiedliche Kennzahlen – auf Wunsch des Users NICHT geändert.

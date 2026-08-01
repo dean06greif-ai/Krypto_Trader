@@ -67,11 +67,14 @@ const coinLabel = assetLabel;
 // Schnellauswahl des Asset-Fokus: Gruppen-Namen wie im Backend
 // (core/instruments.py) -> Label im UI.
 const FOCUS_GROUPS = [
-  { group: 'TOP 10 COINS', label: 'Alle Coins' },
-  { group: 'RESOURCES', label: 'Alle Rohstoffe' },
-  { group: 'INDICES', label: 'Alle Indizes' },
-  { group: 'FOREX', label: 'Alle Forex' },
+  { group: 'TOP 10 COINS', label: 'Coins' },
+  { group: 'RESOURCES', label: 'Rohstoffe' },
+  { group: 'INDICES', label: 'Indizes' },
+  { group: 'FOREX', label: 'Forex' },
 ];
+// Letzter Chat-Verlauf im Modul-Cache: beim Wiederöffnen des Panels sofort
+// sichtbar, während im Hintergrund aktualisiert wird (kein Ladewarten mehr).
+let CHAT_CACHE = [];
 const COIN_STORE_KEY = (coin) => `krypto_ai_chat_coins::${coin || 'BTCUSDT'}`;
 const CHAT_FOCUS_STORE_KEY = 'krypto_ai_chat_focus_open';
 
@@ -102,7 +105,7 @@ const friendlyAiError = (raw) => {
 const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
   const { symbols: ALL_COINS, groups: ASSET_GROUPS } = useInstruments();
   const [status, setStatus] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(CHAT_CACHE);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState('');
@@ -259,7 +262,8 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
     if (streamingRef.current) return;
     try {
       const data = await fetch(`${API_URL}/api/ai/chat/history?limit=100`).then(r => r.json());
-      setMessages(data.messages || []);
+      CHAT_CACHE = data.messages || [];
+      setMessages(CHAT_CACHE);
     } catch (e) { /* silent */ }
   }, []);
 
@@ -393,6 +397,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
 
   const clearChat = async () => {
     await fetch(`${API_URL}/api/ai/chat`, { method: 'DELETE', headers: authHeaders() });
+    CHAT_CACHE = [];
     setMessages([]);
     toast.success('Chat geleert');
   };
