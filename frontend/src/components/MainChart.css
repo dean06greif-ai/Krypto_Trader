@@ -92,3 +92,23 @@
 .chart-overlay.chart-error {
   color: #FF4D4D;
 }
+
+/* Liquiditäts-Overlay (standardmäßig aus, keine Persistenz) */
+.chart-liq-toggle {
+  background: #151b26; color: #7f93ad; border: 1px solid #26303f; border-radius: 999px;
+  padding: 3px 10px; font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.chart-liq-toggle:hover { color: #cfe0f5; border-color: #3d78d8; }
+.chart-liq-toggle.on { color: #0b0f16; background: #4d9cff; border-color: #4d9cff; }
+.chart-liq-legend {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 8px;
+  border-bottom: 1px solid #1E2028;
+}
+.chart-liq-chip {
+  font-size: 10px; padding: 2px 8px; border-radius: 999px;
+  background: #131a24; border: 1px solid #222c3a; color: #9fb2c9;
+}
+.chart-liq-chip.above { color: #ff9c9c; border-color: #4a2630; }
+.chart-liq-chip.below { color: #7ee0a8; border-color: #1f4436; }
+.chart-liq-err { font-size: 10.5px; color: #ff9c9c; }

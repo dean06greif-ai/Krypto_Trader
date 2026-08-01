@@ -83,9 +83,19 @@ Lösung:
 - Regression bestehender Suiten: test_strategies, test_refactor_regression,
   test_iter11/12/15/16, test_multicore – alle grün.
 
+### 7. Nachtrag (gleiche Session): Chart-Overlay + KI-Schalter
+- Neu `frontend/src/hooks/useLiquidityOverlay.js`: zeichnet die Top-8 Liquiditäts-Level
+  als Preislinien im Haupt-Chart (Farbe/Stil je Typ, unberührte Level durchgezogen).
+  **Standardmäßig AUS und absichtlich nicht persistiert** (kein localStorage) – nach
+  Reload/Login wieder aus. Nur REST (kein WebSocket), Refresh alle 90 s solange aktiv,
+  Backend cached Kerzen 30 s. Alle Linien werden beim Ausschalten sauber entfernt.
+- `MainChart.js`: Umschalter `data-testid="chart-liq-toggle"` (Badge „LIQ · n") plus
+  Legenden-Chips unter dem Chart-Header.
+- `AIGovernancePanel.js`: neuer Abschnitt „Liquiditäts-Kontext für die KI" mit
+  `liquidity-enabled-toggle` und `liquidity-symbols-input` (speichert serverseitig
+  über `POST /api/ai/config`, bleibt also erhalten).
+
 ## Backlog / nächste Schritte
-- P1: Liquidity-Level als Overlay direkt im Haupt-Chart (aktuell eigenes Panel).
-- P1: UI-Schalter für `liquidity_enabled`/`liquidity_symbols` im KI-Governance-Panel.
 - P2: Optimierung der KI-Regel-Schwellen im Strategie-Labor sichtbar machen
   (Vorher/Nachher-Vergleich je Regel).
 - P2: `AITradingPanel.js` in Sub-Komponenten aufteilen (Chat, Fokus-Auswahl).

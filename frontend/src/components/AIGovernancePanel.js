@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Crown, FloppyDisk, ArrowCounterClockwise, ShieldCheck } from '@phosphor-icons/react';
+import { Crown, FloppyDisk, ArrowCounterClockwise, ShieldCheck, Drop } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
 import AIScheduleEditor from './AIScheduleEditor';
@@ -16,13 +16,16 @@ export const AIGovernancePanel = () => {
   const [rules, setRules] = useState(null);
   const [lessonPolicy, setLessonPolicy] = useState('');
   const [validation, setValidation] = useState(null);
+  const [aiCfg, setAiCfg] = useState(null);
+  const [liqSymbols, setLiqSymbols] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [mp, val] = await Promise.all([
+      const [mp, val, status] = await Promise.all([
         fetch(`${API_URL}/api/ai/master-prompt`).then(r => r.json()),
         fetch(`${API_URL}/api/ai/validation`).then(r => r.json()),
+        fetch(`${API_URL}/api/ai/status`).then(r => r.json()),
       ]);
       const s = mp.master_prompt || null;
       setSnap(s);
@@ -30,6 +33,8 @@ export const AIGovernancePanel = () => {
       setLessonPolicy(s?.lesson_policy || '');
       setRules(s?.rules ? { ...s.rules } : null);
       setValidation(val.settings || null);
+      setAiCfg(status.config || null);
+      setLiqSymbols((status.config?.liquidity_symbols || []).join(', '));
     } catch (e) { /* silent */ }
   }, []);
 
@@ -73,6 +78,23 @@ export const AIGovernancePanel = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Fehler');
       setValidation(data.settings);
+    } catch (e) { toast.error(e.message); }
+  };
+
+  // KI-Konfiguration (hier: Liquiditäts-Kontext) – wird serverseitig gespeichert.
+  const saveAiCfg = async (patch) => {
+    setAiCfg(prev => ({ ...prev, ...patch }));
+    try {
+      const res = await fetch(`${API_URL}/api/ai/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Fehler');
+      setAiCfg(data.config);
+      setLiqSymbols((data.config.liquidity_symbols || []).join(', '));
+      toast.success('Liquiditäts-Kontext gespeichert');
     } catch (e) { toast.error(e.message); }
   };
 
@@ -274,6 +296,39 @@ export const AIGovernancePanel = () => {
               <input type="number" min="1" max="90" value={validation.macro_confirm_window_days}
                 onChange={e => saveValidation({ macro_confirm_window_days: Number(e.target.value) })}
                 data-testid="validation-macro-window" />
+            </label>
+          </div>
+        </>
+      )}
+
+      {aiCfg && (
+        <>
+          <div className="gov-head gov-head-sub">
+            <span className="gov-title"><Drop size={14} weight="fill" /> Liquiditäts-Kontext für die KI</span>
+          </div>
+          <p className="gov-hint">
+            Liefert der KI Liquidations-Cluster, Open-Interest-Trend, Long/Short-Ratio,
+            Orderbook-Wände und die eigenen Liquiditäts-Level (POC/EQH/EQL/Imbalancen).
+            Quellen sind frei (Binance/OKX/Bybit), es werden keine Fremd-Keys benötigt.
+            Ausschalten spart pro Analyse einige Börsen-Abrufe.
+          </p>
+          <div className="gov-rules">
+            <label className="gov-check">
+              <input type="checkbox" checked={!!aiCfg.liquidity_enabled}
+                onChange={e => saveAiCfg({ liquidity_enabled: e.target.checked })}
+                data-testid="liquidity-enabled-toggle" />
+              <span>Liquiditäts-Kontext aktiv</span>
+            </label>
+            <label>
+              <span>Coins für den Liquiditäts-Kontext (max. 6, Komma)</span>
+              <input type="text" value={liqSymbols}
+                onChange={e => setLiqSymbols(e.target.value)}
+                onBlur={() => saveAiCfg({
+                  liquidity_symbols: liqSymbols.split(',')
+                    .map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 6),
+                })}
+                placeholder="BTCUSDT, ETHUSDT, SOLUSDT"
+                data-testid="liquidity-symbols-input" />
             </label>
           </div>
         </>

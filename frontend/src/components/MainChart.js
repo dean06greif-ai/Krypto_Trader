@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
+import useLiquidityOverlay from '../hooks/useLiquidityOverlay';
 import './MainChart.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -39,6 +40,11 @@ const MainChart = ({ symbol, candleData }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [bars, setBars] = useState(0);
+  // Liquiditäts-Overlay: absichtlich NICHT persistiert -> nach jedem Reload/Login
+  // wieder aus, damit im Normalbetrieb keine zusätzlichen Abrufe entstehen.
+  const [liqOn, setLiqOn] = useState(false);
+  const { levels: liqLevels, error: liqError } = useLiquidityOverlay(
+    candleSeriesRef, symbol, liqOn);
 
   // Create chart once
   useEffect(() => {
@@ -201,8 +207,28 @@ const MainChart = ({ symbol, candleData }) => {
         <div className="chart-indicators">
           <div className="indicator-label"><div className="indicator-dot" style={{ background: '#FFD700' }}></div><span>EMA 9</span></div>
           <div className="indicator-label"><div className="indicator-dot" style={{ background: '#00A8FF' }}></div><span>EMA 50</span></div>
+          <button
+            className={`chart-liq-toggle ${liqOn ? 'on' : ''}`}
+            onClick={() => setLiqOn(v => !v)}
+            title={liqOn
+              ? 'Liquiditäts-Level ausblenden'
+              : 'Liquiditäts-Level einblenden (lädt bei Bedarf, standardmäßig aus)'}
+            data-testid="chart-liq-toggle"
+          >
+            LIQ {liqOn ? `· ${liqLevels.length}` : ''}
+          </button>
         </div>
       </div>
+      {liqOn && (liqError || liqLevels.length > 0) && (
+        <div className="chart-liq-legend" data-testid="chart-liq-legend">
+          {liqError ? <span className="chart-liq-err">{liqError}</span>
+            : liqLevels.map((l, i) => (
+              <span key={i} className={`chart-liq-chip ${l.side}`}>
+                {l.price} · {l.type}{l.untested ? ' (unberührt)' : ''} · {l.strength}
+              </span>
+            ))}
+        </div>
+      )}
       <div className="chart-wrap">
         {loading && <div className="chart-overlay" data-testid="chart-loading">Lade {symbol}...</div>}
         {error && <div className="chart-overlay chart-error" data-testid="chart-error">{error}</div>}
