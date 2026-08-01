@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, Gear, ChartLineUp, Wallet, TrendUp, TrendDown, Lock, LockOpen, Trophy, ClockCounterClockwise, MagicWand, ChartScatter } from '@phosphor-icons/react';
+import { Clock, Gear, ChartLineUp, Wallet, TrendUp, TrendDown, Lock, LockOpen, Trophy, ClockCounterClockwise, MagicWand, ChartScatter, Fire } from '@phosphor-icons/react';
 import { authHeaders } from '../auth';
 import CapitalModal from './CapitalModal';
 import './Header.css';
@@ -206,7 +206,7 @@ const BalanceWidget = () => {
   );
 };
 
-const Header = ({ sessionActive, onSettingsClick, currentSession, customSessions, activeStrategy, adminAuthed, onAdminClick, onCompareClick, onBacktestClick, onOptimizerClick, onRegimeLabClick }) => {
+const Header = ({ sessionActive, onSettingsClick, currentSession, customSessions, activeStrategy, adminAuthed, onAdminClick, onCompareClick, onBacktestClick, onOptimizerClick, onRegimeLabClick, onLiquidityClick }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -278,6 +278,9 @@ const Header = ({ sessionActive, onSettingsClick, currentSession, customSessions
         </button>
         <button className="btn" onClick={onOptimizerClick} title="Strategie-Optimizer (Parameter & Discovery)" data-testid="optimizer-button">
           <MagicWand size={20} weight="bold" />
+        </button>
+        <button className="btn" onClick={onLiquidityClick} title="Liquidations-Heatmap & unberührte Liquidity-Level (freie Börsendaten)" data-testid="liquidity-button">
+          <Fire size={20} weight="bold" />
         </button>
         <button className="btn" onClick={onRegimeLabClick} title="Regime-Lab (Marktphasen analysieren, prüfen & je Regime Strategien suchen)" data-testid="regime-lab-button">
           <ChartScatter size={20} weight="bold" />

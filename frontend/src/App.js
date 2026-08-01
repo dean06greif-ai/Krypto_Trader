@@ -15,6 +15,7 @@ import AITradingPanel from './components/AITradingPanel';
 import StrategyComparison from './components/StrategyComparison';
 import Backtester from './components/Backtester';
 import Optimizer from './components/Optimizer';
+import LiquidityPanel from './components/LiquidityPanel';
 import RegimeLab from './components/RegimeLab';
 import ErrorBoundary from './components/ErrorBoundary';
 import AdminLogin from './components/AdminLogin';
@@ -51,6 +52,7 @@ function App() {
   const [showComparison, setShowComparison] = useState(false);
   const [showBacktester, setShowBacktester] = useState(false);
   const [showOptimizer, setShowOptimizer] = useState(false);
+  const [showLiquidity, setShowLiquidity] = useState(false);
   const [showRegimeLab, setShowRegimeLab] = useState(false);
   const [adminAuthed, setAdminAuthed] = useState(isAdminFn());
   const [showLogin, setShowLogin] = useState(false);
@@ -306,6 +308,7 @@ function App() {
         onBacktestClick={() => setShowBacktester(true)}
         onOptimizerClick={() => setShowOptimizer(true)}
         onRegimeLabClick={() => setShowRegimeLab(true)}
+        onLiquidityClick={() => setShowLiquidity(true)}
       />
 
       <div className="app-layout">
@@ -424,6 +427,9 @@ function App() {
       )}
       {showOptimizer && (
         <Optimizer onClose={() => setShowOptimizer(false)} />
+      )}
+      {showLiquidity && (
+        <LiquidityPanel symbol={selectedCoin} onClose={() => setShowLiquidity(false)} />
       )}
       {showRegimeLab && (
         <RegimeLab onClose={() => setShowRegimeLab(false)} />

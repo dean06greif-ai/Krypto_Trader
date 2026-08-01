@@ -75,6 +75,10 @@ DEFAULT_AI_CONFIG = {
     # Externer Makro-Kontext (Key-Levels, Funding/OI, Makro-Kalender, DXY/Yield,
     # BTC-Dominanz, Trump/Truth-Social) — pro Analyse-Zyklus über get_macro_context().
     "macro_enabled": True,
+    # Börsen-Liquidität (Liquidations-Heatmap, OI, Long/Short, Walls) im Kontext
+    "liquidity_enabled": True,
+    "liquidity_interval": "1h",
+    "liquidity_max_symbols": 4,
     # Coins, für die pro Zyklus Key-Levels + Funding/OI geholt werden (kompakt ~2 KB).
     "macro_symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT"],
     "cooldown_min": 45,
@@ -333,6 +337,8 @@ class AIEngine:
             self.config["news_enabled"] = bool(updates["news_enabled"])
         if "macro_enabled" in updates:
             self.config["macro_enabled"] = bool(updates["macro_enabled"])
+        if "liquidity_enabled" in updates:
+            self.config["liquidity_enabled"] = bool(updates["liquidity_enabled"])
         if "macro_symbols" in updates and isinstance(updates["macro_symbols"], list):
             syms = [str(s).upper() for s in updates["macro_symbols"] if str(s).strip()]
             self.config["macro_symbols"] = syms[:6] or macro_context.DEFAULT_SYMBOLS
@@ -546,6 +552,12 @@ class AIEngine:
                 parts.append(macro)
         except Exception:
             pass
+        try:
+            liq = await self._liquidity_block(selected)
+            if liq:
+                parts.append(liq)
+        except Exception:
+            pass
         if self.decisions:
             dec = [f"- {s}: {d.get('action')} ({d.get('confidence')}%) – {d.get('reasoning', '')[:120]}"
                    for s, d in self.decisions.items() if s.upper() in allow]
@@ -683,6 +695,85 @@ class AIEngine:
         )
         return "\n".join(lines)
 
+    async def _liquidity_block(self, symbols: Optional[List[str]] = None) -> str:
+        """Börsen-Liquidität als Kontext: Liquidations-Heatmap-Magnete, unberührte
+        Liquidity-Level, Open Interest, Long/Short-Ratio, Orderbook-Walls und
+        echte Liquidationen der letzten 5 Minuten (alles keyless & kostenlos)."""
+        if not self.config.get("liquidity_enabled", True):
+            return ""
+        syms = [s.upper() for s in (symbols or self.symbols)][:self.config.get("liquidity_max_symbols", 4)]
+        if not syms:
+            return ""
+        try:
+            from services import liquidity_data as ld
+            from services import liquidation_heatmap as lh
+            ctx, *per_sym = await asyncio.gather(
+                ld.get_liquidity_context(syms),
+                *[lh.heatmap(s, self.config.get("liquidity_interval", "1h"), 240) for s in syms],
+                *[lh.liquidity_levels(s, self.config.get("liquidity_interval", "1h"), 300)
+                  for s in syms],
+                return_exceptions=True,
+            )
+        except Exception as e:
+            logger.warning(f"liquidity context failed: {e}")
+            return ""
+        ctx = {} if isinstance(ctx, Exception) else ctx
+        n = len(syms)
+        heatmaps = per_sym[:n]
+        levels = per_sym[n:2 * n]
+
+        lines = ["=== BÖRSEN-LIQUIDITÄT & LIQUIDATIONEN (live, keyless: Binance/OKX/Bybit) ==="]
+        for i, sym in enumerate(syms):
+            blk = ctx.get(sym) or {}
+            hm = heatmaps[i] if not isinstance(heatmaps[i], Exception) else {}
+            lv = levels[i] if not isinstance(levels[i], Exception) else {}
+            ls = blk.get("long_short") or {}
+            liq5 = blk.get("recent_liquidations_5m") or {}
+            walls = blk.get("orderbook_walls") or {}
+            lines.append(
+                f"{sym}: OI {blk.get('oi_usd') and round(blk['oi_usd'] / 1e6, 1)}M USD "
+                f"({blk.get('oi_trend', '?')}) | Long/Short retail {ls.get('retail', '?')} / "
+                f"Top-Trader {ls.get('top_trader_pos', '?')} → {ls.get('bias', '?')} | "
+                f"Liquidationen 5m: Longs {round((liq5.get('long_usd') or 0) / 1e6, 2)}M / "
+                f"Shorts {round((liq5.get('short_usd') or 0) / 1e6, 2)}M"
+                + (" ⚠️ KASKADE" if liq5.get("cascade") else "")
+            )
+            cl = (hm.get("clusters") or {})
+            above = cl.get("above_price") or []
+            below = cl.get("below_price") or []
+            if above or below:
+                fmt = lambda r: (f"{r['price']} ({r['dist_pct']:+}%, "
+                                 f"{round(r['usd'] / 1e6, 1)}M {r['side']})")
+                lines.append(
+                    f"  LIQUIDATIONS-MAGNETE {sym} (geschätzt): "
+                    f"darüber [{', '.join(fmt(r) for r in above[:3]) or '-'}] | "
+                    f"darunter [{', '.join(fmt(r) for r in below[:3]) or '-'}]"
+                )
+            lvs = (lv.get("levels") or [])[:6]
+            if lvs:
+                lines.append(
+                    f"  UNBERÜHRTE LIQUIDITY-LEVEL {sym}: " + ", ".join(
+                        f"{l['price']} ({l['type']}, {l['dist_pct']:+}%, {l['strength']})"
+                        for l in lvs)
+                )
+            bids = (walls.get("bids") or [])[:2]
+            asks = (walls.get("asks") or [])[:2]
+            if bids or asks:
+                lines.append(
+                    f"  ORDERBOOK-WALLS {sym}: Bids "
+                    f"[{', '.join(str(b.get('price')) for b in bids) or '-'}] | Asks "
+                    f"[{', '.join(str(a.get('price')) for a in asks) or '-'}]"
+                )
+        lines.append(
+            "NUTZUNG: Liquidations-Magnete sind Kursziele/Magnete – Preis wird oft dorthin "
+            "gezogen, danach folgt häufig eine Umkehr. Setze SL NICHT direkt hinter einen "
+            "dichten Cluster (Stop-Hunt-Risiko), sondern dahinter. Unberührte Liquidity-Level "
+            "sind bevorzugte TP-Ziele. Bei Kaskaden-Flag: Volatilität hoch, Position kleiner. "
+            "Hinweis: Heatmap-Werte sind eine SCHÄTZUNG aus Kerzen + Open Interest, "
+            "keine Börsen-Wahrheit – nutze sie als Kontext, nicht als Beweis."
+        )
+        return "\n".join(lines)
+
     async def _strategy_performance_text(self, days: int = 14) -> str:
         """Leserechte auf die anderen Strategien der Website: Winrate der Signale
         + PnL der geschlossenen Trades pro Strategie – als Lern-Kontext für die KI."""
@@ -791,6 +882,12 @@ class AIEngine:
         macro = await self._macro_block()
         if macro:
             parts.append(macro)
+        try:
+            liq = await self._liquidity_block()
+            if liq:
+                parts.append(liq)
+        except Exception as e:
+            logger.warning(f"liquidity block failed: {e}")
         try:
             if self.learning:
                 parts.append("=== DEINE BISHERIGE PERFORMANCE (echte Ergebnisse) ===\n"
@@ -2012,6 +2109,10 @@ class AIEngine:
                 news = await news_feed.get_headlines(25)
                 news_block = "\n".join(f"- {n['title']} ({n['source']})" for n in news) or "(keine News)"
             macro = await self._macro_block()
+            try:
+                liq_block = await self._liquidity_block(symbols)
+            except Exception:
+                liq_block = ""
             perf = await self._strategy_performance_text()
             directives = await self._user_directives()
             open_trades = await self._open_trades_text()
@@ -2038,6 +2139,7 @@ class AIEngine:
                 f"=== MARKTDATEN (Multi-Timeframe) ===\n" +
                 "\n".join(v["text"] for v in snaps) +
                 (f"\n\n{macro}" if macro else "") +
+                (f"\n\n{liq_block}" if liq_block else "") +
                 f"\n\n=== NEWS ===\n{news_block}\n\n"
                 f"=== NEWS-WÄCHTER EREIGNISSE ===\n{nw_block}\n\n"
                 f"=== PERFORMANCE ALLER STRATEGIEN DER PLATTFORM (lerne daraus) ===\n{perf}\n\n"
