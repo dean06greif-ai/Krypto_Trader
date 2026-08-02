@@ -107,7 +107,8 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
         markers.push({
           time,
           position: t.side === 'LONG' ? 'belowBar' : 'aboveBar',
-          shape: t.side === 'LONG' ? 'arrowUp' : 'arrowDown',
+          shape: 'circle',
+          size: 2,
           color: t.side === 'LONG' ? '#00FF66' : '#FF3366',
         });
         remember(time, {
@@ -126,7 +127,8 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
             markers.push({
               time: tIn,
               position: t.side === 'LONG' ? 'belowBar' : 'aboveBar',
-              shape: t.side === 'LONG' ? 'arrowUp' : 'arrowDown',
+              shape: 'circle',
+              size: 1,
               color: '#7C8CA3',
             });
             remember(tIn, {
@@ -141,6 +143,7 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
                 time: tOut,
                 position: 'inBar',
                 shape: win ? 'circle' : 'square',
+                size: 2,
                 color: win ? '#00FF66' : '#FF3366',
               });
               remember(tOut, {

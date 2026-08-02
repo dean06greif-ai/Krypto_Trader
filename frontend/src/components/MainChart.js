@@ -9,10 +9,13 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Lade-Bereiche für den Chart: LIVE = 1m-Kerzen mit Live-Ticks,
 // 1W/1M = lokal geladene Historie (aggregiertes Timeframe, keine Live-Updates)
+// Lade-Bereiche: Der Chart ist IMMER live – 1W/1M/1Y laden zusätzlich
+// Vergangenheit dazu (aggregiertes Timeframe); erneuter Klick = zurück zu 1m
 const RANGES = {
-  live: { label: 'LIVE', barSec: 60, subtitle: '1MIN' },
+  live: { barSec: 60, subtitle: '1MIN' },
   '1w': { label: '1W', days: 7, barSec: 900, subtitle: '15MIN · 7 TAGE' },
   '1m': { label: '1M', days: 30, barSec: 3600, subtitle: '1H · 30 TAGE' },
+  '1y': { label: '1Y', days: 365, barSec: 86400, subtitle: '1D · 1 JAHR' },
 };
 
 // Kurz-Erklärungen für die Level-Legende (Hover)
@@ -64,6 +67,8 @@ const MainChart = ({ symbol, candleData }) => {
   const ema9Ref = useRef(null);
   const ema50Ref = useRef(null);
   const ema200Ref = useRef(null);
+  const formingRef = useRef(null);
+  const emaStateRef = useRef(null);
   const [emaOn, setEmaOn] = useState({ 9: true, 50: true, 200: true });
   const lastTimeRef = useRef(0);
   const resizeObserverRef = useRef(null);
@@ -142,9 +147,9 @@ const MainChart = ({ symbol, candleData }) => {
       upColor: '#00FF66', downColor: '#FF3366', borderUpColor: '#00FF66',
       borderDownColor: '#FF3366', wickUpColor: '#00FF66', wickDownColor: '#FF3366',
     });
-    ema9Ref.current = chart.addSeries(LineSeries, { color: '#FFD700', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-    ema50Ref.current = chart.addSeries(LineSeries, { color: '#00A8FF', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-    ema200Ref.current = chart.addSeries(LineSeries, { color: '#FF5E7A', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    ema9Ref.current = chart.addSeries(LineSeries, { color: '#FFD700', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    ema50Ref.current = chart.addSeries(LineSeries, { color: '#00A8FF', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    ema200Ref.current = chart.addSeries(LineSeries, { color: '#FF5E7A', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 
     // Manuelles Resize per ResizeObserver + rAF-Throttle, mit
     // "letzter angewendeter Größe"-Guard - so triggern wir keine Endlos-Loop.
@@ -229,7 +234,16 @@ const MainChart = ({ symbol, candleData }) => {
         ema9Ref.current.setData(clean.map((c, i) => e9[i] != null ? { time: c.time, value: e9[i] } : null).filter(Boolean));
         ema50Ref.current.setData(clean.map((c, i) => e50[i] != null ? { time: c.time, value: e50[i] } : null).filter(Boolean));
         ema200Ref.current.setData(clean.map((c, i) => e200[i] != null ? { time: c.time, value: e200[i] } : null).filter(Boolean));
-        lastTimeRef.current = clean.length ? clean[clean.length - 1].time : 0;
+        // Zustand für Live-Fortschreibung: EMA-Stand der letzten fertigen Kerze
+        const n = clean.length;
+        const prevOf = (arr) => (n > 1 && arr[n - 2] != null ? arr[n - 2] : (n ? arr[n - 1] : null));
+        emaStateRef.current = {
+          9: { prev: prevOf(e9), k: 2 / 10 },
+          50: { prev: prevOf(e50), k: 2 / 51 },
+          200: { prev: prevOf(e200), k: 2 / 201 },
+        };
+        formingRef.current = n ? { ...clean[n - 1] } : null;
+        lastTimeRef.current = n ? clean[n - 1].time : 0;
         chartRef.current && chartRef.current.timeScale().fitContent();
         setBars(clean.length);
         setLoading(false);
@@ -241,19 +255,53 @@ const MainChart = ({ symbol, candleData }) => {
     return () => { cancelled = true; };
   }, [symbol, range]);
 
-  // Live forming candle updates (nur im LIVE-Modus; guarded gegen out-of-order)
+  // Live-Updates in ALLEN Ansichten: 1m-Ticks werden in das aktuelle
+  // Timeframe-Bucket gemerged (1W→15m, 1M→1h, 1Y→1d); EMAs laufen live mit
   useEffect(() => {
-    if (range !== 'live') return;
     if (!candleData || !candleSeriesRef.current) return;
-    const time = Math.floor(candleData.timestamp / 1000);
-    if (!time || !Number.isFinite(candleData.close)) return;
-    if (time < lastTimeRef.current) return; // never update older data -> prevents crash
+    const barSec = RANGES[range].barSec;
+    const t = Math.floor(candleData.timestamp / 1000);
+    if (!t || !Number.isFinite(candleData.close)) return;
+    const bucket = Math.floor(t / barSec) * barSec;
+    if (bucket < lastTimeRef.current) return; // never update older data -> prevents crash
+    const f = formingRef.current;
+    let bar;
+    if (f && f.time === bucket) {
+      bar = {
+        time: bucket, open: f.open,
+        high: Math.max(f.high, candleData.high ?? candleData.close),
+        low: Math.min(f.low, candleData.low ?? candleData.close),
+        close: candleData.close,
+      };
+    } else {
+      // neue Kerze beginnt -> EMA-Stand der fertigen Kerze festschreiben
+      const st = emaStateRef.current;
+      if (st && f) {
+        Object.values(st).forEach(s => {
+          if (s.prev != null) s.prev = f.close * s.k + s.prev * (1 - s.k);
+        });
+      }
+      bar = {
+        time: bucket,
+        open: candleData.open ?? candleData.close,
+        high: candleData.high ?? candleData.close,
+        low: candleData.low ?? candleData.close,
+        close: candleData.close,
+      };
+    }
     try {
-      candleSeriesRef.current.update({
-        time, open: candleData.open, high: candleData.high,
-        low: candleData.low, close: candleData.close,
-      });
-      lastTimeRef.current = time;
+      candleSeriesRef.current.update(bar);
+      formingRef.current = bar;
+      lastTimeRef.current = bucket;
+      const st = emaStateRef.current;
+      if (st) {
+        const refs = { 9: ema9Ref, 50: ema50Ref, 200: ema200Ref };
+        Object.entries(st).forEach(([p, s]) => {
+          if (s.prev == null) return;
+          const val = bar.close * s.k + s.prev * (1 - s.k);
+          try { refs[p].current?.update({ time: bucket, value: val }); } catch (_) { /* noop */ }
+        });
+      }
     } catch (e) {
       // swallow chart errors so the whole UI never crashes
       console.warn('chart update skipped', e.message);
@@ -287,16 +335,14 @@ const MainChart = ({ symbol, candleData }) => {
       <div className="chart-header">
         <div className="chart-title">
           <span className="mono">{symbol}</span>
-          <span className="chart-subtitle">{RANGES[range].subtitle} · {bars} bars</span>
+          <span className="chart-subtitle">{RANGES[range].subtitle} · LIVE · {bars} bars</span>
           <span className="chart-range-group" data-testid="chart-range-group">
-            {Object.entries(RANGES).map(([key, r]) => (
+            {Object.entries(RANGES).filter(([, r]) => r.label).map(([key, r]) => (
               <button
                 key={key}
                 className={`chart-liq-toggle range ${range === key ? 'on' : ''}`}
-                onClick={() => setRange(key)}
-                title={key === 'live'
-                  ? 'Live-Ansicht (1m-Kerzen, Echtzeit-Updates)'
-                  : `${r.days} Tage Historie laden (${r.subtitle}, ohne Live-Updates)`}
+                onClick={() => setRange(prev => (prev === key ? 'live' : key))}
+                title={`${r.days} Tage Vergangenheit zusätzlich laden (${r.subtitle}) – Chart bleibt live. Erneut klicken = zurück zur 1m-Ansicht`}
                 data-testid={`chart-range-${key}`}
               >
                 {r.label}

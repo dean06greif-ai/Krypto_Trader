@@ -60,12 +60,34 @@ async def get_klines(symbol: str, limit: int = 200):
 
 @router.get("/api/klines/{symbol}/history")
 async def get_klines_history(symbol: str, days: int = 7, timeframe: str = None):
-    """Längere Chart-Historie (z.B. 1 Woche / 1 Monat), aggregiert auf ein
+    """Längere Chart-Historie (1 Woche / 1 Monat / 1 Jahr), aggregiert auf ein
     zur Spanne passendes Timeframe – für die Lade-Buttons im Haupt-Chart."""
     import aiohttp
     from services import candle_cache
+    from services import macro_context as mc
     from services.timeframes import aggregate_candles, TIMEFRAMES
+    from core import instruments
     days = max(1, min(int(days), 365))
+    inst = instruments.get(symbol.upper())
+    is_crypto = inst is None or inst.live_source != "yahoo"
+    if days > 45 and is_crypto and timeframe is None:
+        # 1 Jahr: Tages-Kerzen direkt von der Börse (1m-Cache wäre zu schwer)
+        async with aiohttp.ClientSession(headers=mc._HEADERS) as session:
+            rows = []
+            try:
+                data = await mc._get_json(
+                    session, "https://data-api.binance.vision/api/v3/klines",
+                    {"symbol": symbol.upper(), "interval": "1d", "limit": min(days, 1000)})
+                rows = [{"timestamp": int(k[0]), "open": float(k[1]), "high": float(k[2]),
+                         "low": float(k[3]), "close": float(k[4]), "volume": float(k[5])}
+                        for k in (data or [])]
+            except Exception:
+                rows = []
+            if not rows:
+                rows = await mc.fetch_klines(session, symbol.upper(), "1d", days)
+        if not rows:
+            raise HTTPException(status_code=502, detail=f"Keine Historie für {symbol}")
+        return {"symbol": symbol, "days": days, "timeframe": "1d", "candles": rows}
     tf = timeframe if timeframe in TIMEFRAMES else (
         "5m" if days <= 2 else "15m" if days <= 10 else "1h" if days <= 45 else "4h")
     try:

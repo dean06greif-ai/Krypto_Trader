@@ -146,7 +146,7 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
                     <span className="liq-bar" style={{ width: '100%', background: heatColor(b.heat) }} />
                     <span className="liq-heat-val">{Math.round(b.heat * 100)}</span>
                   </span>
-                  <span className="liq-tags">{(b.tags || []).join(' · ')}</span>
+                  <span className="liq-tags" title={(b.tags || []).join(' · ')}>{(b.tags || []).join(' · ')}</span>
                 </div>
               );
             })}
