@@ -30,7 +30,28 @@ Einzelner Betreiber (Admin) – Daytrader, der KI-gestützt Strategien baut, bac
 - Telegram-Toggles: KI-Ausfall, Backtest fertig, Optimizer fertig, Trade auf/zu, Kill-Switch, tägliche Zusammenfassung
 - Website-Meldung bei KI-Ausfall (erst wenn auch Backup scheitert → Fallback)
 
-## Umgesetzt (Stand 02.06.2026, diese Session)
+## Umgesetzt (Stand 02.06.2026, Session 2)
+### Strikte Regel-Validierung (Backend)
+- `validate_custom_definition` in routers/strategies.py: POST /api/strategies/custom
+  und /api/strategies/import weisen nicht auswertbare Regeln mit 422 ab
+  (detail.problems + detail.fixes), Aliasse (ema_200 → ema(200)) werden beim
+  Speichern automatisch kanonisiert; Timeframe-Whitelist
+- KI-Kandidaten (register_for_testing): not_testable mit problems+fixes statt stiller 0/0/0-Strategie
+- StrategyBuilder zeigt Abweisungsgründe als Toast
+
+### Liquidations-Heatmap im Haupt-Chart
+- Neuer HEAT-Toggle neben LIQ: farbige Preiszonen (Canvas-Overlay, hooks/useHeatmapOverlay.js)
+  aus /api/liquidity/heatmap, Legende (blau/orange/rot + Schätzungs-Hinweis)
+- Datenprüfung: OI-Wert exakt gegen OKX verifiziert; Hebel-Mathematik der Cluster korrekt
+  (100x→0,5%, 50x→1,5%, 25x→3,5%, 10x→9,5%); `oi_venues` zeigt jetzt transparent,
+  welche Börsen geliefert haben (im Pod nur okx, produktiv Binance+OKX+Bybit)
+- LiquidityPanel: 10 Coins (BTC,ETH,BNB,SOL,XRP,ADA,DOGE,AVAX,DOT,POL) statt 6
+
+### Tools-Menü im Header
+- Backtester, Strategie-Optimizer & Regime-Lab unter EINEM Flask-Icon-Dropdown
+  (tools-menu-button), eigene Overlays bleiben; alte Einzel-Buttons entfernt
+
+## Umgesetzt (Stand 02.06.2026, Session 1)
 ### Reparatur der abgebrochenen Session (Deploy-Fix)
 - `Header.js`: doppeltes Datei-Ende (`default Header;`) entfernt
 - `StrategyBuilder.js`: dupliziertes Datei-Ende nach `export default` entfernt

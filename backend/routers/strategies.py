@@ -439,6 +439,8 @@ async def import_strategy(body: Dict, _: bool = Depends(require_admin)):
         if effective_tf:
             definition["timeframe"] = effective_tf
         definition.setdefault("timeframe", "1m")
+        # Auch Backups strikt prüfen: kaputte Regel-Definitionen sofort abweisen
+        definition = validate_custom_definition(definition, check_meta=False)
         await state.db.custom_strategies.update_one({"id": sid}, {"$set": definition}, upsert=True)
         strategy_registry.upsert_custom(definition)
     elif not strategy_registry.get(sid):
