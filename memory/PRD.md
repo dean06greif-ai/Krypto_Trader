@@ -30,6 +30,23 @@ Einzelner Betreiber (Admin) – Daytrader, der KI-gestützt Strategien baut, bac
 - Telegram-Toggles: KI-Ausfall, Backtest fertig, Optimizer fertig, Trade auf/zu, Kill-Switch, tägliche Zusammenfassung
 - Website-Meldung bei KI-Ausfall (erst wenn auch Backup scheitert → Fallback)
 
+## Umgesetzt (Stand 02.06.2026, Session 3)
+### SMC Order Blocks
+- `order_blocks()` in services/liquidity_levels.py: letzte Gegen-Kerze vor Impuls-Move
+  (Typen ob_bull/ob_bear, Zone + untested-Flag, invalidierte Blöcke entfernt, Gewicht 80)
+- Fließt automatisch in: /api/liquidity/levels, Heatmap, Chart-LIQ-Overlay (grün/rot),
+  LiquidityPanel (Label + Hilfe) und den KI-Liquiditäts-Kontext (_liquidity_block inkl.
+  NUTZUNG-Hinweis für Retest-Einstiege) → die KI sieht Order Blocks
+
+### Chart: Historie-Buttons + Trade-Overlay
+- GET /api/klines/{symbol}/history?days=N (7d→15m, 30d→1h, timeframe-Param optional)
+- MainChart: LIVE/1W/1M-Buttons (History-Modus ohne Live-Ticks, Rückkehr zu LIVE)
+- hooks/useTradeMarkers.js: offene Trades immer als Entry/SL/TP1/TP-Preislinien
+  (Entry-Label = Seite + Strategie) + Entry-Pfeile; verschwinden beim Schließen (30s-Poll)
+- TRADES-Button: geschlossene Trades ein-/ausblenden (grauer Entry-Pfeil,
+  Exit grüner Kreis/rotes Quadrat nach PnL)
+- Hover über Trade-Bar → Tooltip mit Strategie, Entry/SL/TP bzw. Exit/PnL
+
 ## Umgesetzt (Stand 02.06.2026, Session 2)
 ### Strikte Regel-Validierung (Backend)
 - `validate_custom_definition` in routers/strategies.py: POST /api/strategies/custom
