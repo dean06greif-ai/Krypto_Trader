@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSeriesMarkers } from 'lightweight-charts';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -13,9 +13,36 @@ const fmt = (v) => (v == null ? '–' : Number(v).toLocaleString('de-DE', { maxi
  */
 export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, barsLoaded) {
   const linesRef = useRef([]);
+  const detailLinesRef = useRef([]);
+  const openRef = useRef([]);
   const markersRef = useRef(null);
   const tradeMapRef = useRef({});
   const [counts, setCounts] = useState({ open: 0, closed: 0 });
+
+  // SL/TP der Position nur beim Hover über den Entry-Punkt einblenden
+  const hoverDetail = useCallback((time) => {
+    const series = seriesRef.current;
+    detailLinesRef.current.forEach(l => {
+      try { series && series.removePriceLine(l); } catch (_) { /* noop */ }
+    });
+    detailLinesRef.current = [];
+    if (time == null || !series) return;
+    openRef.current.filter(o => o.time === time).forEach(({ trade: t }) => {
+      const add = (price, color, style, title) => {
+        if (!price) return;
+        try {
+          detailLinesRef.current.push(series.createPriceLine({
+            price, color, lineWidth: 1, lineStyle: style,
+            axisLabelVisible: true, title,
+          }));
+        } catch (_) { /* noop */ }
+      };
+      add(t.sl, '#FF3366', 2, 'SL');
+      if (t.qty_remaining !== 0 && !t.tp1_hit) add(t.tp1, '#00C77F', 2, 'TP1');
+      add(t.tpf, '#00FF66', 2, 'TP');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,11 +92,10 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
       open.forEach(t => {
         const sideColor = t.side === 'LONG' ? '#00FF66' : '#FF3366';
         const strat = (t.strategy_name || t.strategy_id || '').slice(0, 18);
+        // nur der Entry ist dauerhaft sichtbar; SL/TP erscheinen beim Hover
         addLine(t.entry, sideColor, 0, `${t.side} ${strat}`);
-        addLine(t.sl, '#FF3366', 2, 'SL');
-        if (t.qty_remaining !== 0 && !t.tp1_hit) addLine(t.tp1, '#00C77F', 2, 'TP1');
-        addLine(t.tpf, '#00FF66', 2, 'TP');
       });
+      openRef.current = open.map(t => ({ time: toBar(t.opened_at), trade: t }));
 
       const markers = [];
       const map = {};
@@ -87,6 +113,7 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
         remember(time, {
           label: `${t.side} offen · ${t.strategy_name || t.strategy_id || '?'}`,
           detail: `Entry ${fmt(t.entry)} · SL ${fmt(t.sl)} · TP ${fmt(t.tpf)} · ${t.mode || ''}`,
+          hasDetail: true,
         });
       });
 
@@ -147,6 +174,8 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
     return () => {
       cancelled = true;
       clearInterval(iv);
+      hoverDetail(null);
+      openRef.current = [];
       clearLines();
       clearMarkers();
       tradeMapRef.current = {};
@@ -154,5 +183,5 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, showClosed, barSec, barsLoaded]);
 
-  return { tradeMapRef, counts };
+  return { tradeMapRef, counts, hoverDetail };
 }

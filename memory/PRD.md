@@ -30,6 +30,14 @@ Einzelner Betreiber (Admin) – Daytrader, der KI-gestützt Strategien baut, bac
 - Telegram-Toggles: KI-Ausfall, Backtest fertig, Optimizer fertig, Trade auf/zu, Kill-Switch, tägliche Zusammenfassung
 - Website-Meldung bei KI-Ausfall (erst wenn auch Backup scheitert → Fallback)
 
+## Umgesetzt (Stand 02.06.2026, Session 4 – Chart-Feinschliff)
+- Offene Trades: SL/TP-Linien erscheinen nur noch beim Hover über den Entry-Punkt
+  (useTradeMarkers.hoverDetail, via Crosshair in MainChart); Entry-Linie bleibt dauerhaft
+- EMA 200 als dritte Linie (#FF5E7A); EMA 9/50/200-Legende klickbar zum Ein-/Ausblenden
+  (data-testid ema9/ema50/ema200-toggle, "off"-Dimmung)
+- Hover-Erklärungen (title) auf allen Chart-Legenden: EMAs, Heat-Farbchips,
+  LIQ-Level-Chips (LEVEL_EXPLAIN-Map mit Kurztext je Level-Typ inkl. Order Blocks)
+
 ## Umgesetzt (Stand 02.06.2026, Session 3)
 ### SMC Order Blocks
 - `order_blocks()` in services/liquidity_levels.py: letzte Gegen-Kerze vor Impuls-Move

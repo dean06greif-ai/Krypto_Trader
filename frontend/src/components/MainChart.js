@@ -15,6 +15,25 @@ const RANGES = {
   '1m': { label: '1M', days: 30, barSec: 3600, subtitle: '1H · 30 TAGE' },
 };
 
+// Kurz-Erklärungen für die Level-Legende (Hover)
+const LEVEL_EXPLAIN = {
+  swing_high: 'Swing High: markanter Wendepunkt nach oben – darüber liegen Stop-Losses (Liquiditätspool)',
+  swing_low: 'Swing Low: markanter Wendepunkt nach unten – darunter liegen Stop-Losses (Liquiditätspool)',
+  eqh: 'Equal Highs: mehrfach getestetes gleiches Hoch – beliebtes Sweep-Ziel über dem Level',
+  eql: 'Equal Lows: mehrfach getestetes gleiches Tief – beliebtes Sweep-Ziel unter dem Level',
+  fvg: 'Imbalance (Fair Value Gap): Kurslücke aus einem Impuls – wird oft wieder aufgefüllt',
+  ob_bull: 'Order Block (Bull): letzte rote Kerze vor einem Impuls nach oben – institutionelle Long-Einstiegszone beim Retest',
+  ob_bear: 'Order Block (Bear): letzte grüne Kerze vor einem Impuls nach unten – institutionelle Short-Einstiegszone beim Retest',
+  poc: 'Point of Control: Preis mit dem meisten gehandelten Volumen – wirkt wie ein Magnet',
+  vah: 'Value Area High: Oberkante der 70%-Volumenzone – oft Widerstand',
+  val: 'Value Area Low: Unterkante der 70%-Volumenzone – oft Unterstützung',
+  hvn: 'High Volume Node: viel gehandeltes Preisniveau – bremst Bewegungen ab',
+  lvn: 'Low Volume Node: kaum gehandeltes Niveau – Preis läuft hier schnell durch',
+  round: 'Runde Zahl: psychologisches Level mit vielen Orders',
+  day_high: 'Tages-Hoch: darüber liegen Stops und Breakout-Orders',
+  day_low: 'Tages-Tief: darunter liegen Stops und Breakout-Orders',
+};
+
 // Preis-Genauigkeit je Instrument: Forex (1.1392) und Cent-Coins brauchen mehr
 // Dezimalstellen als BTC, sonst kollabieren die Kerzen auf der Preisachse.
 const priceFormatFor = (price) => {
@@ -44,6 +63,8 @@ const MainChart = ({ symbol, candleData }) => {
   const candleSeriesRef = useRef(null);
   const ema9Ref = useRef(null);
   const ema50Ref = useRef(null);
+  const ema200Ref = useRef(null);
+  const [emaOn, setEmaOn] = useState({ 9: true, 50: true, 200: true });
   const lastTimeRef = useRef(0);
   const resizeObserverRef = useRef(null);
   const resizeRafRef = useRef(null);
@@ -64,8 +85,18 @@ const MainChart = ({ symbol, candleData }) => {
   const [range, setRange] = useState('live');
   const [showClosed, setShowClosed] = useState(false);
   const [tradeTip, setTradeTip] = useState(null);
-  const { tradeMapRef, counts: tradeCounts } = useTradeMarkers(
+  const { tradeMapRef, counts: tradeCounts, hoverDetail } = useTradeMarkers(
     candleSeriesRef, symbol, showClosed, RANGES[range].barSec, `${range}:${bars}`);
+
+  // EMA-Linien per Klick auf die Legende ein-/ausschalten
+  const emaRefs = { 9: ema9Ref, 50: ema50Ref, 200: ema200Ref };
+  const toggleEma = (period) => {
+    setEmaOn(prev => {
+      const next = { ...prev, [period]: !prev[period] };
+      try { emaRefs[period].current?.applyOptions({ visible: next[period] }); } catch (_) { /* noop */ }
+      return next;
+    });
+  };
 
   // Create chart once
   useEffect(() => {
@@ -113,6 +144,7 @@ const MainChart = ({ symbol, candleData }) => {
     });
     ema9Ref.current = chart.addSeries(LineSeries, { color: '#FFD700', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
     ema50Ref.current = chart.addSeries(LineSeries, { color: '#00A8FF', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+    ema200Ref.current = chart.addSeries(LineSeries, { color: '#FF5E7A', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 
     // Manuelles Resize per ResizeObserver + rAF-Throttle, mit
     // "letzter angewendeter Größe"-Guard - so triggern wir keine Endlos-Loop.
@@ -193,9 +225,10 @@ const MainChart = ({ symbol, candleData }) => {
           chartRef.current && chartRef.current.priceScale('right').applyOptions({ autoScale: true });
         } catch (_) { /* noop */ }
         const closes = clean.map(c => c.close);
-        const e9 = ema(closes, 9), e50 = ema(closes, 50);
+        const e9 = ema(closes, 9), e50 = ema(closes, 50), e200 = ema(closes, 200);
         ema9Ref.current.setData(clean.map((c, i) => e9[i] != null ? { time: c.time, value: e9[i] } : null).filter(Boolean));
         ema50Ref.current.setData(clean.map((c, i) => e50[i] != null ? { time: c.time, value: e50[i] } : null).filter(Boolean));
+        ema200Ref.current.setData(clean.map((c, i) => e200[i] != null ? { time: c.time, value: e200[i] } : null).filter(Boolean));
         lastTimeRef.current = clean.length ? clean[clean.length - 1].time : 0;
         chartRef.current && chartRef.current.timeScale().fitContent();
         setBars(clean.length);
@@ -232,11 +265,17 @@ const MainChart = ({ symbol, candleData }) => {
     const chart = chartRef.current;
     if (!chart) return undefined;
     const handler = (param) => {
-      if (!param || !param.time || !param.point) { setTradeTip(null); return; }
+      if (!param || !param.time || !param.point) {
+        setTradeTip(null);
+        hoverDetail(null);
+        return;
+      }
       const infos = tradeMapRef.current[param.time];
       if (infos && infos.length) {
         setTradeTip({ x: param.point.x, y: param.point.y, infos });
       } else setTradeTip(null);
+      // SL/TP-Linien nur zeigen, solange der Entry-Punkt gehovert wird
+      hoverDetail(infos && infos.some(i => i.hasDetail) ? param.time : null);
     };
     chart.subscribeCrosshairMove(handler);
     return () => { try { chart.unsubscribeCrosshairMove(handler); } catch (_) { /* noop */ } };
@@ -266,8 +305,24 @@ const MainChart = ({ symbol, candleData }) => {
           </span>
         </div>
         <div className="chart-indicators">
-          <div className="indicator-label"><div className="indicator-dot" style={{ background: '#FFD700' }}></div><span>EMA 9</span></div>
-          <div className="indicator-label"><div className="indicator-dot" style={{ background: '#00A8FF' }}></div><span>EMA 50</span></div>
+          <button
+            className={`indicator-label ${emaOn[9] ? '' : 'off'}`}
+            onClick={() => toggleEma(9)}
+            title="EMA 9 – exponentieller Durchschnitt der letzten 9 Kerzen: schnelle Momentum-/Trigger-Linie für Einstiege. Klick = ein-/ausblenden"
+            data-testid="ema9-toggle"
+          ><div className="indicator-dot" style={{ background: '#FFD700' }}></div><span>EMA 9</span></button>
+          <button
+            className={`indicator-label ${emaOn[50] ? '' : 'off'}`}
+            onClick={() => toggleEma(50)}
+            title="EMA 50 – mittelfristiger Trend: Preis darüber = Aufwärtstrend, darunter = Abwärtstrend. Klick = ein-/ausblenden"
+            data-testid="ema50-toggle"
+          ><div className="indicator-dot" style={{ background: '#00A8FF' }}></div><span>EMA 50</span></button>
+          <button
+            className={`indicator-label ${emaOn[200] ? '' : 'off'}`}
+            onClick={() => toggleEma(200)}
+            title="EMA 200 – langfristige Trend-Linie und viel beachtete Unterstützung/Widerstand (sichtbar ab 200 geladenen Kerzen, am besten in 1W/1M). Klick = ein-/ausblenden"
+            data-testid="ema200-toggle"
+          ><div className="indicator-dot" style={{ background: '#FF5E7A' }}></div><span>EMA 200</span></button>
           <button
             className={`chart-liq-toggle ${liqOn ? 'on' : ''}`}
             onClick={() => setLiqOn(v => !v)}
@@ -293,7 +348,7 @@ const MainChart = ({ symbol, candleData }) => {
             onClick={() => setShowClosed(v => !v)}
             title={showClosed
               ? 'Geschlossene Trades ausblenden (offene bleiben immer sichtbar)'
-              : 'Geschlossene Trades im Chart anzeigen (Entry-Pfeil + Exit-Punkt, Hover = Strategie). Offene Trades mit Entry/SL/TP sind immer eingeblendet.'}
+              : 'Geschlossene Trades im Chart anzeigen (Entry-Pfeil + Exit-Punkt, Hover = Strategie). Offene Trades sind immer als Entry-Linie sichtbar; SL/TP erscheinen beim Hover über den Entry-Punkt.'}
             data-testid="chart-trades-toggle"
           >
             TRADES {showClosed ? `· ${tradeCounts.closed}` : (tradeCounts.open ? `· ${tradeCounts.open} offen` : '')}
@@ -306,10 +361,10 @@ const MainChart = ({ symbol, candleData }) => {
             ? <span className="chart-liq-err">{heatError}</span>
             : (
               <>
-                <span className="chart-liq-chip heat-low">blau = wenig</span>
-                <span className="chart-liq-chip heat-mid">orange = mittel</span>
-                <span className="chart-liq-chip heat-high">rot = dichte Liq.-Cluster</span>
-                <span className="chart-liq-chip">Schätzung (Hebel + OI + Volumen) · 15m</span>
+                <span className="chart-liq-chip heat-low" title="Blaue Zonen: wenig geschätzte Liquidations-Liquidität – Preis läuft hier meist einfach durch">blau = wenig</span>
+                <span className="chart-liq-chip heat-mid" title="Orange Zonen: mittlere Liquiditäts-Dichte – erste Magnet-Wirkung auf den Preis">orange = mittel</span>
+                <span className="chart-liq-chip heat-high" title="Rote Zonen: dichte Liquidations-Cluster – wirken wie Magnete, Sweeps dorthin sind oft Umkehrpunkte">rot = dichte Liq.-Cluster</span>
+                <span className="chart-liq-chip" title="Die Zonen sind eine Schätzung aus typischen Hebel-Stufen (10x-100x), Open Interest und Volumen – keine exakten Börsen-Liquidationspreise. Basis: 15m-Kerzen">Schätzung (Hebel + OI + Volumen) · 15m</span>
               </>
             )}
         </div>
@@ -318,7 +373,11 @@ const MainChart = ({ symbol, candleData }) => {
         <div className="chart-liq-legend" data-testid="chart-liq-legend">
           {liqError ? <span className="chart-liq-err">{liqError}</span>
             : liqLevels.map((l, i) => (
-              <span key={i} className={`chart-liq-chip ${l.side}`}>
+              <span
+                key={i}
+                className={`chart-liq-chip ${l.side}`}
+                title={`${LEVEL_EXPLAIN[l.type] || 'Liquiditäts-Level'}${l.untested ? ' – unberührt: seit Entstehung nicht wieder angelaufen (bevorzugtes Ziel)' : ''} · Stärke ${l.strength}/100`}
+              >
                 {l.price} · {l.type}{l.untested ? ' (unberührt)' : ''} · {l.strength}
               </span>
             ))}
