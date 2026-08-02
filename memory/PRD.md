@@ -85,10 +85,55 @@ Aufgaben (User):
   Beschreibung aller Werte (Intervall/Preis/OI/Heatmap/Cluster/Levels/Wände) und einem
   Vertrauens-Absatz. Zusätzlich `title="..."` als Hover-Tooltip an jeder Steuerung und Metrik.
 
+## Umgesetzt (02.08.2026 – dritte Iteration)
+- **Regel-Vorschau (P1)**: NEU `POST /api/backtest/rule-preview` – Mini-Backtest (Standard
+  7 Tage, max. 30) für eine noch NICHT gespeicherte Custom-Definition direkt aus dem
+  StrategyBuilder. Nutzt ephemere `CustomStrategy` + Registry-Shim über den normalen
+  `bt.run_backtest`-Pfad (params.preview=true unterdrückt Telegram-Meldung, Job wird
+  danach aus bt.JOBS entfernt). Frontend: `StrategyBuilder.js` Abschnitt
+  „Regel-Vorschau (7 Tage)" mit Symbol-/Timeframe-Auswahl, Ergebnis (Trades/WR/PnL
+  je Seite) + rule_problems. E2E getestet (54 Trades in ~2s).
+- **Multi-Step-Auto-Fix (P1)**: `custom_params.suggest_expr_fix` – zerlegt Mathe-Ausdrücke
+  per `rule_terms.normalize_expr` und korrigiert JEDEN unbekannten Term einzeln
+  (Alias → dyn. Term → Fuzzy); in `suggest_value_fix` integriert
+  (z.B. `recent_low - 2*atr14` → `recent_low - 2 * atr_14`).
+- **Kill-Switch / Drawdown-Guard (NEU)**: `services/risk_guard.py` – stoppt NEUE Auto-Trades
+  bei >=5% Tagesverlust (vom zugewiesenen Kapital paper+live) ODER >=3 Verlust-Trades in
+  Folge (UTC-Tag); Pause bis Mitternacht UTC + Auto-Reset; manueller Reset per UI.
+  Hooks: `bitunix_trade.on_signal` (check_can_open) + `_after_close_hooks`
+  (evaluate_after_close – auch Liquidation/manual_close). Persistiert in
+  settings/_id=risk_guard. Endpoints: GET/POST `/api/risk-guard`, POST
+  `/api/risk-guard/reset`. UI: SettingsPanel „Steuerung"-Tab (Kill-Switch- +
+  Anti-Stacking-Karten, tripped-Box mit Reset-Button).
+- **Anti-Stacking (NEU)**: gleiche Richtung + Asset + Strategie innerhalb Cooldown
+  (Default 30 min) blockiert; Hedge/andere Strategien/Timeframes IMMER erlaubt
+  (löst „3x Short BTC nacheinander vom KI-Trader").
+- **Benachrichtigungs-Schicht (NEU)**: `services/notifier.py` – 8 einzeln schaltbare
+  Telegram-Meldungen (Master, KI-Ausfall, Backtest fertig, Optimizer fertig, Trade
+  eröffnet, Trade geschlossen, Kill-Switch, Tages-Zusammenfassung), persistiert in
+  settings/_id=notifications, 30-min-Dedup. Endpoints GET/POST
+  `/api/notifications/settings`. UI: Telegram-Reiter (Toggles).
+- **KI-Ausfall-Meldung**: `ai_providers.generate_chain/stream_chain` melden via
+  `_notify_fallback`, wenn Primär-Modell (inkl. Backup-Key) scheitert und ein
+  Fallback-Modell übernimmt bzw. die Kette komplett scheitert → Website-Banner + Telegram.
+- **Website-Banner (NEU)**: `frontend/SiteAlerts.js` (+CSS) – pollt GET `/api/alerts`
+  alle 30s, dismissbar (POST `/api/alerts/dismiss/{id}`); in App.js unter dem Header.
+  Kill-Switch-Banner wird bei Guard-Reset entfernt und nach Server-Neustart
+  wiederhergestellt, solange der Guard aktiv ist.
+- **Weitere Hooks**: backtester/optimizer (done → Telegram), bitunix_trade
+  (open/close/liq → Telegram + Guard), ai_engine._daily_reset (Tagesbericht → Telegram).
+- **Tests**: NEU `backend/tests/test_risk_guard_notifier.py` (10) +
+  `test_risk_guard_pipeline.py` (2, on_signal-Verdrahtung). Gesamt 362 unit-passed
+  (Baseline 350, +12, keine Regression; 165 Legacy-Endpoint-Failures brauchen weiter
+  einen laufenden Server – bekanntes Umgebungs-Thema).
+- **DeepSeek**: war bereits integriert (`deepseek/deepseek-r1:free` via OpenRouter) –
+  benötigt nur `OPENROUTER_API_KEY` (openrouter.ai/settings/keys) in der Render-env.
+
 ## Backlog / Nächste Aufgaben
 - P1: Fix-Suggestions auf Regel-Wert-Ebene für komplexe Mathe-Ausdrücke (z. B. `volatility_pct * price`)
-  – aktuell wird nur der Term-Alias vorgeschlagen; ein Multi-Step-Fix wäre nutzerfreundlicher.
+  – ERLEDIGT 02.08.2026 (suggest_expr_fix).
 - P1: Rule-Preview-Backtest über 7 Tage direkt beim Anlegen einer Regel im StrategyBuilder.
+  – ERLEDIGT 02.08.2026 (rule-preview Endpoint + UI).
 - P2: `bb_upper_20/keltner_upper_30` mit dynamischer Periode (aktuell nur über indicators-Config).
 - P2: Session-Presets (z.B. "nur London/NY") als UI-Shortcut für hour-in_range-Regeln.
 - P2: Modell-Empfehlungs-Seite in der UI (Rollen-Presets mit Begründung anzeigen).
