@@ -1,0 +1,114 @@
+.main-chart {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #121212;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2A2D3A;
+}
+
+.chart-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-title > span:first-child {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.chart-subtitle {
+  font-size: 11px;
+  color: #5C6070;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.chart-indicators {
+  display: flex;
+  gap: 16px;
+}
+
+.indicator-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #A1A4B0;
+  font-weight: 600;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Wrapper: eigener stacking- und resize-Kontext, damit der Chart
+   nicht in einer Feedback-Schleife mit dem Flex-Parent immer kleiner wird.
+   - min-height: 0 ist Pflicht in Flex-Column-Layouts, sonst kollabiert der Chart
+   - overflow: hidden isoliert die ResizeObserver-Messung von lightweight-charts */
+.chart-wrap {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  contain: strict;
+}
+
+.chart-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 18, 18, 0.85);
+  color: #A1A4B0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.chart-overlay.chart-error {
+  color: #FF4D4D;
+}
+
+/* Liquiditäts-Overlay (standardmäßig aus, keine Persistenz) */
+.chart-liq-toggle {
+  background: #151b26; color: #7f93ad; border: 1px solid #26303f; border-radius: 999px;
+  padding: 3px 10px; font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  cursor: pointer; transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.chart-liq-toggle:hover { color: #cfe0f5; border-color: #3d78d8; }
+.chart-liq-toggle.on { color: #0b0f16; background: #4d9cff; border-color: #4d9cff; }
+.chart-liq-legend {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 8px;
+  border-bottom: 1px solid #1E2028;
+}
+.chart-liq-chip {
+  font-size: 10px; padding: 2px 8px; border-radius: 999px;
+  background: #131a24; border: 1px solid #222c3a; color: #9fb2c9;
+}
+.chart-liq-chip.above { color: #ff9c9c; border-color: #4a2630; }
+.chart-liq-chip.below { color: #7ee0a8; border-color: #1f4436; }
+.chart-liq-err { font-size: 10.5px; color: #ff9c9c; }

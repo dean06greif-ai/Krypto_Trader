@@ -80,3 +80,11 @@ memory/test_credentials.md
 # Mobile development
 android-sdk/node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
+.env
+.env.*
+*.env
+credentials.json
+*.key
+.credentials
+.candle_cache/BTCUSDT.npy
+frontend/node_modules/.cache/default-development/2.pack
