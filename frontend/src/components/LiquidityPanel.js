@@ -108,7 +108,8 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
 
         <div className="liq-controls">
           <select value={sym} onChange={e => setSym(e.target.value)} data-testid="liquidity-symbol-select">
-            {['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'].map(s => (
+            {['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT',
+              'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'POLUSDT'].map(s => (
               <option key={s} value={s}>{s.replace('USDT', '')}</option>
             ))}
           </select>
@@ -125,7 +126,7 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
 
         <div className="liq-stats" data-testid="liquidity-stats">
           <span className="liq-pill">Preis <b>{price ?? '–'}</b></span>
-          <span className="liq-pill">Open Interest <b>{heat?.oi_usd ? `${fmtUsd(heat.oi_usd)} USD` : '–'}</b> ({heat?.oi_trend || '–'})</span>
+          <span className="liq-pill">Open Interest <b>{heat?.oi_usd ? `${fmtUsd(heat.oi_usd)} USD` : '–'}</b> ({heat?.oi_trend || '–'}{(heat?.oi_venues || []).length ? ` · Quellen: ${heat.oi_venues.join('+')}` : ''})</span>
           <span className="liq-pill">Liquidationen 5min: Longs <b>{fmtUsd(rl.long_usd || 0)}</b> · Shorts <b>{fmtUsd(rl.short_usd || 0)}</b></span>
           {rl.cascade && <span className="liq-pill warn">Kaskade aktiv</span>}
         </div>

@@ -1,0 +1,29 @@
+{
+  "summary": "Focused regression + UI testing for rly-2.9 review (strict strategy validation, HEAT overlay + legend on main chart, unified Tools menu, LiquidityPanel 10 coins/oi_venues). Backend: created /app/backend/tests/test_iter_rly29_review.py with 10 tests - ALL PASS (10/10) against public preview URL: 422+problems+fixes on invalid indicator, alias ema_200 -> ema(200) canonicalized in saved definition (verified via GET /api/strategies list), 7m timeframe rejected 422, no-admin POST returns 401/403, GET /api/strategies + /builder-options + POST /rule-preview regression green, heatmap for BTCUSDT/ADAUSDT/AVAXUSDT returns bins, oi_usd, oi_venues (>=1) and orderbook_walls.bids/asks. Frontend (Playwright, 1920x1080): (1) OLD header buttons backtester-button/optimizer-button/regime-lab-button ARE GONE, single data-testid=tools-menu-button (Flask) opens data-testid=tools-menu-dropdown with all 3 items (tools-menu-backtester, tools-menu-optimizer, tools-menu-regime-lab); outside-click closes dropdown; clicking tools-menu-backtester opens Backtester overlay. (2) HEAT toggle: chart-heat-toggle click ON -> chart-heat-legend renders 4 chips (blau/orange/rot/Schätzung) AND chart-heat-canvas paints 744670 non-zero pixels (BTC 6 zones). Asset switch (BTC->ETH/DOGE) with HEAT still ON reloads zones (button badge updates 6 -> 2 zones, 308412 painted pixels, no crash). Toggling OFF: legend disappears AND canvas is fully cleared (0 non-zero pixels). (3) LiquidityPanel: symbol-select has exactly 10 options incl. ADAUSDT/AVAXUSDT/DOTUSDT/POLUSDT; 'Quellen:' text shown on OI pill (only okx here as expected on this pod); selecting ADAUSDT loads 32 heatmap rows. StrategyBuilder rejection UX skipped as requested (only constructible via dropdowns).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Initial dashboard cold-load", "issue": "Same 'TypeError: Failed to fetch' console errors as iter1 on notifications/session/... polling during first ~2s. Not a regression of this iteration - pre-existing.", "affected_selectors": ["fetchNotif", "fetchSession"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_rly29_review.py",
+    "/app/test_reports/pytest/rly29_review.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "validate_custom_definition is only called from create_custom_strategy; import_strategy path skips it - a malicious/backup file with an invalid indicator or unsupported timeframe would still upsert a broken strategy. Consider running validate_custom_definition(definition, check_meta=False) on the imported definition too.",
+    "backend/routers/liquidity.py heatmap catches all venue exceptions silently (logger.warning). Consider surfacing partial-failure info (e.g. failed_venues list) so the frontend can render a 'Datenquellen eingeschränkt' badge instead of showing what looks like normal 1-venue OI.",
+    "MainChart.js: canvas is drawn via getContext('2d') without willReadFrequently:true - benign, but browser logs a warning; set canvas.getContext('2d',{willReadFrequently:true}) inside useHeatmapOverlay for cleanliness."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter_rly29_review.py", "/app/test_reports/iteration_2.json"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (all listed UI criteria met)"},
+  "test_credentials": "Admin / admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Backend test transiently creates+deletes custom strategy 'T1' (id custom_*).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file for rly-2.9 features is /app/backend/tests/test_iter_rly29_review.py (run with REACT_APP_BACKEND_URL env var). It covers strategy validation edges + heatmap venues. HEAT toggle UI: canvas needs ~6-8s after ON click for first paint (heatmap API latency); use pixel-scan via canvas.getContext('2d').getImageData to verify paint, not just DOM. Sidebar coin click via get_by_text('ETH') may match multiple - use sidebar-specific selector when possible. StrategyBuilder UI cannot construct invalid rules through dropdowns, so 422 toast path is only reachable via API import - main agent should add explicit rejection UX test if that path becomes UI-reachable later. oi_venues will be ['okx'] on this pod (Binance/Bybit blocked); DO NOT flag as bug.",
+  "rca of the issue": "No bugs found in this iteration. First playwright pass had two false negatives: chart-heat-legend selector queried at 3s (heatmap fetch takes ~5-8s) and toggle-off click likely missed due to preceding get_by_text('ETH').click causing focus/layout shift. Re-run with 8s wait after ON click and explicit re-click on chart-heat-toggle for OFF confirmed all criteria pass end-to-end."
+}

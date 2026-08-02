@@ -412,3 +412,54 @@
     flex-wrap: wrap;
   }
 }
+
+/* Analyse-Tools-Menü: Backtester, Optimizer & Regime-Lab unter einem Symbol */
+.tools-menu {
+  position: relative;
+  display: inline-flex;
+}
+.tools-menu .tools-menu-open,
+.tools-menu .tools-menu-open:hover {
+  border-color: #00FF66;
+  color: #00FF66;
+}
+.tools-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 300;
+  min-width: 250px;
+  background: #14161d;
+  border: 1px solid #2A2D3A;
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tools-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #A1A4B0;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s, color 0.15s;
+}
+.tools-menu-item:hover {
+  background: #1E2230;
+  color: #E8EAF0;
+}
+.tools-menu-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.tools-menu-text b { font-size: 12.5px; }
+.tools-menu-text small { font-size: 10.5px; opacity: 0.65; }

@@ -163,7 +163,18 @@ const StrategyBuilder = ({ strategies, enabledIds, onClose, onChanged }) => {
       resetForm();
       onChanged && onChanged();
     } else if (res.status === 401) toast.error('Nicht autorisiert – bitte als Admin anmelden');
-    else toast.error('Fehler beim Speichern');
+    else {
+      let msg = 'Fehler beim Speichern';
+      try {
+        const d = await res.json();
+        const det = d.detail;
+        if (det && Array.isArray(det.problems) && det.problems.length) {
+          msg = `Abgewiesen: ${det.problems.slice(0, 3).join(' · ')}`
+            + (det.problems.length > 3 ? ` (+${det.problems.length - 3} weitere)` : '');
+        } else if (typeof det === 'string') msg = det;
+      } catch { /* Antwort ohne JSON */ }
+      toast.error(msg, { duration: 10000 });
+    }
   };
 
   const deleteStrategy = async (s) => {

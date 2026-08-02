@@ -696,6 +696,20 @@ class StrategyLab:
                       "name": f"KI-Kandidat: {cand['name']}",
                       "description": (cand.get("thesis") or "")[:300],
                       "timeframe": definition.get("timeframe") or cand.get("timeframe") or "1m"}
+        # Strikte Prüfung + Alias-Auto-Fix: nicht auswertbare KI-Regeln werden
+        # sofort abgewiesen (mit Problemen + Korrektur-Vorschlägen) statt eine
+        # Strategie zu registrieren, die im Backtest still 0/0/0 liefert.
+        from strategies import custom_params
+        from strategies.custom_strategy import INDICATORS, OPERATORS
+        normalized, problems = custom_params.normalize_definition(
+            definition, INDICATORS, OPERATORS)
+        if problems:
+            return {"status": "not_testable",
+                    "detail": "Regeln nicht auswertbar: " + "; ".join(problems[:5]),
+                    "problems": problems,
+                    "fixes": custom_params.fix_suggestions(
+                        definition, INDICATORS, OPERATORS)}
+        definition = normalized
         await self.db.custom_strategies.update_one({"id": sid}, {"$set": definition}, upsert=True)
         try:
             from strategies.registry import registry as strategy_registry

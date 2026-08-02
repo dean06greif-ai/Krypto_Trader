@@ -92,9 +92,9 @@ class TestStrategyComparison:
         data = r.json()
         assert "comparison" in data
         assert isinstance(data["comparison"], list)
-        # each row (if any) must have total_trades
+        # each row (if any) must have trades (per-row key; total_trades ist top-level)
         for row in data["comparison"]:
-            assert "total_trades" in row
+            assert "trades" in row
 
     def test_comparison_paper_mode_with_days(self):
         r = requests.get(f"{BASE_URL}/api/analytics/strategy-comparison?mode=paper&days=7",

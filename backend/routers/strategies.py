@@ -12,10 +12,42 @@ from core.config import ALL_SYMBOLS
 from core.state import scanner, autotrader, strategy_coin_toggles
 from strategies.registry import registry as strategy_registry
 from strategies import custom_params
+from strategies.custom_strategy import INDICATORS as RULE_INDICATORS, OPERATORS as RULE_OPERATORS
+from services.timeframes import TIMEFRAMES
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["strategies"])
+
+
+def validate_custom_definition(definition: Dict, check_meta: bool = True) -> Dict:
+    """Strikte Eingabe-Prüfung + Kanonisierung (Alias-Auto-Fix, z.B. ema_200 -> ema(200)).
+
+    Wirft 422 mit `problems` (was falsch ist) und `fixes` (anklickbare
+    Korrektur-Vorschläge), wenn die Strategie nicht auswertbar wäre –
+    fehlerhafte KI-Strategien werden so sofort abgewiesen statt still 0/0/0
+    zu liefern. Gibt die normalisierte Definition zurück."""
+    problems = []
+    if check_meta:
+        if not str(definition.get("name") or "").strip():
+            problems.append("name: fehlt oder ist leer")
+        if not ((definition.get("long_rules") or []) or (definition.get("short_rules") or [])):
+            problems.append("Regeln: mindestens eine long_rule oder short_rule erforderlich")
+    tf = definition.get("timeframe")
+    if tf and tf not in TIMEFRAMES:
+        problems.append(f"timeframe: '{tf}' wird nicht unterstützt "
+                        f"(erlaubt: {', '.join(TIMEFRAMES)})")
+    norm, rule_problems = custom_params.normalize_definition(
+        definition, RULE_INDICATORS, RULE_OPERATORS)
+    problems += rule_problems
+    if problems:
+        raise HTTPException(status_code=422, detail={
+            "message": "Strategie abgewiesen: Regeln nicht auswertbar",
+            "problems": problems,
+            "fixes": custom_params.fix_suggestions(
+                definition, RULE_INDICATORS, RULE_OPERATORS),
+        })
+    return norm
 
 
 @router.get("/api/strategies")
@@ -106,6 +138,7 @@ async def strategy_param_diff(strategy_id: str):
 # ---- custom strategy CRUD ----
 @router.post("/api/strategies/custom")
 async def create_custom_strategy(definition: Dict, _: bool = Depends(require_admin)):
+    definition = validate_custom_definition(definition)
     sid = definition.get("id") or f"custom_{uuid.uuid4().hex[:8]}"
     definition["id"] = sid
     definition.setdefault("timeframe", "1m")

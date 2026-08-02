@@ -102,6 +102,7 @@ async def liquidity_heatmap(symbol: str, interval: str = DEFAULT_INTERVAL,
     hm = ll.heatmap(candles, clusters, price, bins=max(10, min(bins, 80)))
     return {"symbol": sym, "interval": interval, "clusters": clusters,
             "oi_usd": oi.get("oi_usd"), "oi_trend": oi.get("trend"),
+            "oi_venues": oi.get("venues") or [],
             "orderbook_walls": {"bids": walls.get("bids", []),
                                 "asks": walls.get("asks", [])},
             "recent_liquidations_5m": liqs, **hm}

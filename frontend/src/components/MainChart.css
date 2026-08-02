@@ -101,6 +101,17 @@
 }
 .chart-liq-toggle:hover { color: #cfe0f5; border-color: #3d78d8; }
 .chart-liq-toggle.on { color: #0b0f16; background: #4d9cff; border-color: #4d9cff; }
+.chart-liq-toggle.heat:hover { color: #ffd9c4; border-color: #ff9f43; }
+.chart-liq-toggle.heat.on { color: #16100b; background: #ff9f43; border-color: #ff9f43; }
+.chart-heat-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.chart-liq-chip.heat-low { color: #7ab6ff; border-color: #2a4a75; }
+.chart-liq-chip.heat-mid { color: #ffb877; border-color: #7a5230; }
+.chart-liq-chip.heat-high { color: #ff8ba6; border-color: #77304a; }
 .chart-liq-legend {
   display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 8px;
   border-bottom: 1px solid #1E2028;

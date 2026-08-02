@@ -372,16 +372,20 @@ async def aggregated_oi(session, symbol: str, price: Optional[float]) -> Dict:
     got = dict(zip(keys, res))
 
     total, trend = 0.0, "flat"
+    venues = []
     b = got.get("binance")
     if isinstance(b, dict):
         if b.get("oi_usd"):
             total += b["oi_usd"]
+            venues.append("binance")
         trend = b.get("trend", "flat")
     for k in ("okx", "bybit"):
         v = got.get(k)
         if isinstance(v, (int, float)):
             total += v
-    out = {"oi_usd": round(total) if total else None, "trend": trend}
+            venues.append(k)
+    out = {"oi_usd": round(total) if total else None, "trend": trend,
+           "venues": venues}
     _cache.set(ck, out)
     return out
 

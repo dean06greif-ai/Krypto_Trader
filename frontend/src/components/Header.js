@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, Gear, ChartLineUp, Wallet, TrendUp, TrendDown, Lock, LockOpen, Trophy, ClockCounterClockwise, MagicWand, ChartScatter, Drop, BellRinging } from '@phosphor-icons/react';
+import { Clock, Gear, ChartLineUp, Wallet, TrendUp, TrendDown, Lock, LockOpen, Trophy, ClockCounterClockwise, MagicWand, ChartScatter, Drop, BellRinging, Flask } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders } from '../auth';
 import CapitalModal from './CapitalModal';
@@ -252,6 +252,60 @@ const NotificationBell = () => {
   );
 };
 
+const ToolsMenu = ({ onBacktestClick, onOptimizerClick, onRegimeLabClick }) => {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  const items = [
+    { label: 'Backtester', desc: 'Historische Daten, alle Timeframes',
+      Icon: ClockCounterClockwise, onClick: onBacktestClick, testid: 'tools-menu-backtester' },
+    { label: 'Strategie-Optimizer', desc: 'Parameter & Discovery',
+      Icon: MagicWand, onClick: onOptimizerClick, testid: 'tools-menu-optimizer' },
+    { label: 'Regime-Lab', desc: 'Marktphasen analysieren & prüfen',
+      Icon: ChartScatter, onClick: onRegimeLabClick, testid: 'tools-menu-regime-lab' },
+  ];
+
+  return (
+    <div className="tools-menu" ref={ref}>
+      <button
+        className={`btn ${open ? 'tools-menu-open' : ''}`}
+        onClick={() => setOpen(v => !v)}
+        title="Analyse-Tools: Backtester · Strategie-Optimizer · Regime-Lab"
+        data-testid="tools-menu-button"
+      >
+        <Flask size={20} weight="bold" />
+      </button>
+      {open && (
+        <div className="tools-menu-dropdown" data-testid="tools-menu-dropdown">
+          {items.map(({ label, desc, Icon, onClick, testid }) => (
+            <button
+              key={testid}
+              className="tools-menu-item"
+              data-testid={testid}
+              onClick={() => { setOpen(false); onClick && onClick(); }}
+            >
+              <Icon size={16} weight="bold" />
+              <span className="tools-menu-text">
+                <b>{label}</b>
+                <small>{desc}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Header = ({ sessionActive, onSettingsClick, currentSession, customSessions, activeStrategy, adminAuthed, onAdminClick, onCompareClick, onBacktestClick, onOptimizerClick, onRegimeLabClick, onLiquidityClick }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -320,15 +374,11 @@ const Header = ({ sessionActive, onSettingsClick, currentSession, customSessions
         <button className="btn" onClick={onCompareClick} title="Strategie-Vergleich" data-testid="compare-strategies-button">
           <Trophy size={20} weight="bold" />
         </button>
-        <button className="btn" onClick={onBacktestClick} title="Backtester (historische Daten, alle Timeframes)" data-testid="backtester-button">
-          <ClockCounterClockwise size={20} weight="bold" />
-        </button>
-        <button className="btn" onClick={onOptimizerClick} title="Strategie-Optimizer (Parameter & Discovery)" data-testid="optimizer-button">
-          <MagicWand size={20} weight="bold" />
-        </button>
-        <button className="btn" onClick={onRegimeLabClick} title="Regime-Lab (Marktphasen analysieren, prüfen & je Regime Strategien suchen)" data-testid="regime-lab-button">
-          <ChartScatter size={20} weight="bold" />
-        </button>
+        <ToolsMenu
+          onBacktestClick={onBacktestClick}
+          onOptimizerClick={onOptimizerClick}
+          onRegimeLabClick={onRegimeLabClick}
+        />
         <button className="btn" onClick={onLiquidityClick} title="Liquidität (Liquidations-Heatmap & Liquidity Levels)" data-testid="liquidity-button">
           <Drop size={20} weight="bold" />
         </button>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import useLiquidityOverlay from '../hooks/useLiquidityOverlay';
+import useHeatmapOverlay from '../hooks/useHeatmapOverlay';
 import './MainChart.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -45,6 +46,11 @@ const MainChart = ({ symbol, candleData }) => {
   const [liqOn, setLiqOn] = useState(false);
   const { levels: liqLevels, error: liqError } = useLiquidityOverlay(
     candleSeriesRef, symbol, liqOn);
+  // Liquidations-Heatmap als farbige Zonen direkt im Chart (Canvas-Overlay)
+  const heatCanvasRef = useRef(null);
+  const [heatOn, setHeatOn] = useState(false);
+  const { info: heatInfo, error: heatError } = useHeatmapOverlay(
+    chartRef, candleSeriesRef, heatCanvasRef, symbol, heatOn);
 
   // Create chart once
   useEffect(() => {
@@ -222,8 +228,32 @@ const MainChart = ({ symbol, candleData }) => {
           >
             LIQ {liqOn ? `· ${liqLevels.length}` : ''}
           </button>
+          <button
+            className={`chart-liq-toggle heat ${heatOn ? 'on' : ''}`}
+            onClick={() => setHeatOn(v => !v)}
+            title={heatOn
+              ? 'Liquidations-Zonen ausblenden'
+              : 'Liquidations-Heatmap als farbige Zonen im Chart einblenden (Schätzung aus Hebel-Mathematik + OI + Volumen, lädt bei Bedarf)'}
+            data-testid="chart-heat-toggle"
+          >
+            HEAT {heatOn && heatInfo ? `· ${heatInfo.zones}` : ''}
+          </button>
         </div>
       </div>
+      {heatOn && (heatError || heatInfo) && (
+        <div className="chart-liq-legend" data-testid="chart-heat-legend">
+          {heatError
+            ? <span className="chart-liq-err">{heatError}</span>
+            : (
+              <>
+                <span className="chart-liq-chip heat-low">blau = wenig</span>
+                <span className="chart-liq-chip heat-mid">orange = mittel</span>
+                <span className="chart-liq-chip heat-high">rot = dichte Liq.-Cluster</span>
+                <span className="chart-liq-chip">Schätzung (Hebel + OI + Volumen) · 15m</span>
+              </>
+            )}
+        </div>
+      )}
       {liqOn && (liqError || liqLevels.length > 0) && (
         <div className="chart-liq-legend" data-testid="chart-liq-legend">
           {liqError ? <span className="chart-liq-err">{liqError}</span>
@@ -238,6 +268,7 @@ const MainChart = ({ symbol, candleData }) => {
         {loading && <div className="chart-overlay" data-testid="chart-loading">Lade {symbol}...</div>}
         {error && <div className="chart-overlay chart-error" data-testid="chart-error">{error}</div>}
         <div ref={chartContainerRef} className="chart-container" />
+        <canvas ref={heatCanvasRef} className="chart-heat-canvas" data-testid="chart-heat-canvas" />
       </div>
     </div>
   );
