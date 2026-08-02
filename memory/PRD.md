@@ -47,7 +47,53 @@ Aufgaben (User):
   Parität Live<->Fast, Optimizer-Suchraum, Rückwärtskompatibilität). Gesamt 53 Unit-Tests grün;
   Endpoint-Tests benötigen laufenden Server (in dieser Umgebung nicht deployed, Baseline identisch).
 
+## Umgesetzt (18.02.2026 – zweite Iteration)
+- **Auto-Fix im Backtester-Hinweis (P0)**: `custom_params.normalize_with_fixes` liefert
+  neben Text-Problemen strukturierte Details (`side`, `index`, `field`, `original`, `suggested`,
+  `message`). `suggest_indicator_fix / _operator_fix / _value_fix` nutzen difflib + Alias +
+  DYN-Bases (`ema200` → `ema_slow`, `crossesabove` → `cross_above` …). `CustomStrategy` behält
+  `rule_problem_details`; Backtester emittiert `strategy_warnings_detail`.
+  NEU `POST /api/strategies/{id}/auto-fix-rule` (Admin) speichert Ein-Klick-Korrekturen direkt
+  in der Custom-Definition (Registry + DB) – vollständig rückwärtskompatibel.
+  NEU `frontend/BacktesterWarnings.js` gruppiert Warnungen pro Strategie und blendet
+  grüne „Auto-Fix"-Buttons ein, sobald ein Vorschlag existiert.
+- **Chart Auto-Scroll bei Symbol-Wechsel (P1)**: `MainChart.js` ruft nach `setData()` explizit
+  `priceScale('right').applyOptions({ autoScale: true })` + `timeScale().fitContent()` auf,
+  sodass ETH nach BTC (66k → 1800) sofort im Sichtbereich liegt.
+- **AI-Trading-Panel Aufräumung (P1)**:
+  * Duplikat: `AIScheduleEditor` aus dem MasterPrompt-Reiter (`AIGovernancePanel`) entfernt.
+    Der Zeitplan lebt nur noch im KI-Team-Panel.
+  * `AITeamSupervisor` (Hauptaufsicht) hängt nun UNTER den Rollen-Karten – so überschneidet
+    sich die rechte Text-Spalte nicht mehr mit den Rollen-Karten.
+  * Grid-Layout `ai-supervisor-row` mit `minmax(0,1fr)`, `text-overflow: ellipsis`,
+    responsiver Umbruch bei <900px.
+  * `ai_roles.chain()` zwingt die Rolle „supervisor" IMMER auf das in Setup gewählte
+    Haupt-Modell, unabhängig von zufälligen Rollen-Konfigurationen.
+- **KI-Asset-Fokus Presets (P1)**: `AITradingPanel` zeigt jetzt zusätzlich zu „Alle Assets" und
+  „Nur {aktuelles Asset}" pro Instrument-Gruppe (Crypto/Resources/Indices/Forex) einen
+  1-Klick-Preset-Button. Datenquelle: `useInstruments().groups` (identisch zur Sidebar).
+- **Master-Prompt Hebel-Slider auf 200x (P2)**: Frontend `AIGovernancePanel` (max=200) +
+  Backend-Sanitizing in `ai_master_prompt._sanitize_rules`.
+- **Dashboard Desktop-Layout (P1)**: `StrategyTabs.css` erhöht den Cap der Strategie-Bar auf
+  `min(38vh, 260px)` + eigener `z-index`, damit der Chart die Strategien nie mehr überdeckt,
+  auch bei vielen KI-Kandidaten.
+- **Trades Prozent-PnL (P2)**: `AutoTradeModal` (offene Trades) und `DeepAnalytics`
+  (Trade-Liste + MiniTradeLoader) zeigen hinter dem PnL zusätzlich `(±X.XX%)` (auf die Marge –
+  Backend-Feld `computed.pnl_pct_capital`, siehe `core/utils._enrich_trade`).
+- **Liquidations-Heatmap Erklärungen (P2)**: `LiquidityPanel` bekommt einen ausklappbaren
+  Legenden-Block („Was bedeutet was?") mit Datenquellen (Binance/OKX/Bybit, keyless),
+  Beschreibung aller Werte (Intervall/Preis/OI/Heatmap/Cluster/Levels/Wände) und einem
+  Vertrauens-Absatz. Zusätzlich `title="..."` als Hover-Tooltip an jeder Steuerung und Metrik.
+
 ## Backlog / Nächste Aufgaben
+- P1: Fix-Suggestions auf Regel-Wert-Ebene für komplexe Mathe-Ausdrücke (z. B. `volatility_pct * price`)
+  – aktuell wird nur der Term-Alias vorgeschlagen; ein Multi-Step-Fix wäre nutzerfreundlicher.
+- P1: Rule-Preview-Backtest über 7 Tage direkt beim Anlegen einer Regel im StrategyBuilder.
+- P2: `bb_upper_20/keltner_upper_30` mit dynamischer Periode (aktuell nur über indicators-Config).
+- P2: Session-Presets (z.B. "nur London/NY") als UI-Shortcut für hour-in_range-Regeln.
+- P2: Modell-Empfehlungs-Seite in der UI (Rollen-Presets mit Begründung anzeigen).
+
+## Backlog / Nächste Aufgaben (alt)
 - P1: Backtester-Hinweisbox könnte pro Regel einen "Auto-Fix"-Vorschlag anzeigen.
 - P1: bb_upper_20/keltner_upper_30 mit dynamischer Periode (aktuell nur über indicators-Config).
 - P2: Session-Presets (z.B. "nur London/NY") als UI-Shortcut für hour-in_range-Regeln.
