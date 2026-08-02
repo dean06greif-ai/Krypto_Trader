@@ -1,0 +1,40 @@
+{
+  "summary": "Focused regression testing for rly-2.8 review. Created /app/backend/tests/test_iter_rly28_review.py with 10 focused tests covering admin login, custom strategy CRUD with new rule-engine indicators (ema(200), rsi(14), hour not_in_range, cross_below, low(20)), backtest run + status poll + per_strategy trades>0, rule-preview, builder-options, trade-guard config GET/POST/persist, telegram notify-config GET/POST toggle+persist, notifications list+read, and GOLD/SILVER/OIL klines weekend fallback (last close within plausible range). All 10 backend tests PASS against the public preview URL. Frontend: dashboard loads (title 'Crypto Scanner'), strategy chips bar (StrategyTabs) visible above chart at 1920px, liquidity-button opens overlay, liquidity-help details renders and expansion contains 'Vertrauenswürdigkeit' text. Sidebar assets clickable. Some initial 'Failed to fetch' console errors observed on cold load (notifications/session/etc polling) but page recovers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Initial dashboard load", "issue": "Several 'TypeError: Failed to fetch' console errors on first render (notifications, session, other polling endpoints). Page still works after ~2s. Likely races before backend warmup or CORS/preflight hiccup on preview URL.", "affected_selectors": ["fetchNotif", "fetchSession"]},
+      {"flow": "AI Trading Panel open via chip", "issue": "Clicking the 'KI Trader' strategy chip while logged in as admin did NOT open the AI panel overlay (no [data-testid=ai-trading-panel] appeared). App.js:343 opens the panel only under certain selection state (requires selectedStrategy=='ai_trader'). No dedicated header trigger button. ai-focus-* testids DO exist in AITradingPanel.js source (ai-focus-all-assets, ai-focus-group-<name>, ai-focus-current) but could not be exercised at runtime with a simple click. Needs a clearer entry point.", "affected_selectors": ["[data-testid=ai-trading-panel]", "[data-testid=ai-focus-all-assets]"]},
+      {"flow": "Sidebar asset switch (BTC->ETH)", "issue": "After clicking ETH sidebar item the chart header/price scale still showed BTCUSDT price range on the screenshot. Could not fully verify autoScale+fitContent-on-symbol-change fix. May be selector issue (clicked wrong element) but worth double-checking that ETH click actually dispatches setSelectedCoin.", "affected_selectors": ["sidebar ETH row"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_rly28_review.py",
+    "/app/test_reports/pytest/rly28_review.xml"
+  ],
+  "action_items": [
+    "Investigate the 'Failed to fetch' console errors on cold dashboard load (notifications/session polls) - may indicate a race with backend readiness or a missing null-check in fetch effects.",
+    "Provide a stable programmatic path (or dedicated header button with data-testid) to open the AI Trading Panel so ai-focus-* buttons are testable without complex state gymnastics.",
+    "Manually verify sidebar asset switch (BTC->ETH) actually re-scales the chart at 1920px. My automation showed the price scale remained in BTC range after clicking the ETH sidebar row; could be selector-specific but please confirm."
+  ],
+  "critical_code_review_comments": [
+    "backend/routers/strategies.py create_custom_strategy accepts raw definition dict directly - no Pydantic validation. A malformed body silently gets defaults (timeframe='1m'). Consider a Pydantic model with explicit long_rules/short_rules validation.",
+    "Backtest per_strategy shape is a list of dicts (see result), not a dict keyed by strategy_id. Frontend consumers should be aware; keep the shape stable.",
+    "Several React useEffect hooks issue fetches without AbortController or error swallowing, producing 'Failed to fetch' errors in console on unmount/race. Wrap in try/catch and use AbortController."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_rly28_review.py"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "~85% - core flows verified, AI panel & asset-switch scaling not fully verified"},
+  "test_credentials": "Admin/admin from /app/memory/test_credentials.md",
+  "seed_data_creation": "Test creates a temp custom strategy 'TEST_rly28_review_strategy' and deletes it in teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_iter_rly28_review.py is the regression pack for this feature set. Run with REACT_APP_BACKEND_URL set. Note: custom strategy POST body must NOT wrap fields under 'definition' - use flat body with name/timeframe/long_rules/short_rules at top level. Previous 0/0/0 backtest bug is fixed (test verifies trades>0 with the specified 15m rules on BTCUSDT/7d). Only one backtest job at a time; test retries after 5s on 409. For the AI panel UI, no dedicated open-button testid exists in header - opening flow needs main-agent guidance.",
+  "rca of the issue": "No new bug found. Initial confusion in test was my payload shape (I wrapped rules under 'definition') which caused timeframe default '1m' and 0 trades - identical symptom to the historical '0/0/0 bug'. After sending flat body per router signature, backtest correctly used 15m timeframe and produced trades>0."
+}
