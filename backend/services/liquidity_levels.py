@@ -23,6 +23,7 @@ TYPE_WEIGHT = {
     "swing_high": 55, "swing_low": 55,
     "eqh": 75, "eql": 75,
     "fvg": 45,
+    "ob_bull": 80, "ob_bear": 80,
     "poc": 90, "vah": 70, "val": 70,
     "hvn": 60, "lvn": 35,
     "round": 40,
@@ -234,6 +235,56 @@ def score_level(level: Dict, price: float) -> Dict:
             "strength": int(max(0, min(100, round(strength)))) }
 
 
+def order_blocks(candles: List[Dict], atr_period: int = 14, impulse_mult: float = 1.5,
+                 look_ahead: int = 3, max_blocks: int = 6) -> List[Dict]:
+    """Smart-Money-Concept Order Blocks: letzte Gegen-Kerze vor einem Impuls.
+
+    Bullish OB = letzte rote Kerze, bevor der Kurs innerhalb von `look_ahead`
+    Kerzen impulsiv steigt (>= impulse_mult * ATR) und über ihr Hoch schließt.
+    Bearish OB spiegelbildlich. Blöcke, deren Zone der Kurs seitdem komplett
+    durchhandelt hat, gelten als invalidiert und werden weggelassen;
+    `untested` = Zone wurde seit Entstehung noch nicht wieder angelaufen.
+    """
+    n = len(candles)
+    if n < atr_period + look_ahead + 2:
+        return []
+    trs = []
+    for i in range(1, n):
+        h, l = _f(candles[i].get("high")), _f(candles[i].get("low"))
+        pc = _f(candles[i - 1].get("close"))
+        trs.append(max(h - l, abs(h - pc), abs(l - pc)))
+    out: List[Dict] = []
+    for i in range(atr_period, n - look_ahead - 1):
+        atr = sum(trs[i - atr_period:i]) / atr_period
+        if atr <= 0:
+            continue
+        o, c = _f(candles[i].get("open")), _f(candles[i].get("close"))
+        hi, lo = _f(candles[i].get("high")), _f(candles[i].get("low"))
+        fwd = candles[i + 1:i + 1 + look_ahead]
+        fwd_close = _f(fwd[-1].get("close"))
+        later = candles[i + 1 + look_ahead:]
+        if c < o and fwd_close - c >= impulse_mult * atr \
+                and max(_f(x.get("close")) for x in fwd) > hi:
+            if any(_f(x.get("low")) < lo for x in later):
+                continue  # Zone komplett durchhandelt -> invalidiert
+            touched = any(_f(x.get("low")) <= max(o, c) for x in later)
+            out.append({"price": (lo + max(o, c)) / 2, "type": "ob_bull",
+                        "zone_low": lo, "zone_high": max(o, c),
+                        "untested": not touched, "index": i})
+        elif c > o and c - fwd_close >= impulse_mult * atr \
+                and min(_f(x.get("close")) for x in fwd) < lo:
+            if any(_f(x.get("high")) > hi for x in later):
+                continue
+            touched = any(_f(x.get("high")) >= min(o, c) for x in later)
+            out.append({"price": (hi + min(o, c)) / 2, "type": "ob_bear",
+                        "zone_low": min(o, c), "zone_high": hi,
+                        "untested": not touched, "index": i})
+    out.sort(key=lambda b: -b["index"])
+    for b in out:
+        b.pop("index", None)
+    return out[:max_blocks]
+
+
 def liquidity_levels(candles: List[Dict], price: Optional[float] = None,
                      max_levels: int = 24, per_type_cap: int = 4) -> Dict:
     """Kompletter „Liquidity Levels"-Satz für ein Symbol (X-Ray-Pro-Äquivalent)."""
@@ -249,6 +300,7 @@ def liquidity_levels(candles: List[Dict], price: Optional[float] = None,
             for p in untested]
     raw += equal_levels(pivots)
     raw += fair_value_gaps(candles)
+    raw += order_blocks(candles)
     for key in ("poc", "vah", "val"):
         if profile.get(key):
             raw.append({"price": profile[key], "type": key})

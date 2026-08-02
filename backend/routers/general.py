@@ -58,6 +58,29 @@ async def get_klines(symbol: str, limit: int = 200):
         raise HTTPException(status_code=502, detail=str(e))
 
 
+@router.get("/api/klines/{symbol}/history")
+async def get_klines_history(symbol: str, days: int = 7, timeframe: str = None):
+    """Längere Chart-Historie (z.B. 1 Woche / 1 Monat), aggregiert auf ein
+    zur Spanne passendes Timeframe – für die Lade-Buttons im Haupt-Chart."""
+    import aiohttp
+    from services import candle_cache
+    from services.timeframes import aggregate_candles, TIMEFRAMES
+    days = max(1, min(int(days), 365))
+    tf = timeframe if timeframe in TIMEFRAMES else (
+        "5m" if days <= 2 else "15m" if days <= 10 else "1h" if days <= 45 else "4h")
+    try:
+        async with aiohttp.ClientSession() as session:
+            candles = await candle_cache.get_candles(session, symbol, days)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)[:200])
+    if not candles:
+        raise HTTPException(status_code=502, detail=f"Keine Historie für {symbol}")
+    if tf != "1m":
+        candles = aggregate_candles(candles, tf)
+    rows = candles.to_list() if hasattr(candles, "to_list") else list(candles)
+    return {"symbol": symbol, "days": days, "timeframe": tf, "candles": rows}
+
+
 @router.get("/api/signals")
 async def get_signals(limit: int = 50, strategy_id: str = None):
     q = {"trade_date": scanner.berlin_date()}

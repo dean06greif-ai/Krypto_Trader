@@ -12,6 +12,8 @@ const LEVEL_STYLE = {
   swing_high: { color: '#FF8F8F', title: 'Swing-Hoch' },
   swing_low: { color: '#7EE0A8', title: 'Swing-Tief' },
   fvg: { color: '#8AB4FF', title: 'Imbalance' },
+  ob_bull: { color: '#3ED598', title: 'Order Block (Bull)' },
+  ob_bear: { color: '#FF5E7A', title: 'Order Block (Bear)' },
   hvn: { color: '#B08CFF', title: 'Volumen-Knoten' },
   lvn: { color: '#5A6B80', title: 'Volumen-Vakuum' },
   day_high: { color: '#FF9F43', title: 'Tageshoch' },

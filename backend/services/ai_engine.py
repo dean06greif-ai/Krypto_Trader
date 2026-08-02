@@ -779,7 +779,10 @@ class AIEngine:
             "NUTZUNG: Liquidations-Cluster sind Magnete – Sweeps dorthin sind häufig "
             "Umkehrpunkte, KEINE Ausbrüche. Setze SL NICHT direkt hinter ein Cluster "
             "oder eine Orderbook-Wand. Bei Kaskaden (⚠️) erst Stabilisierung abwarten. "
-            "Unberührte Swing-Level/EQH/EQL und der POC sind Ziel-Zonen für TPs."
+            "Unberührte Swing-Level/EQH/EQL und der POC sind Ziel-Zonen für TPs. "
+            "Order Blocks (ob_bull/ob_bear, Smart-Money-Concept) sind institutionelle "
+            "Einstiegs-Zonen: unberührte ob_bull unter dem Preis sind Long-Einstiegs-"
+            "Kandidaten beim Retest, ob_bear über dem Preis Short-Kandidaten."
         )
         return "\n".join(lines)
 

@@ -10,6 +10,7 @@ const INTERVALS = ['5m', '15m', '1h', '4h'];
 const TYPE_LABEL = {
   swing_high: 'Swing-Hoch', swing_low: 'Swing-Tief', eqh: 'Equal Highs',
   eql: 'Equal Lows', fvg: 'Imbalance (FVG)', poc: 'POC', vah: 'VAH', val: 'VAL',
+  ob_bull: 'Order Block (Bull)', ob_bear: 'Order Block (Bear)',
   hvn: 'Volumen-Knoten', lvn: 'Volumen-Vakuum', round: 'Runde Marke',
   day_high: 'Tageshoch', day_low: 'Tagestief',
 };
@@ -98,6 +99,7 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
             <ul>
               <li><b>Equal Highs/Lows</b> – mehrfach getestete gleiche Hochs/Tiefs: darüber/darunter liegen Stop-Losses (Liquiditätspools).</li>
               <li><b>Swing High/Low</b> – markante Wendepunkte; <b>„unberührt“</b> = seitdem nicht wieder angelaufen (bevorzugtes Ziel).</li>
+              <li><b>Order Block (Bull/Bear)</b> – Smart-Money-Concept: die letzte Gegen-Kerze vor einem impulsiven Move. Unberührte Order Blocks sind institutionelle Einstiegs-Zonen für den Retest; komplett durchhandelte Blöcke werden automatisch entfernt. Der KI Trader sieht diese Zonen in seinem Liquiditäts-Kontext.</li>
               <li><b>↑/↓ %</b> – Distanz zum aktuellen Preis; <b>Strength</b> – wie oft/deutlich das Level bestätigt wurde.</li>
               <li><b>POC / VAH / VAL</b> – Volume Profile: Preis mit dem meisten gehandelten Volumen (POC) sowie Ober-/Unterkante der 70%-Value-Area. Wirken als Magnet bzw. Unterstützung/Widerstand.</li>
             </ul>

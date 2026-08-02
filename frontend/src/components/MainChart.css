@@ -112,6 +112,32 @@
 .chart-liq-chip.heat-low { color: #7ab6ff; border-color: #2a4a75; }
 .chart-liq-chip.heat-mid { color: #ffb877; border-color: #7a5230; }
 .chart-liq-chip.heat-high { color: #ff8ba6; border-color: #77304a; }
+
+.chart-range-group { display: inline-flex; gap: 4px; margin-left: 10px; }
+.chart-liq-toggle.range.on { color: #0b0f16; background: #00FF66; border-color: #00FF66; }
+.chart-liq-toggle.trades:hover { color: #d8f7c9; border-color: #58c765; }
+.chart-liq-toggle.trades.on { color: #0b0f16; background: #9be15d; border-color: #9be15d; }
+
+.chart-trade-tip {
+  position: absolute;
+  z-index: 6;
+  max-width: 260px;
+  background: #14161dee;
+  border: 1px solid #2A2D3A;
+  border-radius: 8px;
+  padding: 8px 10px;
+  pointer-events: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.chart-trade-tip-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0;
+  font-size: 11px;
+}
+.chart-trade-tip-row b { color: #E8EAF0; font-size: 11.5px; }
+.chart-trade-tip-row span { color: #8b93a7; font-size: 10.5px; }
 .chart-liq-legend {
   display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 8px;
   border-bottom: 1px solid #1E2028;

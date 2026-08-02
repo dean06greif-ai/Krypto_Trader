@@ -1,0 +1,27 @@
+{
+  "summary": "rly-3.0 review testing (SMC Order Blocks + Chart Range buttons LIVE/1W/1M + Trade markers/lines/tooltip). Backend: created /app/backend/tests/test_iter_rly30_review.py with 7 pytest tests - ALL PASS (7/7): (a) /api/liquidity/levels/BTCUSDT?interval=15m returns valid structure; ob_bull/ob_bear levels (when present) have zone_low<=zone_high, untested:bool, strength - verified strictly. (b) /api/klines/BTCUSDT/history?days=7 -> timeframe '15m', 673 candles; days=30 -> '1h', 721 candles; days=7&timeframe=30m honored (~336 candles); invalid symbol ZZZZZZZZ -> 502. (c) live /api/klines/BTCUSDT?limit=200 regression green. (d) synthetic OPEN trade insert into MongoDB auto_trades -> /api/autotrade/trades?status=open returns it with correct strategy_name='TEST Strategie', side='LONG', status='open'; delete verified. Frontend Playwright (1920x1080): (1) chart-range-live/1w/1m all present; subtitle transitions confirmed: initial '1MIN · 200 bars' -> click 1W '15MIN · 7 TAGE · 673 bars' -> click 1M '1H · 30 TAGE · 721 bars' -> click LIVE '1MIN · 200 bars'. (2) TRADES toggle button counts: without open trade shows 'TRADES ' (no suffix - no closed BTC trades match at 60s bars either); after synthetic insert shows 'TRADES · 1 offen'; toggling ON shows 'TRADES · 2' (2 closed BTC trades from earlier runs). (3) E2E synthetic OPEN trade: after Mongo insert + reload + 8s wait the chart shows right-axis price line label 'LONG TEST Strategie' at entry 63.327,30 plus SL/TP labels. Hovering entry bar produced data-testid='chart-trade-tooltip' with 'LONG offen · TEST Strategie · Entry 63.327,3 · SL 62.694,027 · TP 64.593,846 · paper' - PASS. After MongoDB delete + reload: TRADES button reset to 'TRADES ', tooltip no longer triggers on hover across full chart width, 'LONG TEST Strategie' line gone - PASS. (4) Regression: LiquidityPanel opens; help text contains 'Order Block (Bull/Bear)'; HEAT toggle still renders legend. Test doc TEST-CHART-1 cleaned up in Mongo.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter_rly30_review.py",
+    "/app/test_reports/pytest/rly30_review.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "useTradeMarkers.js: tooltip only triggers when crosshair time exactly equals bar-aligned toBar(opened_at). For very recent trades on the live forming bar, some users may hover 1-2 pixels off; consider matching within +/- barSec to make tooltip more discoverable (currently robust once mouse crosses the exact bar column).",
+    "MainChart.js line 234 crosshair handler is registered with an empty dependency array; tradeMapRef.current is used via ref so this is fine, but the chart handle chartRef.current may be null at first mount - handler correctly early-returns via `if (!chart)`, no bug.",
+    "backend history endpoint returns 721 candles for days=30 at 1h (expected 720) - fencepost includes the currently-forming candle; harmless but worth noting the ~ range in docs.",
+    "useTradeMarkers polls every 30s via setInterval; for a page with the chart hidden (background tab), this still fires. Consider clearing interval on visibilitychange if the app has many charts. Not a blocker."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter_rly30_review.py",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (all criteria met including tooltip E2E)"},
+  "test_credentials": "Admin / admin (unused - no admin flow needed for this iteration)",
+  "seed_data_creation": "Transient MongoDB auto_trades doc id='TEST-CHART-1' inserted then deleted twice (once in pytest, once for UI E2E). Verified 0 leftover docs after cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_iter_rly30_review.py (needs MONGO_URL, DB_NAME, REACT_APP_BACKEND_URL env). For tooltip E2E: hover MUST land on an exact bar column - use fine step (3-4 px) horizontally at mid-Y; verified working. Live BTC klines are 1m bars, so toBar aligns opened_at to nearest minute. Chart history endpoint returns list under key 'candles', live endpoint may return dict with 'candles' too. TRADES button text patterns: (no trades) 'TRADES ', (open only, toggle off) 'TRADES · N offen', (toggle on) 'TRADES · N' (closed count). LiquidityPanel Order Block help HTML lives in data-testid='liquidity-help' inside <details>. Real closed BTC paper trades already in DB (count=2) show up when toggle is ON.",
+  "rca of the issue": "No bugs. On first tooltip hover attempt (steps=2, x range 60 px), the crosshair passed over the marker bar too fast for lightweight-charts to emit a match; slowing to steps=1 and 3-px increments over full chart width resolved and confirmed tooltip rendering + content."
+}

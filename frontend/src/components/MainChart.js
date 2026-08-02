@@ -2,9 +2,18 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import useLiquidityOverlay from '../hooks/useLiquidityOverlay';
 import useHeatmapOverlay from '../hooks/useHeatmapOverlay';
+import useTradeMarkers from '../hooks/useTradeMarkers';
 import './MainChart.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Lade-Bereiche für den Chart: LIVE = 1m-Kerzen mit Live-Ticks,
+// 1W/1M = lokal geladene Historie (aggregiertes Timeframe, keine Live-Updates)
+const RANGES = {
+  live: { label: 'LIVE', barSec: 60, subtitle: '1MIN' },
+  '1w': { label: '1W', days: 7, barSec: 900, subtitle: '15MIN · 7 TAGE' },
+  '1m': { label: '1M', days: 30, barSec: 3600, subtitle: '1H · 30 TAGE' },
+};
 
 // Preis-Genauigkeit je Instrument: Forex (1.1392) und Cent-Coins brauchen mehr
 // Dezimalstellen als BTC, sonst kollabieren die Kerzen auf der Preisachse.
@@ -51,6 +60,12 @@ const MainChart = ({ symbol, candleData }) => {
   const [heatOn, setHeatOn] = useState(false);
   const { info: heatInfo, error: heatError } = useHeatmapOverlay(
     chartRef, candleSeriesRef, heatCanvasRef, symbol, heatOn);
+  // Lade-Bereich (LIVE / 1 Woche / 1 Monat) + Trade-Overlay
+  const [range, setRange] = useState('live');
+  const [showClosed, setShowClosed] = useState(false);
+  const [tradeTip, setTradeTip] = useState(null);
+  const { tradeMapRef, counts: tradeCounts } = useTradeMarkers(
+    candleSeriesRef, symbol, showClosed, RANGES[range].barSec, `${range}:${bars}`);
 
   // Create chart once
   useEffect(() => {
@@ -144,14 +159,17 @@ const MainChart = ({ symbol, candleData }) => {
     };
   }, []);
 
-  // Load historical candles when symbol changes (fixes empty/black chart + Gold crash)
+  // Load historical candles when symbol or range changes
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true); setError(null);
       lastTimeRef.current = 0;
       try {
-        const res = await fetch(`${API_URL}/api/klines/${symbol}?limit=200`);
+        const url = range === 'live'
+          ? `${API_URL}/api/klines/${symbol}?limit=200`
+          : `${API_URL}/api/klines/${symbol}/history?days=${RANGES[range].days}`;
+        const res = await fetch(url);
         const data = await res.json();
         const candles = (data.candles || [])
           .map(c => ({ time: Math.floor(c.timestamp / 1000), open: c.open, high: c.high, low: c.low, close: c.close }))
@@ -188,10 +206,11 @@ const MainChart = ({ symbol, candleData }) => {
     };
     load();
     return () => { cancelled = true; };
-  }, [symbol]);
+  }, [symbol, range]);
 
-  // Live forming candle updates (guarded against out-of-order timestamps)
+  // Live forming candle updates (nur im LIVE-Modus; guarded gegen out-of-order)
   useEffect(() => {
+    if (range !== 'live') return;
     if (!candleData || !candleSeriesRef.current) return;
     const time = Math.floor(candleData.timestamp / 1000);
     if (!time || !Number.isFinite(candleData.close)) return;
@@ -206,14 +225,45 @@ const MainChart = ({ symbol, candleData }) => {
       // swallow chart errors so the whole UI never crashes
       console.warn('chart update skipped', e.message);
     }
-  }, [candleData]);
+  }, [candleData, range]);
+
+  // Hover-Tooltip: zeigt Strategie/Details des Trades unter dem Crosshair
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return undefined;
+    const handler = (param) => {
+      if (!param || !param.time || !param.point) { setTradeTip(null); return; }
+      const infos = tradeMapRef.current[param.time];
+      if (infos && infos.length) {
+        setTradeTip({ x: param.point.x, y: param.point.y, infos });
+      } else setTradeTip(null);
+    };
+    chart.subscribeCrosshairMove(handler);
+    return () => { try { chart.unsubscribeCrosshairMove(handler); } catch (_) { /* noop */ } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="main-chart" data-testid="main-chart">
       <div className="chart-header">
         <div className="chart-title">
           <span className="mono">{symbol}</span>
-          <span className="chart-subtitle">1MIN · {bars} bars</span>
+          <span className="chart-subtitle">{RANGES[range].subtitle} · {bars} bars</span>
+          <span className="chart-range-group" data-testid="chart-range-group">
+            {Object.entries(RANGES).map(([key, r]) => (
+              <button
+                key={key}
+                className={`chart-liq-toggle range ${range === key ? 'on' : ''}`}
+                onClick={() => setRange(key)}
+                title={key === 'live'
+                  ? 'Live-Ansicht (1m-Kerzen, Echtzeit-Updates)'
+                  : `${r.days} Tage Historie laden (${r.subtitle}, ohne Live-Updates)`}
+                data-testid={`chart-range-${key}`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </span>
         </div>
         <div className="chart-indicators">
           <div className="indicator-label"><div className="indicator-dot" style={{ background: '#FFD700' }}></div><span>EMA 9</span></div>
@@ -237,6 +287,16 @@ const MainChart = ({ symbol, candleData }) => {
             data-testid="chart-heat-toggle"
           >
             HEAT {heatOn && heatInfo ? `· ${heatInfo.zones}` : ''}
+          </button>
+          <button
+            className={`chart-liq-toggle trades ${showClosed ? 'on' : ''}`}
+            onClick={() => setShowClosed(v => !v)}
+            title={showClosed
+              ? 'Geschlossene Trades ausblenden (offene bleiben immer sichtbar)'
+              : 'Geschlossene Trades im Chart anzeigen (Entry-Pfeil + Exit-Punkt, Hover = Strategie). Offene Trades mit Entry/SL/TP sind immer eingeblendet.'}
+            data-testid="chart-trades-toggle"
+          >
+            TRADES {showClosed ? `· ${tradeCounts.closed}` : (tradeCounts.open ? `· ${tradeCounts.open} offen` : '')}
           </button>
         </div>
       </div>
@@ -269,6 +329,23 @@ const MainChart = ({ symbol, candleData }) => {
         {error && <div className="chart-overlay chart-error" data-testid="chart-error">{error}</div>}
         <div ref={chartContainerRef} className="chart-container" />
         <canvas ref={heatCanvasRef} className="chart-heat-canvas" data-testid="chart-heat-canvas" />
+        {tradeTip && (
+          <div
+            className="chart-trade-tip"
+            data-testid="chart-trade-tooltip"
+            style={{
+              left: Math.min(tradeTip.x + 14, Math.max((chartContainerRef.current?.clientWidth || 400) - 250, 0)),
+              top: Math.max(tradeTip.y - 10, 4),
+            }}
+          >
+            {tradeTip.infos.slice(0, 4).map((i, k) => (
+              <div key={k} className="chart-trade-tip-row">
+                <b>{i.label}</b>
+                <span>{i.detail}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
