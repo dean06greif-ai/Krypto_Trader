@@ -38,6 +38,16 @@ Bestehende, produktiv laufende externe Daytrading-Website (GitHub: dean06greif-a
 11. **Skip-Anzeige**: providers_health.skipped (413-Schutz-Übersprünge) + tote Modelle im Health-Badge-Dropdown des KI-Panels
 12. **Scroll-Pfeil** im KI-Chat: Button (ai-jump-newest-btn) erscheint beim Hochscrollen, springt zur neuesten Nachricht
 
+### Iteration 3 (gleiche Session)
+13. **Lektions-Wirkung**: measure_effectiveness (Winrate vor/nach Einführung je Lektion); wirkungslose KI-Lektionen (Delta <= -5% bei >=12 Trades danach) werden automatisch deaktiviert und aus den Prompts entfernt; Trader-Lektionen nur markiert ("Wirkung fraglich"); UI-Badges + Reaktivieren-Button (PATCH /api/ai/lessons/{id} {active:true})
+14. **Mobile-Fixes**: Signal-Alert-Modal X erreichbar (Selektor-Bug .alert-modal-content -> .alert-modal, max-height 90dvh, sticky X); Dropdowns (Benachrichtigungen, Analyse-Tools) auf Mobile position:fixed volle Breite statt seitlich abgeschnitten
+15. **Desktop-Dashboard**: Signal-/Strategie-Panel scrollt nicht mehr einzeln – ganze Seite scrollt (Media-Query >=969px, Sidebars sticky, Chart behält ~58vh)
+16. **Chart**: EMA-Linien nicht mehr am Rand abgeschnitten (scaleMargins 0.08); Trade-Hover-Kopplung (Punkt-Hover highlightet Badge, Badge-Hover zeigt SL/TP-Linien)
+17. **Coin-Filter**: KI Trader analysiert nur noch Coins, die für ihn zum Traden freigeschaltet sind (paper/live) – symbol_trade_enabled + Filter in run_analysis
+18. **Keys/Benachrichtigungen**: GROQ_API_KEY_BACKUP unterstützt (User muss ihn in Render-ENV eintragen); KI-Ausfall-Meldungen erst wenn ALLE Keys eines Modells (primär+backup) erschöpft
+19. **Multi-TP & Experimente**: KI kann bis zu 2 zusätzliche Teil-TPs setzen (tp_levels), runner auch bei scalp (strukturabhängiger TP); Experimente (experiment:true) laufen immer als Paper/Ghost, zählen nicht in den Reward-Score, Prompt ermutigt zu Tests mit CRV 3-5/Struktur-Zielen; Liquiditäts-Block als optionaler Kontext markiert
+- Testing-Agent Iteration 3: Backend 29/29 pytest + 4/4 API, Frontend 100% (Alert-Modal lokal nicht auslösbar -> manuell prüfen bei nächstem Live-Alert)
+
 ## Test-Ergebnis / Hinweise
 - Volle pytest-Suite: verbleibende Failures ausschließlich umgebungsbedingt (keine LLM-/Bitunix-Keys lokal, alte Tests mit hartkodiertem Passwort "admin", Marktdaten-/Worker-Abhängigkeiten) – keine Regression
 - Produktions-Build (yarn build) erfolgreich
