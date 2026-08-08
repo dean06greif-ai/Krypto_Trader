@@ -557,15 +557,29 @@ class AITradeManager:
             "ai_horizon": horizon, "ai_runner": runner,
             "timeframe": "swing" if horizon == "swing" else None,
         }
+        # Manuelle Trades: expliziter Modus (Live/Paper) und absolute Margin in
+        # USDT erlaubt – für die KI bleiben Modus & Kapital unantastbar.
+        if source != "ki":
+            req_mode = str(spec.get("mode") or "").lower()
+            if req_mode in ("live", "paper"):
+                signal["force_mode"] = req_mode
+            try:
+                margin_usdt = float(spec.get("margin_usdt") or 0)
+            except (TypeError, ValueError):
+                margin_usdt = 0.0
+            if margin_usdt > 0:
+                signal["ai_max_capital"] = round(margin_usdt, 6)
+                signal["ai_capital_pct"] = 100
         # Swing: eigener, niedriger Hebel-Deckel (unabhängig vom Scalp-Limit)
         if horizon == "swing":
             swing_max = float((self.engine.config or {}).get("swing_max_leverage", 8) or 8)
             lev_req = float(signal.get("ai_leverage") or 0)
             signal["ai_leverage"] = min(lev_req, swing_max) if lev_req > 0 else swing_max
         # Max. Kapital pro Trade des KI-Traders gilt auch für Custom-Trades
+        # (manuelle Trades mit expliziter margin_usdt bleiben unangetastet)
         try:
             max_cap = float((self.engine.config or {}).get("max_capital_per_trade") or 0)
-            if max_cap > 0:
+            if max_cap > 0 and "ai_max_capital" not in signal:
                 signal["ai_max_capital"] = max_cap
         except (TypeError, ValueError):
             pass

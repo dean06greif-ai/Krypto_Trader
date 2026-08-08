@@ -209,7 +209,18 @@ const BalanceWidget = () => {
 
 const NotificationBell = () => {
   const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
   const seenRef = React.useRef(new Set());
+  const boxRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
 
   useEffect(() => {
     let stop = false;
@@ -233,7 +244,7 @@ const NotificationBell = () => {
   }, []);
 
   if (!items.length) return null;
-  const dismiss = async () => {
+  const markRead = async () => {
     try {
       await fetch(`${API_URL}/api/notifications/read`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -241,14 +252,36 @@ const NotificationBell = () => {
       });
     } catch (_) { /* ignore */ }
     setItems([]);
+    setOpen(false);
   };
   return (
-    <button className="icon-btn" onClick={dismiss} data-testid="header-notifications-btn"
-      title={items.map(n => `${n.title}: ${n.message}`).join('\n') + '\n(Klick = als gelesen markieren)'}
-      style={{ position: 'relative', color: '#FF3366' }}>
-      <BellRinging size={18} weight="fill" />
-      <span style={{ position: 'absolute', top: -4, right: -4, background: '#FF3366', color: '#fff', borderRadius: 8, fontSize: 10, padding: '0 4px' }}>{items.length}</span>
-    </button>
+    <span style={{ position: 'relative', display: 'inline-flex' }} ref={boxRef}>
+      <button className="icon-btn" onClick={() => setOpen(v => !v)} data-testid="header-notifications-btn"
+        title="Benachrichtigungen anzeigen"
+        style={{ position: 'relative', color: '#FF3366' }}>
+        <BellRinging size={18} weight="fill" />
+        <span style={{ position: 'absolute', top: -4, right: -4, background: '#FF3366', color: '#fff', borderRadius: 8, fontSize: 10, padding: '0 4px' }}>{items.length}</span>
+      </button>
+      {open && (
+        <div className="notif-dropdown" data-testid="header-notifications-dropdown">
+          <div className="notif-dd-head">
+            <span>Benachrichtigungen ({items.length})</span>
+            <button className="notif-dd-read" onClick={markRead} data-testid="header-notifications-mark-read">
+              Alle als gelesen
+            </button>
+          </div>
+          <div className="notif-dd-list">
+            {items.map(n => (
+              <div className="notif-dd-item" key={n.id}>
+                <b>{n.title}</b>
+                <span>{n.message}</span>
+                {n.ts && <em>{new Date(n.ts).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</em>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </span>
   );
 };
 

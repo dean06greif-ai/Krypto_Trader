@@ -1102,6 +1102,11 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
               <input type="checkbox" checked={cfg.use_ai_levels === true}
                 onChange={e => updateConfig({ use_ai_levels: e.target.checked })} data-testid="ai-levels-toggle" />
             </label>
+            <label className="ai-setup-check" title="Krypto, Forex und Indizes/Rohstoffe in getrennten KI-Läufen analysieren – tiefere, asset-spezifischere Begründungen (3 LLM-Calls pro Zyklus)">
+              <span>Gruppen-Analyse</span>
+              <input type="checkbox" checked={cfg.group_analysis !== false}
+                onChange={e => updateConfig({ group_analysis: e.target.checked })} data-testid="ai-group-analysis-toggle" />
+            </label>
             <label className="ai-setup-check" title="Übergeordnete Swing-Trades: eigene Kategorie mit niedrigem Hebel und weiten TP/SL, parallel zu kurzfristigen (auch gegenläufigen) Scalps auf demselben Asset">
               <span>Swing-Trades</span>
               <input type="checkbox" checked={cfg.swing_enabled !== false}

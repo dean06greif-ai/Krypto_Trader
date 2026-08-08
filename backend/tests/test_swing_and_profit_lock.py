@@ -152,3 +152,30 @@ class TestSwingSignalClamps:
     def test_actions_contains_secure_profit(self):
         from services.ai_trade_manager import ACTIONS
         assert "secure_profit" in ACTIONS
+
+
+class TestAnalysisGroups:
+    def _engine(self, enabled=True):
+        from services.ai_engine import AIEngine
+        e = AIEngine.__new__(AIEngine)
+        e.config = {"group_analysis": enabled}
+        return e
+
+    def test_grouping(self):
+        groups = dict(self._engine()._analysis_groups(
+            ["BTCUSDT", "ETHUSDT", "EURUSD", "USDJPY", "SPYUSDT", "GOLDUSDT"]))
+        assert groups["Krypto"] == ["BTCUSDT", "ETHUSDT"]
+        assert groups["Forex"] == ["EURUSD", "USDJPY"]
+        assert groups["Indizes & Rohstoffe"] == ["SPYUSDT", "GOLDUSDT"]
+
+    def test_disabled_returns_single_batch(self):
+        res = self._engine(enabled=False)._analysis_groups(["BTCUSDT", "EURUSD"])
+        assert len(res) == 1 and res[0][1] == ["BTCUSDT", "EURUSD"]
+
+    def test_empty_groups_omitted(self):
+        res = self._engine()._analysis_groups(["BTCUSDT"])
+        assert [g for g, _ in res] == ["Krypto"]
+
+    def test_group_analysis_config_default(self):
+        from services.ai_engine import DEFAULT_AI_CONFIG
+        assert DEFAULT_AI_CONFIG["group_analysis"] is True

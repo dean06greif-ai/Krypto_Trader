@@ -882,6 +882,10 @@ class AutoTradeManager:
         except (TypeError, ValueError):
             pass
         mode = eff_mode
+        # Manueller Modus-Override (nur Nicht-KI-Quellen setzen force_mode)
+        fm = str(signal.get("force_mode") or "").lower()
+        if fm in ("live", "paper"):
+            mode = fm
         # Instrumente ohne Bitunix-Kontrakt (z.B. Forex) können nicht live
         # geordert werden -> automatisch als Paper-Trade simulieren.
         if mode == "live" and not _instruments.is_tradable(symbol):

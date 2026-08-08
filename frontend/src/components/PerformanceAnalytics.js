@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendUp, TrendDown, Target, Clock, ChartBar, Lightning, CheckCircle, XCircle, Trash, Warning, CaretDown } from '@phosphor-icons/react';
+import { TrendUp, TrendDown, Target, Clock, ChartBar, Lightning, CheckCircle, XCircle, Trash, Warning, CaretDown, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { authHeaders, isAdmin } from '../auth';
+import NewTradeModal from './NewTradeModal';
 import './PerformanceAnalytics.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -39,113 +40,32 @@ const LevelRow = ({ label, value, pct, cls, hit }) => {
   );
 };
 
-// Aktionen auf einem offenen Trade (Trades → Offene Trades): sofort schließen,
-// Teilschließen, SL/TP anpassen. Ersetzt das frühere Schließen direkt im Chart.
+// Offener Trade: nur noch der Schließen-Button (das frühere "Trade steuern"-
+// Interface wurde auf Nutzerwunsch entfernt – SL/TP managt die KI bzw. Bitunix).
 const OpenTradeActions = ({ t, onChanged }) => {
-  const [busy, setBusy] = useState(null);
-  const [partPct, setPartPct] = useState(50);
-  const [slPrice, setSlPrice] = useState(t.sl ?? '');
-  const [tpTarget, setTpTarget] = useState('tpf');
-  const [tpPrice, setTpPrice] = useState(t.tpf ?? '');
+  const [busy, setBusy] = useState(false);
 
-  const run = async (kind, req) => {
-    setBusy(kind);
+  const closeNow = async () => {
+    if (!window.confirm(`${t.side} ${t.symbol} wirklich komplett schließen?`)) return;
+    setBusy(true);
     try {
-      const res = await fetch(req.url, {
+      const res = await fetch(`${API_URL}/api/autotrade/close/${t.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: req.body ? JSON.stringify(req.body) : undefined,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || 'Aktion fehlgeschlagen');
-      toast.success(req.okMsg(data));
+      toast.success(`Trade geschlossen · PnL ${data.result?.realized_pnl ?? '–'} USDT`);
       onChanged && onChanged();
-    } catch (e) { toast.error(e.message); } finally { setBusy(null); }
-  };
-
-  const closeNow = () => {
-    if (!window.confirm(`${t.side} ${t.symbol} wirklich komplett schließen?`)) return;
-    run('close', {
-      url: `${API_URL}/api/autotrade/close/${t.id}`,
-      okMsg: (d) => `Trade geschlossen · PnL ${d.result?.realized_pnl ?? '–'} USDT`,
-    });
-  };
-
-  const partialClose = () => {
-    const pct = Number(partPct);
-    if (!(pct >= 1 && pct <= 99)) { toast.error('Teilschließen: 1-99 %'); return; }
-    run('partial', {
-      url: `${API_URL}/api/autotrade/trade/${t.id}/action`,
-      body: { action: 'partial_close', value: pct },
-      okMsg: () => `${pct}% der Position geschlossen`,
-    });
-  };
-
-  const adjustSl = () => {
-    const price = parseFloat(slPrice);
-    if (!(price > 0)) { toast.error('Ungültiger SL-Preis'); return; }
-    run('sl', {
-      url: `${API_URL}/api/autotrade/trade/${t.id}/action`,
-      body: { action: 'adjust_sl', value: price },
-      okMsg: () => `Stop-Loss auf ${price} gesetzt`,
-    });
-  };
-
-  const adjustTp = () => {
-    const price = parseFloat(tpPrice);
-    if (!(price > 0)) { toast.error('Ungültiger TP-Preis'); return; }
-    run('tp', {
-      url: `${API_URL}/api/autotrade/trade/${t.id}/action`,
-      body: { action: 'adjust_tp', value: price, target: tpTarget },
-      okMsg: () => `${tpTarget === 'tpf' ? 'Final-TP' : 'TP1'} auf ${price} gesetzt`,
-    });
+    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
 
   return (
     <div className="ota" data-testid={`open-trade-actions-${t.id}`}>
-      <div className="ota-title">TRADE STEUERN</div>
-      <div className="ota-row">
-        <button className="ota-btn ota-close" onClick={closeNow} disabled={busy !== null}
-          data-testid={`ota-close-${t.id}`}>
-          {busy === 'close' ? 'Schließt…' : 'Trade schließen'}
-        </button>
-        <div className="ota-group">
-          <input type="number" min={1} max={99} value={partPct}
-            onChange={e => setPartPct(e.target.value)} className="ota-input"
-            data-testid={`ota-partial-pct-${t.id}`} />
-          <span className="ota-unit">%</span>
-          <button className="ota-btn" onClick={partialClose} disabled={busy !== null}
-            data-testid={`ota-partial-${t.id}`}>
-            {busy === 'partial' ? 'Schließt…' : 'Teilschließen'}
-          </button>
-        </div>
-      </div>
-      <div className="ota-row">
-        <div className="ota-group">
-          <span className="ota-label">SL</span>
-          <input type="number" step="any" value={slPrice}
-            onChange={e => setSlPrice(e.target.value)} className="ota-input wide"
-            data-testid={`ota-sl-price-${t.id}`} />
-          <button className="ota-btn" onClick={adjustSl} disabled={busy !== null}
-            data-testid={`ota-sl-apply-${t.id}`}>
-            {busy === 'sl' ? 'Setzt…' : 'SL setzen'}
-          </button>
-        </div>
-        <div className="ota-group">
-          <select value={tpTarget} onChange={e => setTpTarget(e.target.value)}
-            className="ota-select" data-testid={`ota-tp-target-${t.id}`}>
-            <option value="tpf">TP Full</option>
-            <option value="tp1">TP1</option>
-          </select>
-          <input type="number" step="any" value={tpPrice}
-            onChange={e => setTpPrice(e.target.value)} className="ota-input wide"
-            data-testid={`ota-tp-price-${t.id}`} />
-          <button className="ota-btn" onClick={adjustTp} disabled={busy !== null}
-            data-testid={`ota-tp-apply-${t.id}`}>
-            {busy === 'tp' ? 'Setzt…' : 'TP setzen'}
-          </button>
-        </div>
-      </div>
+      <button className="ota-btn ota-close" onClick={closeNow} disabled={busy}
+        data-testid={`ota-close-${t.id}`}>
+        {busy ? 'Schließt…' : 'Trade schließen'}
+      </button>
     </div>
   );
 };
@@ -259,6 +179,7 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
   const [view, setView] = useState('overview');
   const [timeAnalytics, setTimeAnalytics] = useState(null);
   const [trades, setTrades] = useState([]);
+  const [showNewTrade, setShowNewTrade] = useState(false);
   const [balance, setBalance] = useState(null);
   const [showClear, setShowClear] = useState(false);
   const [clearRange, setClearRange] = useState('24h');
@@ -629,7 +550,17 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
           </div>
 
           <div className="analytics-section">
-            <div className="section-title">OFFENE TRADES <span className="sec-count">{openTrades.length}</span></div>
+            <div className="section-title">OFFENE TRADES <span className="sec-count">{openTrades.length}</span>
+              <button className="new-trade-plus" title="Neuen Trade eröffnen (Live/Paper)"
+                onClick={() => (isAdmin ? setShowNewTrade(true) : (onNeedAdmin && onNeedAdmin()))}
+                data-testid="open-new-trade-btn">
+                <Plus size={13} weight="bold" />
+              </button>
+            </div>
+            {showNewTrade && (
+              <NewTradeModal defaultSymbol={selectedCoin}
+                onClose={() => setShowNewTrade(false)} onOpened={loadTrades} />
+            )}
             {openTrades.length === 0 && <div className="no-data">Keine offenen Trades</div>}
             {openTrades.map(t => (
               <TradeDetailCard key={t.id} t={t} stratName={stratName} getCoinName={getCoinName}

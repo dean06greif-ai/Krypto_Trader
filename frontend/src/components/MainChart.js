@@ -3,7 +3,6 @@ import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import useLiquidityOverlay from '../hooks/useLiquidityOverlay';
 import useHeatmapOverlay from '../hooks/useHeatmapOverlay';
 import useTradeMarkers from '../hooks/useTradeMarkers';
-import ManualTradeButton from './ManualTradeButton';
 import './MainChart.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -452,13 +451,14 @@ const MainChart = ({ symbol, candleData }) => {
             className={`chart-liq-toggle trades ${showClosed ? 'on' : ''}`}
             onClick={() => setShowClosed(v => !v)}
             title={showClosed
-              ? 'Geschlossene Trades ausblenden (offene bleiben immer sichtbar)'
-              : 'Geschlossene Trades im Chart anzeigen (Entry-Pfeil + Exit-Punkt, Hover = Strategie). Offene Trades sind immer als Entry-Linie sichtbar; SL/TP erscheinen beim Hover über den Entry-Punkt.'}
+              ? 'Nur offene Trades im Chart anzeigen'
+              : 'Alle Trades anzeigen (offene + geschlossene: Entry-Pfeil + Exit-Punkt, Hover = Strategie). Ohne Aktivierung sind nur offene Trades sichtbar.'}
             data-testid="chart-trades-toggle"
           >
-            TRADES {showClosed ? `· ${tradeCounts.closed}` : (tradeCounts.open ? `· ${tradeCounts.open} offen` : '')}
+            ALLE TRADES {showClosed
+              ? `· ${(tradeCounts.open || 0) + (tradeCounts.closed || 0)}`
+              : (tradeCounts.open ? `· ${tradeCounts.open} offen` : '')}
           </button>
-          <ManualTradeButton symbol={symbol} onOpened={refreshTrades} />
         </div>
       </div>
       {heatOn && (heatError || heatInfo) && (

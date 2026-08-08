@@ -107,6 +107,9 @@ DEFAULT_AI_CONFIG = {
     # weiten Zielen, parallel zu kurzfristigen (auch gegenläufigen) Scalps.
     "swing_enabled": True,
     "swing_max_leverage": 8,
+    # Gruppen-Analyse: Krypto / Forex / Indizes+Rohstoffe in getrennten
+    # LLM-Läufen für tiefere, asset-spezifischere Begründungen.
+    "group_analysis": True,
 }
 
 # Kataloge, Keys (inkl. Backup-Keys) & Modell-Gewichte leben zentral in
@@ -397,6 +400,8 @@ class AIEngine:
             self.config["use_ai_levels"] = bool(updates["use_ai_levels"])
         if "swing_enabled" in updates:
             self.config["swing_enabled"] = bool(updates["swing_enabled"])
+        if "group_analysis" in updates:
+            self.config["group_analysis"] = bool(updates["group_analysis"])
         if "swing_max_leverage" in updates:
             try:
                 self.config["swing_max_leverage"] = max(1, min(20, int(updates["swing_max_leverage"])))
@@ -982,12 +987,57 @@ class AIEngine:
             "aber NICHT backtestbar; bewerte sie separat von regelbasierten Tests."
         )
 
+    async def _capital_risk_block(self) -> str:
+        """Live-Kapital- und Risiko-Status für die KI: Guthaben, freies Kapital
+        pro Modus und Kill-Switch-Zustand – damit Positionsgrößen und neue
+        Trades zur echten Kontolage passen."""
+        from core.state import autotrader
+        lines = []
+        total = None
+        try:
+            total = await autotrader._live_total_balance()
+            if total is not None:
+                lines.append(f"Bitunix-Gesamtguthaben: {total:.2f} USDT")
+        except Exception:
+            pass
+        for scope in ("live", "paper"):
+            try:
+                alloc = await autotrader.allocated_capital(
+                    scope, total=total if scope == "live" else None)
+                used = await autotrader.used_margin(scope)
+                if alloc is not None:
+                    lines.append(f"{scope.upper()}: zugewiesen {alloc:.2f} USDT | "
+                                 f"gebunden {used:.2f} | FREI {alloc - used:.2f}")
+                else:
+                    lines.append(f"{scope.upper()}: gebundene Margin {used:.2f} USDT")
+            except Exception:
+                continue
+        try:
+            from services import trade_guard
+            gstate = await trade_guard.get_state(self.db)
+            if gstate.get("paused"):
+                lines.append(f"⚠ KILL-SWITCH AKTIV: {gstate.get('reason')} – "
+                             f"Auto-Trading pausiert bis {gstate.get('paused_until')}")
+        except Exception:
+            pass
+        if not lines:
+            return ""
+        return ("=== KAPITAL & RISIKO-STATUS (live) ===\n" + "\n".join(lines) +
+                "\nBerücksichtige das FREIE Kapital bei capital_pct/neuen Trades – "
+                "Profit-Lock auf Gewinner kann zusätzlich Kapital freimachen.")
+
     async def _analysis_extra_blocks(self) -> str:
         """MasterPrompt, Rolle, Plattform-Wissen, Performance, Lektionen, Settings,
         Strategie-Labor, Validierung + Autonomie-Regeln."""
         parts = [master_prompt.prompt_block(),
                  self._role_context_block(),
                  f"=== PLATTFORM-WISSEN ===\n{PLATFORM_KNOWLEDGE}"]
+        try:
+            cap = await self._capital_risk_block()
+            if cap:
+                parts.append(cap)
+        except Exception as e:
+            logger.warning(f"AI capital block failed: {e}")
         macro = await self._macro_block()
         if macro:
             parts.append(macro)
@@ -1127,6 +1177,25 @@ class AIEngine:
         text, _provider, model = await self.generate_for_role(role, prompt, system)
         return text, model
 
+    def _analysis_groups(self, symbols: List[str]) -> List[tuple]:
+        """Symbole für die Analyse gruppieren: Krypto / Forex / Indizes+Rohstoffe.
+        Getrennte LLM-Läufe liefern differenziertere, asset-spezifische
+        Begründungen als ein einzelner Batch über alle ~20 Assets."""
+        if not self.config.get("group_analysis", True):
+            return [("Alle Assets", list(symbols))]
+        from core import instruments
+        by_group = {i.symbol: i.group for i in instruments.INSTRUMENTS}
+        buckets = {"Krypto": [], "Forex": [], "Indizes & Rohstoffe": []}
+        for s in symbols:
+            g = by_group.get(s)
+            if g == instruments.GROUP_FOREX:
+                buckets["Forex"].append(s)
+            elif g == instruments.GROUP_CRYPTO:
+                buckets["Krypto"].append(s)
+            else:
+                buckets["Indizes & Rohstoffe"].append(s)
+        return [(k, v) for k, v in buckets.items() if v]
+
     async def run_analysis(self, manual: bool = False) -> Dict:
         if self._analyzing:
             return {"status": "busy", "detail": "Analyse läuft bereits"}
@@ -1169,69 +1238,95 @@ class AIEngine:
                     f"pro Trade über 'capital_pct' (10-100), wie viel davon du einsetzt. "
                     f"Staffle nach Überzeugung – nutze NICHT automatisch immer 100%.\n\n")
 
-            prompt = (
+            prompt_base = (
                 f"Zeit (Berlin): {berlin}\n\n"
                 f"{extra_blocks}\n\n"
-                f"=== MARKTDATEN (Multi-Timeframe) ===\n" +
-                "\n".join(v["text"] for v in snaps.values()) +
-                f"\n\n=== AKTUELLE NEWS ===\n{news_block}\n\n"
+                f"=== AKTUELLE NEWS ===\n{news_block}\n\n"
                 + capital_block +
                 f"=== ANWEISUNGEN DES TRADERS (höchste Priorität) ===\n{directives}\n\n"
                 f"=== OFFENE POSITIONEN ===\n{open_trades}\n\n"
-                f"Analysiere jedes Symbol ({', '.join(snaps.keys())}) und gib deine Entscheidungen als JSON zurück."
             )
 
-            raw, model_used = await self._generate_json(prompt, ANALYSIS_SYSTEM)
-            data = self._parse_json(raw)
-
+            groups = self._analysis_groups(list(snaps.keys()))
             now = _now_iso()
             emitted = []
             stored = []
-            for d in data.get("decisions", []):
-                sym = d.get("symbol")
-                if sym not in snaps:
+            overview_parts = []
+            group_errors = []
+            all_new_strategies = []
+            all_config_changes = []
+            model_used = None
+            for g_label, g_syms in groups:
+                g_prompt = (
+                    prompt_base
+                    + f"=== MARKTDATEN (Multi-Timeframe) – FOKUS-GRUPPE: {g_label} ===\n"
+                    + "\n".join(snaps[s]["text"] for s in g_syms)
+                    + f"\n\nDieser Lauf behandelt NUR die Gruppe {g_label} "
+                      f"({', '.join(g_syms)}). Analysiere jedes dieser Symbole in der "
+                      "Tiefe (Struktur, Level, Korrelationen INNERHALB der Gruppe) und "
+                      "gib für jedes genau eine Entscheidung mit individueller, "
+                      "asset-spezifischer Begründung als JSON zurück."
+                )
+                try:
+                    raw, model_used = await self._generate_json(g_prompt, ANALYSIS_SYSTEM)
+                    data = self._parse_json(raw)
+                except Exception as ge:
+                    group_errors.append(f"{g_label}: {str(ge)[:120]}")
+                    logger.error(f"AI Gruppen-Analyse {g_label} fehlgeschlagen: {ge}")
                     continue
-                action = str(d.get("action", "HOLD")).upper()
-                if action not in ("LONG", "SHORT", "HOLD"):
-                    action = "HOLD"
-                horizon = "swing" if (str(d.get("horizon") or "").lower() == "swing"
-                                      and self.config.get("swing_enabled", True)) else "scalp"
-                dec = {
-                    "id": str(uuid.uuid4()),
-                    "symbol": sym,
-                    "action": action,
-                    "confidence": max(0, min(100, int(d.get("confidence", 0) or 0))),
-                    "horizon": horizon,
-                    "runner": bool(d.get("runner")) and horizon == "swing",
-                    "sl_pct": float(d.get("sl_pct", 0.6) or 0.6),
-                    "tp1_pct": float(d.get("tp1_pct", 0.9) or 0.9),
-                    "tpf_pct": float(d.get("tpf_pct", 1.8) or 1.8),
-                    "capital_pct": max(10, min(100, int(d.get("capital_pct", 100) or 100))),
-                    "news_impact": d.get("news_impact", "neutral"),
-                    "reasoning": str(d.get("reasoning", ""))[:500],
-                    "strategy_candidate_id": str(d.get("strategy_candidate_id") or "") or None,
-                    "price": snaps[sym]["price"],
-                    "rsi": snaps[sym]["rsi"],
-                    "ts": now,
-                    "signaled": False,
-                    "model": model_used,
-                    "model_weight": ai_providers.model_weight(model_used),
-                }
-                self.decisions[sym] = dec
-                stored.append(dec)
-                if (action in ("LONG", "SHORT")
-                        and dec["confidence"] >= self.config["min_confidence"]
-                        and self.scanner.is_trading_session("ai_trader")):
-                    ok = await self._emit_signal(dec)
-                    if ok:
-                        dec["signaled"] = True
-                        emitted.append(f"{sym} {action}")
+                ov = str(data.get("market_overview", "")).strip()
+                if ov:
+                    overview_parts.append(f"[{g_label}] {ov}" if len(groups) > 1 else ov)
+                all_new_strategies += list(data.get("new_strategies") or [])
+                all_config_changes += list(data.get("config_changes") or [])
+                for d in data.get("decisions", []):
+                    sym = d.get("symbol")
+                    if sym not in snaps or sym not in g_syms:
+                        continue
+                    action = str(d.get("action", "HOLD")).upper()
+                    if action not in ("LONG", "SHORT", "HOLD"):
+                        action = "HOLD"
+                    horizon = "swing" if (str(d.get("horizon") or "").lower() == "swing"
+                                          and self.config.get("swing_enabled", True)) else "scalp"
+                    dec = {
+                        "id": str(uuid.uuid4()),
+                        "symbol": sym,
+                        "action": action,
+                        "confidence": max(0, min(100, int(d.get("confidence", 0) or 0))),
+                        "horizon": horizon,
+                        "runner": bool(d.get("runner")) and horizon == "swing",
+                        "sl_pct": float(d.get("sl_pct", 0.6) or 0.6),
+                        "tp1_pct": float(d.get("tp1_pct", 0.9) or 0.9),
+                        "tpf_pct": float(d.get("tpf_pct", 1.8) or 1.8),
+                        "capital_pct": max(10, min(100, int(d.get("capital_pct", 100) or 100))),
+                        "news_impact": d.get("news_impact", "neutral"),
+                        "reasoning": str(d.get("reasoning", ""))[:500],
+                        "strategy_candidate_id": str(d.get("strategy_candidate_id") or "") or None,
+                        "price": snaps[sym]["price"],
+                        "rsi": snaps[sym]["rsi"],
+                        "ts": now,
+                        "signaled": False,
+                        "model": model_used,
+                        "model_weight": ai_providers.model_weight(model_used),
+                    }
+                    self.decisions[sym] = dec
+                    stored.append(dec)
+                    if (action in ("LONG", "SHORT")
+                            and dec["confidence"] >= self.config["min_confidence"]
+                            and self.scanner.is_trading_session("ai_trader")):
+                        ok = await self._emit_signal(dec)
+                        if ok:
+                            dec["signaled"] = True
+                            emitted.append(f"{sym} {action}")
+            if group_errors and not stored:
+                self.last_error = "Gruppen-Analyse fehlgeschlagen: " + "; ".join(group_errors)[:280]
+                return {"status": "error", "detail": self.last_error}
             if stored:
                 await self.db.ai_decisions.insert_many([dict(x) for x in stored])
 
             # Neue Strategie-Ideen der KI -> Strategie-Labor (Ghost-Phase)
             new_candidates = []
-            for spec in (data.get("new_strategies") or [])[:3]:
+            for spec in all_new_strategies[:3]:
                 if not isinstance(spec, dict):
                     continue
                 try:
@@ -1245,7 +1340,7 @@ class AIEngine:
             cfg_results = []
             try:
                 cfg_results = await self._handle_config_changes(
-                    data.get("config_changes") or [], source="analysis")
+                    all_config_changes, source="analysis")
             except Exception as ce:
                 logger.error(f"AI config changes failed: {ce}")
             # Autonomie "auto": zurückgestellte Wünsche erneut prüfen und
@@ -1258,7 +1353,8 @@ class AIEngine:
             feed_entry = {
                 "id": str(uuid.uuid4()),
                 "role": "analysis",
-                "text": str(data.get("market_overview", ""))[:1200],
+                "text": "\n\n".join(overview_parts)[:1800],
+                "group_errors": group_errors or None,
                 "decisions": [{"symbol": x["symbol"], "action": x["action"],
                                "confidence": x["confidence"], "reasoning": x["reasoning"],
                                "horizon": x.get("horizon", "scalp"),
@@ -2131,6 +2227,18 @@ class AIEngine:
             except Exception as e:
                 logger.warning(f"AI daily summary un-pin previous failed: {e}")
 
+        # 7) Automatischer Lernlauf: die KI analysiert die eröffneten/geschlossenen
+        #    Trades des Tages und leitet daraus Lektionen für die Zukunft ab.
+        learning_status = None
+        if summary_inserted and self.learning \
+                and self.config.get("learning_enabled", True) and self.key:
+            try:
+                lres = await self.learning.run_learning(trigger="daily_summary")
+                learning_status = lres.get("status")
+                logger.info(f"AI daily learning ({prev_day_iso}): {learning_status}")
+            except Exception as e:
+                logger.warning(f"AI daily learning failed: {e}")
+
         logger.info(
             f"AI daily reset done for {prev_day_iso}: archived {len(facts['chat_docs'])} chat + "
             f"{len(facts['day_decisions'])} decisions, summary via "
@@ -2146,6 +2254,7 @@ class AIEngine:
             "summary_inserted": summary_inserted,
             "delete_ok": delete_ok,
             "archive_errors": archive_errors,
+            "learning": learning_status,
         }
 
     async def _run_housekeeping(self):

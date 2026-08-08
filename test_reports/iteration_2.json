@@ -1,0 +1,49 @@
+{
+  "summary": "Backend + Frontend Review-Test Iteration 2 (Gruppen-Analyse-Config, manuelles Trade-Modal, Trade-Karte nur Close-Button, ALLE TRADES Chart-Toggle, NotificationBell Dropdown, KI-Kapital/Risiko-Block). Alle 11 Punkte aus dem Review-Request verifiziert und bestanden. Kein manueller Paper-Trade tatsächlich eröffnet, weil Master-Schalter 'Stop All Trades' korrekt blockiert (Guard-Verhalten wie im Brief beschrieben – als pass gewertet, Format geprüft). LLM-Analyse wurde absichtlich NICHT getriggert (Quota + review_request-Hinweis). Backend: 4/4 pytest-Tests grün, 1 skipped (paper-open by design → kill-switch blockiert). Frontend: alle data-testids gefunden, Modal-Elemente + Slider-Sync + Free Capital ~10000 USDT (paper) + Trade-Karten-Refactor (nur ota-close, 0 inputs) + NotificationBell-Dropdown mit Titel/Nachricht/Mark-Read + Chart-ALLE-TRADES-Toggle (1 offen → 42 gesamt → 1 offen) + Setup 'Gruppen-Analyse' Toggle checked verifiziert. Config wurde nach Toggle-Test wieder auf group_analysis=true zurückgesetzt.",
+  "features_tested": [
+    "group_analysis config: GET default=true - pass - evidence: /api/ai/status → config.group_analysis=True - skill: n/a (pure config)",
+    "group_analysis toggle+restore: POST /api/ai/config {group_analysis:false} → GET zeigt false → POST true → GET zeigt true - pass",
+    "POST /api/ai/trade/open paper mode: pass (guard-blocked by kill-switch) - body={\"status\":\"blocked\",\"detail\":\"Master-Schalter 'Stop All Trades' ist aktiv\"} - laut review_request 'KORREKTES Guard-Verhalten'",
+    "GET /api/notifications?unread_only=true Format: pass - liefert {\"notifications\":[{id,type,title,message,read=false,created_at}]}",
+    "POST /api/notifications/read Format: pass - {\"status\":\"ok\",\"updated\":<int>} mit fake-id → updated=0",
+    "Chart ALLE TRADES Toggle: pass - default 'ALLE TRADES · 1 offen', nach Klick 'ALLE TRADES · 42' (Summe), Klick zurück '· 1 offen'; alter '+ TRADE'-Button ENTFERNT (chart-manual-trade-btn=None)",
+    "NEUER TRADE Modal öffnet via open-new-trade-btn nach Admin-Login: pass - alle data-testids vorhanden (new-trade-modal, new-trade-mode-paper/live, new-trade-symbol=BTCUSDT, new-trade-margin-slider, new-trade-margin-input=2500 default, new-trade-free-capital='Frei: 10000.00 USDT · gebunden 0.00', new-trade-position-size='Positionsgröße: 25000.00 USDT (2500.00 × 10x)', new-trade-submit)",
+    "Modal Slider-Sync: pass - margin_input=20 → slider=20, position=200 USDT, %=0%",
+    "Modal Submit Paper 20 USDT: guard-blocked by kill-switch toast 'Master-Schalter Stop All Trades ist aktiv' - pass (Guard-Verhalten, wie review_request erwartet)",
+    "OpenTradeActions (nur Close): pass - trade-card-toggle-BTCUSDT-1786138881019 expandiert → ota-close-BTCUSDT-1786138881019='Trade schließen' vorhanden, 0 inputs/selects, 1 Button; keine TRADE STEUERN/Teilschließen/SL setzen/TP setzen Felder",
+    "Header NotificationBell Dropdown: pass - Klick öffnet header-notifications-dropdown mit Titel 'BENACHRICHTIGUNGEN (1)' + 'Alle als gelesen'-Button (header-notifications-mark-read), Bell bleibt sichtbar",
+    "AI-Panel Setup Toggle Gruppen-Analyse: pass - ai-setup-panel → ai-group-analysis-toggle checked=True (Label 'Gruppen-Analyse'), Swing-Toggle daneben (ai-swing-toggle) ebenfalls präsent"
+  ],
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/ai/status", "issue": "Sporadische Cloudflare-502-Antworten (Ingress-Timeout) bei parallelen Requests – bereits in Iter1 dokumentiert, Retry-Logik in Tests fängt es ab."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_review_iter2_group_analysis_and_manual_trade.py",
+    "/app/test_reports/pytest/iter2_review_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AITradingPanel.js weiterhin ~1520 Zeilen (>700-Grenze) – Setup/Chat/Team/Lab-Sub-Aufteilung würde die Wartbarkeit stark verbessern; group_analysis-Toggle sitzt bei Z.1105 und wäre ein Kandidat für eine SetupPanel-Datei.",
+    "PerformanceAnalytics.js jetzt 759 Zeilen (+ NewTradeModal.js) – TradeDetailCard/OpenTradeActions könnten in eigene Dateien.",
+    "1 Hydration-Warning in Konsole 'In HTML, %s cannot be a child of %s' (span in radix Select). Unkritisch, aber sollte im Menü/Header Dropdown geprüft werden.",
+    "POST /api/notifications/read akzeptiert Requests OHNE Authentication (updated=1 markierte alle Notifs). Da Notifs benutzer-spezifisch sind und kill_switch-Info als 'brauche Nutzer-Aktion' gedacht ist, wäre Admin-Auth-Schutz sinnvoll. (Nicht als Bug, aber Sicherheits-Hinweis)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_review_iter2_group_analysis_and_manual_trade.py (neu)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (aus /app/memory/test_credentials.md)",
+  "seed_data_creation": "Keine Live-Trades geöffnet/geschlossen. Ein Test-Toggle group_analysis=false wurde am Ende wieder auf true gesetzt. Zusätzlich hat der Guard beim ersten POST /api/notifications/read (ohne ids-Filter) die 1 vorhandene kill_switch-Notification als gelesen markiert (updated=1) – der Backend-Kill-Switch-Watchdog hat inzwischen eine neue Notification erzeugt, Endstand: 1 unread.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Kill-Switch ist bewusst aktiv (Stop All Trades / 6 Verlust-Trades). POST /api/ai/trade/open antwortet daher 'blocked' – laut review_request KORREKT und als pass zu werten. Das Frontend zeigt beim Submit-Versuch die passende Toast-Message. Wenn ein späterer Test tatsächlich einen Paper-Trade eröffnen will, muss zuerst POST /api/control/stop-trades (Toggle) verwendet werden (nur mit expliziter User-Freigabe!). Frontend-Login: Klick auf Plus-Button in OFFENE TRADES triggert das Admin-Login-Modal (Passwort-Prompt, Username vorbelegt) – kein separater Login-Flow nötig.",
+  "rca of the issue": "Keine offenen Bugs – alle iter2-Punkte grün."
+}
