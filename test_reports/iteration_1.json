@@ -1,0 +1,49 @@
+{
+  "summary": "Full backend + frontend review-request testing für Swing/Profit-Lock/PnL-Bugfixes gegen die produktive Preview-URL. Alle 11 review-Punkte verifiziert – bestanden. Backend: 28/28 pytest-Tests grün (20 vorhandene Unit-Tests + 8 neue HTTP-E2E-Tests inkl. Clamp-/Persist-/Auth-/Reset-Checks). Frontend: Admin-Login funktioniert, Kill-Switch-Inputs dunkel gestylt (rgb(16,20,31)/rgb(232,234,242), guard-num-input Klasse), KI-Trader-Panel öffnet sich, ai-health-badge sichtbar und Dropdown mit Modell-Status öffnet, Swing-Toggle+Select vorhanden (default 8x), KI-Labor Trade-Steuerung zeigt Profit-Lock Toggle/max-Hebel/Min-Margin (100/15/on), offene Trade-Karte zeigt uPnL % auf Margin (Bitunix) und PnL % auf Margin, Chart-Badge zeigt -13.37% was exakt computed.upnl_pct_margin des BTC-Live-Trades entspricht. Keine kritischen Konsolen-Errors. Config nach Tests auf Ausgangswerte zurückgesetzt (profit_lock 100/15, swing_max_leverage 8).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/ai/trade/status", "issue": "Antwortzeit selten >30s → sporadische Cloudflare-502 durch Ingress-Timeout (parallele Requests). Kein Datenfehler – Retry löst es. Empfehlung: heavy Aggregation in status()-Aufruf cachen."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_review_swing_profitlock_api.py",
+    "/app/backend/tests/test_swing_and_profit_lock.py",
+    "/app/test_reports/pytest/review_api_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AITradingPanel.js ist 1520 Zeilen groß (>700-Grenze) – Aufteilung in Setup/Chat/Team/Lab-Subkomponenten sinnvoll.",
+    "PerformanceAnalytics.js ist 828 Zeilen – TradeDetailCard/ClearDialog könnten in eigene Dateien.",
+    "review_request behauptet Clamp profit_lock_max_leverage: 1→5. Tatsächlicher Code (ai_trade_manager.py:336) hat Range 1..200 – Wert 1 wird nicht auf 5 geclampt. Doku vs. Code prüfen; falls Code korrekt, review_request nur informativ."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_review_swing_profitlock_api.py (neu)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (aus /app/memory/test_credentials.md)",
+  "seed_data_creation": "keine – produktive Live-Datenbank, ausschließlich lesende Prüfungen; alle temporär gesetzten Settings (profit_lock 125/20/999/1; swing 10/50) wurden im finally-Block auf 100/15/8 zurückgesetzt und nach dem Lauf per GET verifiziert.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend braucht ~30s pro cold /api/ai/trade/status – die Session-Login-Retry-Logik (_login) fängt gelegentliche 502 ab. Kill-Switch ist bewusst ausgelöst (4 Verlust-Trades) und NICHT aufheben. Bitunix-Live: kein close/partial_close/open erlaubt. Wenn erneut Swing/ProfitLock-Werte in der DB verändert werden, unbedingt am Ende reset auf profit_lock_max_leverage=100, profit_lock_min_margin_pct=15, swing_max_leverage=8 (siehe finally-Blöcke).",
+  "rca of the issue": "keine offenen Bugs – alle 11 Review-Punkte grün. Sporadisches Cloudflare-502 auf /api/ai/trade/status ist ein Performance-Hotspot (Aggregation über offene Trades/Aktionen), kein Fehler. Retry hebt es auf.",
+  "verified_features": [
+    "GET /api/ai/trade/status: settings.profit_lock_{enabled,max_leverage,min_margin_pct} vorhanden; actions enthält 'secure_profit'",
+    "POST /api/ai/trade/settings (JWT Admin): persistiert (125/20 → GET zeigt 125/20), clamp 999 → 200, clamp min_margin_pct 1 → 5, ohne Auth → 401",
+    "GET /api/ai/status: config.swing_enabled=true, swing_max_leverage=8; POST /api/ai/config swing_max_leverage=10 persistiert; 50 wird auf 20 geclampt; danach zurück auf 8",
+    "GET /api/autotrade/trades?limit=10: jeder Trade hat computed.pnl_pct_margin & computed.margin_used; offene Trades zusätzlich computed.upnl_pct_margin",
+    "GET /api/autotrade/watchdog/status: liefert 'dust_closed' (int) neben positions/last_run_at/sl_fixed/sl_missing",
+    "Frontend Settings > Kontrolle > trade-guard-section: guard-daily-loss-input=543, guard-consec-losses-input=4, Bezugskapital=0, guard-cooldown-input=30 – alle mit Klasse guard-num-input, bg rgb(16,20,31), color rgb(232,234,242)",
+    "Frontend KI-Trader-Panel (via edit-strategy-params-btn nach KI-Trader-Tab): ai-trading-panel öffnet; ai-health-badge sichtbar+klickbar; ai-health-dropdown öffnet mit Modell-Status (groq/openrouter models mit Rate-Limit/404-Details)",
+    "Frontend KI-Trader Setup: ai-swing-toggle=checked, ai-swing-maxlev-select value=8 (7 Optionen 1..20)",
+    "Frontend KI-Labor Tab 'trades': ai-tm-profitlock-toggle=checked, ai-tm-plmaxlev-select=100, ai-tm-plminmargin-select=15",
+    "Frontend Trades-View: offene Trade-Karte (ETHUSDT-ext-...) zeigt trade-upnl-pct-margin=-1.81%, trade-pnl-pct-margin=-1.81%, Headline trade-pnl-pct=(-1.81%) – Headline entspricht margin-Basis",
+    "Frontend Chart: chart-open-badge-BTCUSDT-1786138881019 = '-13.37%' entspricht exakt computed.upnl_pct_margin=-13.37 der API",
+    "Regression: alle 4 Strategie-Tabs wechselbar (KI Trader/Scalping/Smart Money RSI Reversal/TEST Custom); Coin-Sidebar-Klick (ETH) lädt Chart neu; Settings öffnet+schließt fehlerfrei; 0 kritische Konsolen-Errors"
+  ]
+}
