@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 3 review (Lesson effectiveness/reactivate, backup keys, symbol_trade_enabled filter, multi-TP experiments, mobile alert-modal + dropdown fixes, desktop page-scroll, chart EMA scaleMargins, hover coupling). Backend pytest 29/29 green. Public-URL API smoke tests all pass. Frontend Desktop (1920x800): signal-panel maxHeight='none' overflow-y='visible', body scrollable. Frontend Mobile (390x844): notifications dropdown fully in viewport (x=8..382, <=390). Alert-modal not renderable locally (no live signal alert) – marked 'nicht testbar' per instructions, NOT a failure.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/repo/backend/tests/test_iter_reward_models_killswitch.py",
+    "/app/test_reports/pytest/iter_reward_models_killswitch.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backup_keys_info in /api/ai/status returns null when no keys configured – considering exposing it as an empty dict instead of null for more consistent client-side handling (minor)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (29/29 pytest + 4/4 API smoke)", "frontend": "100% (all testable items verified)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used existing seed. Kill-Switch active/pending is expected local state.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend verified via public URL https://daytrader-stable.preview.emergentagent.com: (a) /api/ai/status returns backup_keys={gemini:false,groq:false,openrouter:false,mistral:false,cerebras:false} and providers_health.backup_keys (same shape) + providers_health.skipped; backup_keys_info is null when no keys – acceptable. (b) POST /api/ai/analyze -> HTTP 200 with {status:'error', detail:\"API-Key für Provider 'gemini' fehlt (Render EnvVars setzen)\"} – no 500, expected. (c) PATCH /api/ai/lessons/{id} secured (401 without token, 404 for unknown id with valid admin token) – endpoint exists and enforces admin. (d) /api/ai/insights.lessons is empty locally (no learn run) – 'effect' field cannot be observed but code path exists (see pytest test_measure_effectiveness_deactivates_bad_ai_lesson passing). Frontend: signal-panel maxH='none' / overflowY='visible' confirmed; mobile header-notifications-dropdown testid renders with box {x:8,y:64,w:374,h:135} entirely within 390px viewport; tools-menu-btn not present on mobile without admin context (OK). Alert-modal only appears when a live signal alert triggers – not observable in current seed state; recommend manual QA when a live alert fires.",
+  "verification_details": {
+    "backend_pytest": "tests/test_iter_reward_models_killswitch.py: 29 passed in 0.51s (incl. test_symbol_trade_enabled_logic, test_measure_effectiveness_deactivates_bad_ai_lesson, test_clean_tp_levels_validation)",
+    "api": {
+      "POST /api/auth/login": "200, token issued (len=124)",
+      "GET /api/ai/status.backup_keys": "present, per-provider bool map",
+      "GET /api/ai/status.providers_health.backup_keys": "present (same shape)",
+      "POST /api/ai/analyze (admin)": "200 {status:error, detail:'API-Key ... fehlt'} – no 500",
+      "PATCH /api/ai/lessons/{id} (admin)": "404 for unknown id (endpoint exists)",
+      "PATCH /api/ai/lessons/{id} (no auth)": "401 'Admin-Login erforderlich'"
+    },
+    "frontend_desktop_1920x800": {
+      "signal-panel.maxHeight": "none",
+      "signal-panel.overflowY": "visible",
+      "signal-panel.position": "static",
+      "document.body.scrollHeight": 889,
+      "canvases (chart)": 8,
+      "EMA badges visible": "EMA 9 / EMA 50 / EMA 200 in header"
+    },
+    "frontend_mobile_390x844": {
+      "header-notifications-dropdown box": "{x:8, y:64, w:374, h:135}",
+      "in-viewport (x>=0 & x+w<=390)": true,
+      "tools-menu-btn": "not present on mobile (admin-hidden – OK)",
+      "alert-modal": "not renderable without live signal (nicht testbar, kein Fehler)"
+    }
+  }
+}
