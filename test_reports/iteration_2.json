@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 2 review (reward sparkline + by_regime, model watchdog, providers_health.skipped, ai-jump-newest scroll button, regressions). Backend: 6/6 pytest passed (new file test_iter_reward_regime_watchdog.py). Frontend: all requested data-testids and behaviors verified via Playwright. No functional issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/repo/backend/tests/test_iter_reward_regime_watchdog.py",
+    "/app/test_reports/pytest/iter_reward_regime_watchdog.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ai-health-badge (+ dropdown with skipped entries) is conditionally rendered only when healthIssues>0. Locally no LLM keys => healthIssues=0 => badge hidden. Behavior is correct, but consider surfacing skipped entries via a subtle indicator even when count is 0 for easier QA, or expose a debug flag."
+  ],
+  "updated_files": [
+    "/app/repo/backend/tests/test_iter_reward_regime_watchdog.py (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (all requested items verified)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used existing seed (9-day reward series, 3 regimes: range_ruhig +7.3 (4), trend_up_normal -1.5 (2), trend_down_hektisch -2.5 (2), Reward-Score -11.1).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New backend regression: /app/repo/backend/tests/test_iter_reward_regime_watchdog.py – needs env REACT_APP_BACKEND_URL. Covers /api/ai/insights.reward.series+by_regime, /api/ai/status.model_watchdog + providers_health.skipped, POST /api/ai/models/check (admin auth) with 401/403 without token, GET /api/ai/models/watchdog. Frontend verified: Reward-Sparkline (SVG polyline) 'Reward-Verlauf (kumuliert, 9 Handelstage) · aktuell -11.1' via data-testid ai-reward-chart; ai-reward-regimes shows all three regimes; ai-jump-newest-btn appears on scrollTop=0 of ai-chat-area and disappears after click; ai-overview-toggle grew text 394->1000; ai-decision-row-BTCUSDT -> ai-decision-detail-BTCUSDT works; ai-reward-stats present. ai-health-badge only renders when providers_health has non-empty rate_limited/errors/skipped (0 locally, expected).",
+  "verification_details": {
+    "backend": {
+      "GET /api/ai/insights.reward.series": "list with 9 entries, each has date + score/reward + cum",
+      "GET /api/ai/insights.reward.by_regime": "dict with range_ruhig, trend_up_normal, trend_down_hektisch",
+      "GET /api/ai/status.model_watchdog": "has checked_at, dead, checked, checking",
+      "GET /api/ai/status.providers_health.skipped": "list (empty locally, key present)",
+      "POST /api/ai/models/check (admin)": "200, {status:'ok', checked:0, results:[], dead:[]} – expected locally (no LLM keys)",
+      "POST /api/ai/models/check (no auth)": "401/403 protected",
+      "GET /api/ai/models/watchdog": "200 with summary/results"
+    },
+    "frontend": {
+      "ai-reward-chart": "SVG polyline rendered, label 'Reward-Verlauf (kumuliert, 9 Handelstage) · aktuell -11.1'",
+      "ai-reward-regimes": "'range_ruhig +7.3 (4) · trend_up_normal -1.5 (2) · trend_down_hektisch -2.5 (2)'",
+      "ai-jump-newest-btn": "appears on scrollTop=0 (visible=True), hides after click (visible=False)",
+      "ai-reward-stats": "present (Regression OK)",
+      "ai-overview-toggle": "expands overview text 394 -> 1000 chars (Regression OK)",
+      "ai-decision-row-BTCUSDT -> ai-decision-detail-BTCUSDT": "expansion works (Regression OK)"
+    }
+  }
+}
