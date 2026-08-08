@@ -1,0 +1,43 @@
+{
+  "summary": "Backend + Frontend E2E review for KI-Trader improvements (model catalog cleanup, dead-model migration, reward system in /api/ai/insights, kill-switch learning phase, trade-guard state, and frontend AITradingPanel expandable analysis / decision detail / learn panel with reward stats / KI-Team dropdowns). All 6 backend pytest cases pass. All 11 review items verified via Playwright + pytest. No functional issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_review_iter_reward_killswitch.py",
+    "/app/test_reports/pytest/review_iter.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "React hydration warning in console: <span> as child of <option> in AITradingPanel.js line ~1300 (Analyse-Zeitplan role select). This is emitted by the emergent dev-tool wrappers injected into <option value={v}>{label(v)}</option>-like maps. Cosmetic warning only; consider ensuring option labels are plain strings without wrapper spans if we want to silence it."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_review_iter_reward_killswitch.py (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (11/11 review items)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None created by testing agent. Existing seeded data used: ai_chat analysis with 2 decisions (BTCUSDT HOLD, ETHUSDT LONG), 7+ closed auto_trades. /api/ai/insights.reward reported count>0 (13 trades, reward-score -14.4, 2 rewarded, 6 punished, Top ADAUSDT, Flop BTCUSDT).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests: pytest backend/tests/test_review_iter_reward_killswitch.py (uses REACT_APP_BACKEND_URL, /api prefix, admin login). Trade-guard resume endpoint is at /api/trade-guard/resume (POST, admin bearer). AITradingPanel data-testids verified: strategy-tab-ai_trader, edit-strategy-params-btn, admin-username/password/login-submit, ai-analysis-message, ai-analysis-overview, ai-overview-toggle, ai-decision-row-<SYMBOL>, ai-decision-detail-<SYMBOL>, ai-learn-panel, ai-reward-stats, ai-role-model-analyst. Toolbar buttons 'Lernen' and 'KI-Team' selectable by role/text. Kill-Switch is currently triggered in seed state (visible toast bottom-right); resume endpoint clears it.",
+  "verification_details": {
+    "backend": {
+      "GET /api/ai/status": "200, config.model valid, provider_keys has no 'github'",
+      "GET /api/ai/roles": "200, no role uses any dead model or github provider",
+      "POST /api/ai/roles (learner=github/openai/gpt-4.1)": "migrated to provider=groq, model=openai/gpt-oss-120b; reset via /api/ai/roles/learner/reset",
+      "GET /api/ai/insights.reward": "dict with count/total/avg/rewarded/punished/by_symbol, count>0",
+      "GET /api/trade-guard": "state has learning_required and learning_done",
+      "POST /api/trade-guard/resume": "200, paused=false, learning_required=false"
+    },
+    "frontend": {
+      "login_flow": "OK (tab -> edit btn -> admin modal -> credentials -> panel opens)",
+      "ai_analysis_overview_toggle": "OK (text length grew 394 -> 1000 after toggle)",
+      "ai_decision_row_BTCUSDT_expand_collapse": "OK (detail count 0 -> 1 -> 0)",
+      "learn_panel_reward_stats": "OK (Reward-Score -14.4, Ø -1.80/Trade, 2 belohnt, 6 bestraft, Top ADAUSDT, Flop BTCUSDT)",
+      "ai_team_analyst_dropdown": "OK - contains Groq GPT-OSS 120B and 20B; no github; no dead models (no llama-3.3-70b-versatile, no qwen/qwen3-32b, no deepseek-r1:free, no gpt-4.1)"
+    }
+  }
+}
