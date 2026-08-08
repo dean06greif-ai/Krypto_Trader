@@ -1,0 +1,43 @@
+# PRD – Krypto Trader (KI Trader Verbesserungen)
+
+## Original-Problemstellung
+Bestehende, produktiv laufende externe Daytrading-Website (GitHub: dean06greif-ai/Krypto_Trader, Branch main8.8.1130, Deployment auf Render, extern/ausgelagert – soll so bleiben). Verbesserungen sauber, modular, rückwärtskompatibel in die bestehende Architektur einpflegen:
+1. KI Trader Live-Performance schlecht (119 Trades, 42% Winrate, -76 USDT PnL) – Belohnungssystem zum Lernen gewünscht
+2. KI-Modell-Auswahl im KI-Team fehlerhaft/kostenintensiv (Rate-Limits, 413- und 404-Fehler)
+3. Kill-Switch löst wiederholt aus (6-10 Verlust-Trades trotz Limit 4), KI lernt nicht daraus
+4. Marktanalyse-Texte pro Asset abgeschnitten – Detailansicht pro Coin gewünscht
+
+## User-Entscheidungen
+- Reihenfolge: erst Modell-Fix, dann Belohnungssystem, dann UI
+- Lernen: Reward-Score pro Trade + Lernen aus Backtests/Endlos-Suche/Regime-Lab (beides)
+- Günstige Paid-Modelle (Gemini Flash/Flash-Lite) für kritische Rollen erlaubt
+- Kill-Switch: Ja, Zwangs-Lernphase vor Wiederaufnahme
+- Arbeit direkt am Repo-Code (liegt unter /app/repo), Deployment weiterhin durch den User auf Render
+
+## Architektur (bestehend, unverändert)
+- FastAPI-Backend (/app/repo/backend): server.py + routers/ + services/ (KI-Ökosystem: ai_engine, ai_roles, ai_providers, ai_learning, ai_lessons, trade_guard, …)
+- React-Frontend (/app/repo/frontend), MongoDB (Atlas in Produktion)
+- Lokale Testumgebung: Symlinks /app/backend -> /app/repo/backend, /app/frontend -> /app/repo/frontend, lokale MongoDB (crypto_scanner_local), KEINE Live-/LLM-Keys (bewusst)
+
+## Umgesetzt (08.06.2026 / aktueller Stand August-Iteration)
+1. **Modell-Katalog bereinigt** (services/ai_providers.py):
+   - Entfernt: groq `qwen/qwen3-32b` (404), groq `llama-3.3-70b-versatile` (deprecated 08/2026), openrouter `deepseek/deepseek-r1:free` + `qwen/qwen3-235b-a22b:free` (nur noch paid), GitHub-Models-Provider komplett (Dienst wird 30.07.2026 abgeschaltet), cerebras `qwen-3-32b`
+   - Neu: groq `openai/gpt-oss-120b` + `openai/gpt-oss-20b`
+   - MODEL_MIGRATIONS: gespeicherte tote Modelle (Rollen, Fallbacks, Haupt-Modell) werden beim Laden automatisch auf Nachfolger migriert
+2. **413-Schutz**: MODEL_MAX_INPUT_CHARS + model_input_limit(); zu große Prompts überspringen Groq-Modelle in der Kette proaktiv; 413-Fehler führen direkt zum nächsten Modell (kein sinnloser Key-Wechsel); 'NoneType'-Crash bei leeren OpenRouter-Antworten gefixt
+3. **Rollen-Presets neu** (services/ai_roles.py): kritische Rollen (Analyst, Trade-Manager, Learner) auf günstiges Gemini Flash mit kostenlosen starken Fallbacks (Groq GPT-OSS 120B), 24/7-Rollen auf billigste Modelle
+4. **Belohnungssystem** (NEU services/ai_reward.py): Reward-Score pro geschlossenem Trade (PnL%-basiert, Verluste 1.3x, Malus für Sofort-Stop-Out <15min und Verlust trotz Konfidenz >=80%, Bonus für gehaltene Gewinner). Persistiert an auto_trades + ai_decisions (via ai_learning.sync_outcomes). Aggregierte Stats fließen in jeden Lernlauf UND jede Analyse ein; API: /api/ai/insights Feld `reward`; UI: Reward-Zeile im Lern-Panel
+5. **Kill-Switch-Zwangs-Lernphase** (services/trade_guard.py): Bei Auslösung startet sofort ein Lernlauf (Fokus Verlust-Serien-Analyse, trigger="kill_switch"); Auto-Trading bleibt blockiert bis Lernlauf fertig (Retry über learning.tick alle 30s; Sicherheitsnetz: max. 6h Blockade nach Mitternacht); state-Felder learning_required/learning_done; manuelles Resume hebt alles auf
+6. **Frontend** (AITradingPanel.js/.css): Markt-Analyse-Overview mit "Mehr anzeigen/Weniger anzeigen" (Backend-Limit 1800→4000 Zeichen), Coin-Entscheidungszeilen klickbar → volle asset-spezifische Begründung, Modell-Dropdowns aktualisiert, Reward-Stats im Lern-Panel
+7. **Tests**: NEU tests/test_iter_reward_models_killswitch.py (22 Tests: Katalog, Migration, 413, Reward, Kill-Switch-Lernphase) + tests/test_review_iter_reward_killswitch.py (E2E vom Testing-Agent); 4 Alt-Tests an neuen Katalog angepasst. Testing-Agent: Backend 6/6, Frontend 11/11 grün
+
+## Test-Ergebnis / Hinweise
+- Volle pytest-Suite: verbleibende Failures ausschließlich umgebungsbedingt (keine LLM-/Bitunix-Keys lokal, alte Tests mit hartkodiertem Passwort "admin", Marktdaten-/Worker-Abhängigkeiten) – keine Regression
+- Produktions-Build (yarn build) erfolgreich
+
+## Backlog / Nächste Schritte
+- P1: Reward-Score pro Regime auswerten (sobald Regime-ID am Trade gespeichert wird) → schärfere Regime-4-Lektionen
+- P1: Reward-Verlauf-Chart im Lern-Panel (Score über Zeit)
+- P2: Provider-Health-Ansicht: übersprungene Modelle (413-Schutz) sichtbar machen
+- P2: Automatischer wöchentlicher Modell-Katalog-Check (tote Slugs erkennen und melden)
+- P2: Kosmetik: React-Warnung <span> in <option> (Analyse-Zeitplan-Select) – nur Dev-Tool-Wrapper, kein Produktionsproblem
