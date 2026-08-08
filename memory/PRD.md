@@ -29,7 +29,14 @@ Bestehende, produktiv laufende externe Daytrading-Website (GitHub: dean06greif-a
 4. **Belohnungssystem** (NEU services/ai_reward.py): Reward-Score pro geschlossenem Trade (PnL%-basiert, Verluste 1.3x, Malus für Sofort-Stop-Out <15min und Verlust trotz Konfidenz >=80%, Bonus für gehaltene Gewinner). Persistiert an auto_trades + ai_decisions (via ai_learning.sync_outcomes). Aggregierte Stats fließen in jeden Lernlauf UND jede Analyse ein; API: /api/ai/insights Feld `reward`; UI: Reward-Zeile im Lern-Panel
 5. **Kill-Switch-Zwangs-Lernphase** (services/trade_guard.py): Bei Auslösung startet sofort ein Lernlauf (Fokus Verlust-Serien-Analyse, trigger="kill_switch"); Auto-Trading bleibt blockiert bis Lernlauf fertig (Retry über learning.tick alle 30s; Sicherheitsnetz: max. 6h Blockade nach Mitternacht); state-Felder learning_required/learning_done; manuelles Resume hebt alles auf
 6. **Frontend** (AITradingPanel.js/.css): Markt-Analyse-Overview mit "Mehr anzeigen/Weniger anzeigen" (Backend-Limit 1800→4000 Zeichen), Coin-Entscheidungszeilen klickbar → volle asset-spezifische Begründung, Modell-Dropdowns aktualisiert, Reward-Stats im Lern-Panel
-7. **Tests**: NEU tests/test_iter_reward_models_killswitch.py (22 Tests: Katalog, Migration, 413, Reward, Kill-Switch-Lernphase) + tests/test_review_iter_reward_killswitch.py (E2E vom Testing-Agent); 4 Alt-Tests an neuen Katalog angepasst. Testing-Agent: Backend 6/6, Frontend 11/11 grün
+7. **Tests**: NEU tests/test_iter_reward_models_killswitch.py (Katalog, Migration, 413, Reward, Kill-Switch-Lernphase, Watchdog-Klassifikation, Skip-Health) + tests/test_review_iter_reward_killswitch.py + tests/test_iter_reward_regime_watchdog.py (E2E vom Testing-Agent); 4 Alt-Tests an neuen Katalog angepasst. Testing-Agent Iteration 1: Backend 6/6, Frontend 11/11 grün; Iteration 2: Backend 6/6, Frontend 100% grün
+
+### Iteration 2 (gleiche Session)
+8. **Reward-Verlaufskurve**: reward_stats liefert `series` (Tages-Score + kumuliert); SVG-Sparkline im Lern-Panel (data-testid ai-reward-chart)
+9. **Regime-Reward**: Trades speichern beim Öffnen `market_regime` (Snapshot des Markt-Beobachters); reward_stats aggregiert `by_regime`; fließt in Lern-/Analyse-Prompt ein; UI-Zeile (ai-reward-regimes)
+10. **Modell-Wächter** (NEU services/model_watchdog.py): wöchentlicher Ping aller Katalog-Modelle, erkennt tote Slugs (404/decommissioned/paid-only), Website- + Telegram-Warnung; Endpoints POST /api/ai/models/check (admin) + GET /api/ai/models/watchdog; Zusammenfassung in /api/ai/status.model_watchdog; Loop startet in server.py
+11. **Skip-Anzeige**: providers_health.skipped (413-Schutz-Übersprünge) + tote Modelle im Health-Badge-Dropdown des KI-Panels
+12. **Scroll-Pfeil** im KI-Chat: Button (ai-jump-newest-btn) erscheint beim Hochscrollen, springt zur neuesten Nachricht
 
 ## Test-Ergebnis / Hinweise
 - Volle pytest-Suite: verbleibende Failures ausschließlich umgebungsbedingt (keine LLM-/Bitunix-Keys lokal, alte Tests mit hartkodiertem Passwort "admin", Marktdaten-/Worker-Abhängigkeiten) – keine Regression
