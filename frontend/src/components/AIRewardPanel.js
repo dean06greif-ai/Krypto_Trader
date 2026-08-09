@@ -44,6 +44,16 @@ const AIRewardPanel = () => {
 
   useEffect(() => { load(days); }, [days, load]);
 
+  // Auto-Fallback: wenn der Standard-Zeitraum leer ist, aber ältere bewertete
+  // Trades existieren könnten, einmalig auf 90 Tage erweitern.
+  const [fellBack, setFellBack] = useState(false);
+  useEffect(() => {
+    if (!fellBack && data && (data.history || []).length === 0 && days < 90) {
+      setFellBack(true);
+      setDays(90);
+    }
+  }, [data, days, fellBack]);
+
   const hist = data?.history || [];
   const regimes = data?.by_regime || [];
   const sum = data?.summary || {};

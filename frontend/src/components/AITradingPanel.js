@@ -1067,7 +1067,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
             <label>
               <span>Analyse-Intervall</span>
               <select value={cfg.interval_min || 10} onChange={e => updateConfig({ interval_min: Number(e.target.value) })} data-testid="ai-interval-select">
-                {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{v} min</option>)}
+                {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{`${v} min`}</option>)}
               </select>
             </label>
             <label>
@@ -1324,7 +1324,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                           <select value={rc.interval_min || 15}
                             onChange={e => saveRole('market_observer', { interval_min: Number(e.target.value) })}
                             data-testid="ai-role-observer-interval">
-                            {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{v} min</option>)}
+                            {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{`${v} min`}</option>)}
                           </select>
                         </label>
                         <label className="ai-setup-check" title="Zusätzlich eine kurze KI-Einschätzung des Marktzustands erzeugen (verbraucht LLM-Budget)">
@@ -1342,7 +1342,7 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                           <select value={rc.interval_min || 15}
                             onChange={e => saveRole('news_watcher', { interval_min: Number(e.target.value) })}
                             data-testid="ai-role-news-interval">
-                            {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{v} min</option>)}
+                            {[5, 10, 15, 30, 60].map(v => <option key={v} value={v}>{`${v} min`}</option>)}
                           </select>
                         </label>
                         <label className="ai-setup-check" title="Bei HIGH-Impact-Ereignissen sofort eine Analyse auslösen">
