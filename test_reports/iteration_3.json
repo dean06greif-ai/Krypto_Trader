@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 3 review-test (KI-Trader-Verbesserungen). Backend: 9/9 pytest grün gegen die externe Preview-URL (ai_status Modell-Katalog + providers_health.skipped_too_large, ai_rewards mit 5 Trades / cum-Kurve / 4 Regimen inkl. breakout_volatil<0, models/watch status + manual run, ai/roles ohne dead slugs / github, trade-guard.state.learning_required=false, ai/insights Regression, auth-guard 401 ohne Token + Login-Fehler). Frontend: Admin-Login via Passwort-Modal (auf 2. Klick des edit-strategy-params-btn öffnet sich das KI-Panel wie erwartet). Setup-Dropdown ai-model-select: 20 Einträge, KEINE toten Slugs (deepseek-r1, qwen3-32b, qwen3-235b, mistral-nemo, gpt-4.1, github); NEUE Einträge 'gemini-3.6-flash' und 'openai/gpt-oss-120b' vorhanden. Lern-Panel: ai-reward-panel gerendert; bei Default-Filter 30 Tage sind die geseedeten Trades (>30d) nicht sichtbar (Summary=0, kein Chart, keine Regime-Tabelle), NACH Umschalten auf '90 Tage' erscheinen Summary (5 bewertete Trades, Gesamt-Reward 6.70), Chart (recharts SVG) und Regime-Tabelle mit ALLEN 4 erwarteten Regimen (trend_up_normal, trend_down_normal, range_ruhig, breakout_volatil). KI-Team-Regression: 31 Selects, 62 Rollen-Karten geladen. Sprung-Pfeil ai-jump-latest-btn nicht testbar, weil ai-chat-area nicht scrollbar ist (leerer Verlauf, scrollHeight==clientHeight) - laut Review-Request explizit als 'nicht testbar wegen leerem Verlauf' markiert, KEIN Bug.",
+  "features_tested": [
+    "GET /api/ai/status: 200; config.provider+model gültig, kein dead slug; providers_health enthält 'skipped_too_large' - pass",
+    "GET /api/ai/rewards?days=90: history>=5 mit 'cum', by_regime>=4 inkl. breakout_volatil(avg_reward<0), summary.trades=5 + total>0 - pass",
+    "GET /api/ai/models/watch: dead=[] - pass",
+    "POST /api/ai/models/watch/run (Bearer): status ok + providers={gemini,groq,openrouter,mistral,cerebras} - pass",
+    "GET /api/ai/roles: kein github, kein dead-slug-String - pass",
+    "POST /api/auth/login {Admin/Dean06Greif!/Admin}: 200 + token; ohne token -> 401/403 - pass",
+    "GET /api/trade-guard: state.learning_required vorhanden, im Normalzustand false - pass",
+    "GET /api/ai/insights: stats+lessons+lesson_candidates vorhanden (Regression) - pass",
+    "FRONTEND: App lädt (Dashboard mit Chart) - pass",
+    "FRONTEND: KI-Panel öffnen via strategy-tab-ai_trader -> edit-strategy-params-btn (Admin-Login Passwort-Modal) - pass (nach Login 2. Klick notwendig)",
+    "FRONTEND: Setup ai-model-select mit 20 Einträgen, keine toten Slugs, gemini-3.6-flash + gpt-oss-120b enthalten - pass",
+    "FRONTEND: ai-learn-panel + ai-reward-panel + reward-summary + reward-chart (SVG) + reward-regimes mit 4 Regimen (bei days=90) - pass",
+    "FRONTEND: KI-Team-Regression - 62 Rollen-Karten + 31 Selects - pass",
+    "FRONTEND: ai-jump-latest-btn - nicht testbar (leerer Verlauf, chat nicht scrollbar) - as per review_request KEIN Bug"
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "AI-Reward-Panel Default-Filter", "issue": "Das AIRewardPanel steht per Default auf 30 Tage. Die geseedeten Test-Trades liegen älter als 30 Tage, wodurch das Panel initial 'Gesamt-Reward 0.00 / 0 bewertete Trades' zeigt und weder Chart noch Regime-Tabelle rendert (hist.length<=1). Nur bei manuellem Umschalten auf 90 Tage werden die Seed-Daten sichtbar. UX-Hinweis: entweder Default auf 90 Tage anheben oder wenn hist=[] länger zurückliegende Trades laden.", "affected_selectors": ["reward-days-select", "reward-chart", "reward-regimes"]}
+    ],
+    "design_issues": [
+      {"screen": "AITradingPanel Setup - ai-interval-select", "issues": ["React-Hydration-Warning (Konsole, error-Level): '<span> cannot be a child of <option>' innerhalb ai-interval-select (AITradingPanel.js:1070). Reactives Dev-Overlay wickelt Kinder-Text in span, was in HTML-Spezifikation ungültig ist. Sollte durch statischen Text (kein Ausdruck als Kind von <option>) behoben werden. Unkritisch für Funktion."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter3_ai_improvements.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL/UX: AIRewardPanel Default-Filter von 30 -> 90 Tage anheben oder Auto-Fallback wenn die letzten N Tage leer sind (aktuell wirkt Panel bei Erst-Öffnung 'leer' obwohl Seed-Daten vorhanden sind).",
+    "MINOR: <option> in ai-interval-select (AITradingPanel.js Z.1070) enthält einen Ausdruck-Kind, was zu React-Hydration-Warning führt. Text als reinen String setzen."
+  ],
+  "critical_code_review_comments": [
+    "AITradingPanel.js ist mit ~1575 Zeilen weiterhin deutlich >700 Zeilen (Setup/Team/Learn/Lab-Sub-Panels lassen sich sauber extrahieren) - siehe auch Iter1/2 Feedback. Die Sichtbarkeitslogik von ai-jump-latest-btn (Zeile ~1542) ist verstreut und schwer testbar.",
+    "AIRewardPanel.js Default-Zeitraum ist hart auf 30 Tage kodiert (Z.33) - da Backend-Backfill 5 Trades älter als 30 Tage seeded, wirkt das Panel initial leer. Empfehlung: Default auf 90 Tage oder useEffect mit Fallback (wenn history leer -> automatisch längeren Zeitraum probieren).",
+    "backend/routers/ai.py: /api/ai/rewards und /api/ai/models/watch sind PUBLIC (kein require_admin). Für Rewards-Historie vermutlich ok, aber /api/ai/models/watch enthüllt möglicherweise Modell-Katalog-Fehler; ggf. mit Admin-Auth schützen."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter3_ai_improvements.py (neu)"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (aus /app/memory/test_credentials.md)",
+  "seed_data_creation": "Keine neuen Seed-Daten. Die vorhandenen 5 ai_trader-Trades + ai_rewards wurden nur lesend verifiziert. Ein einmaliger POST /api/ai/models/watch/run (manueller Modell-Wächter-Lauf) wurde ausgeführt (Ergebnis: alle 5 Provider ok, keine LLM-Analyse getriggert).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alle 7 Review-Punkte grün. Der einzige UX-Hinweis: Das AI-Reward-Panel wirkt beim Öffnen leer, weil die Seed-Daten älter als 30 Tage sind - erst nach Umschalten auf 90 Tage sichtbar. Fix ist trivial in AIRewardPanel.js (useState(90) oder Fallback-Logik). Der Sprung-Pfeil ai-jump-latest-btn konnte nicht getestet werden, da der KI-Verlauf im Testlauf leer ist (chat scrollHeight==clientHeight). Ein Live-Lernlauf wurde bewusst NICHT getriggert (API-Quota).",
+  "rca of the issue": "Kein kritischer Bug. RCA UX-Issue Reward-Panel: AIRewardPanel.js:33 setzt useState(30). Backend liefert bei days=30 ein leeres history/by_regime (Seed-Trades >30d alt), Frontend rendert dadurch weder Chart (Bedingung hist.length>1) noch Regime-Tabelle. Reproduktion: KI-Panel öffnen -> Lernen -> Reward-Panel bleibt 'leer'. Mitigation: reward-days-select auf 90 Tage stellen ODER Default auf 90 Tage / Auto-Fallback ergänzen."
+}
