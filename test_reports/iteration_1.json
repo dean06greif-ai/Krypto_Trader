@@ -1,0 +1,31 @@
+{
+  "summary": "Backend-only testing for AI Quality Fixes in /app/krypto_trader against localhost:8022. All 48 required unit tests (test_ai_trader_quality_fixes.py, test_ai_lessons_merge.py, test_ai_governance.py) pass. Added 11 new integration tests hitting the live server covering: default config keys in GET /api/ai/status, POST /api/ai/config persistence + smart_skip_move_pct clamping (0.02..2.0), auth enforcement on config, leverage conflict detection, break_even conflict detection, unrelated lessons producing no conflict, lessons CRUD regression, and GET regression for master-prompt/validation/schedule/providers/health. All 11 integration tests pass. Total 59/59 green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/krypto_trader/backend/tests/test_ai_quality_fixes_integration.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "POST /api/ai/lessons requires field name 'detail' (not 'content'). Frontend/API consumers must use 'detail'. Consider accepting both aliases for consumer-friendliness or documenting clearly.",
+    "GET /api/ai/status returns model 'gemini-3.5-flash' which is not a valid Google model name (real models: gemini-1.5-flash / gemini-2.0-flash / gemini-2.5-flash). This is only a default value but may confuse users; recommend switching default to gemini-2.5-flash."
+  ],
+  "updated_files": [
+    "/app/krypto_trader/backend/tests/test_ai_quality_fixes_integration.py (new)"
+  ],
+  "success_rate": {"backend": "100% (59/59)", "frontend": "not tested (frontend runs externally on Render)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (POST /api/auth/login on :8022 returns 'token')",
+  "seed_data_creation": "Integration tests create/cleanup ITEST_-prefixed lessons; no persistent seed data left.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend under test lives at /app/krypto_trader (NOT /app/backend). Live server on http://localhost:8022, local Mongo DB 'crypto_scanner_test'. Login: POST /api/auth/login {username:'Admin', password:'Dean06Greif!/Admin'} -> field 'token'. Lessons POST/PATCH requires 'detail' field. Config PATCH endpoint is POST /api/ai/config with Bearer token. New config keys verified: use_heatmap_data(false default), use_liquidation_data(true), lean_prompt(true), smart_skip(true), smart_skip_move_pct(0.15, clamped 0.02..2.0). Conflict endpoint: GET /api/ai/lessons/conflicts. pytest.ini uses xdist -n 2 loadscope by default - do not pass -n or -p no:xdist manually.",
+  "rca of the issue": "n/a - no bugs found; all required behaviors verified."
+}
