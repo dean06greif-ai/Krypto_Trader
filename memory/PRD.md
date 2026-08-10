@@ -62,10 +62,41 @@ gelockt.
 - backend/.env ist gitignored; lokal für Tests: MONGO_URL=localhost,
   DB_NAME=crypto_scanner_test
 
+## Umgesetzt (10.06.2026 / Session 2)
+1. **BUG Watchdog**: Manuelle Bitunix-Positionen (kein lokaler Website-Trade
+   bzw. external_adopted/strategy_id=external) werden nur noch sichtbar
+   gemacht, aber NIE angefasst (kein SL-Zwang, kein Dust-Close, kein
+   Notfall-Close). Neues Setting `manage_external` (Default False, Opt-in für
+   altes Verhalten). SettingsPanel-Beschreibung angepasst.
+2. **BUG Break-Even**: Exakte Formel inkl. Entry+Exit-Gebühren:
+   LONG be=entry*(1+fee)/(1-fee), SHORT be=entry*(1-fee)/(1+fee) – in
+   bitunix_trade._be_price UND backtester.be_price. Zusätzlich Bug behoben:
+   Exchange-SL wird beim BE-Trigger (crv/profit_pct) nur noch gesynct, wenn er
+   den SL verbessert (vorher konnte ein getrailter SL verschlechtert werden).
+3. **Zeitzonen**: Backend rechnet komplett über core/timeutil (Europe/Berlin);
+   Frontend-Formatierer ohne timeZone gefixt (AIRewardPanel, SettingsPanel).
+4. **Echte Heatmap**: _LiqBuffer speichert jetzt Preise (Fenster 4h,
+   DIST_WINDOW_SEC); measured_liq_distribution bucketet echte Force-Orders
+   nach Seite. KI-Prompt nutzt GEMESSENE LIQUIDATIONEN statt Modell-Formel;
+   /api/liquidity/heatmap/{symbol} liefert clusters_measured + clusters_source
+   (measured, Fallback model für UI).
+5. **Zeitplan-Modell**: Pro Zeitfenster optional eigenes KI-Modell/Provider
+   (ai_schedule model/provider, effective_window; Analyst-Kette bekommt
+   Fenster-Modell vorangestellt). Dropdown im AIScheduleEditor.
+6. **Token-Dashboard**: _track_tokens zählt geschätzte Tokens pro Rolle &
+   Berlin-Tag (collection ai_token_usage); GET /api/ai/token-usage; Anzeige im
+   Setup-Panel des KI-Traders.
+7. **20-Trade-Review**: _check_heatmap_review veröffentlicht nach 20
+   geschlossenen KI-Trades seit dem Fix einmalig eine statistische Auswertung
+   (ohne LLM-Kosten) in den KI-Feed (role learning, trigger heatmap_review).
+8. **UI**: superseded-Lektionen grau/durchgestrichen mit Badge; Live links /
+   Paper rechts (AutoTradeModal, AIStrategyLabPanel; Rest war schon korrekt).
+9. **Tests**: 27 neue Tests (test_ai_trader_iter2_fixes.py), Watchdog-Tests an
+   Sollverhalten angepasst; 497 Unit-Tests grün; Testing-Agent Iteration 2:
+   100% bestanden (E2E gegen lokalen Server 8022).
+
 ## Backlog / Nächste Schritte
-- P1: Modell-Kosten weiter senken (User wollte Modell vorerst behalten;
-  Option: Groq GPT-OSS 120B kostenlos als Haupt-Analyst)
-- P1: Nach Deploy 20-30 Trades beobachten, ob Winrate sich erholt
-  (Heatmap aus = Trader-Lektion umgesetzt)
-- P2: UI-Anzeige der superseded-Lektionen (grau/durchgestrichen) im Panel
-- P2: Token-Verbrauch pro Tag im UI aggregieren (Daten liegen im Feed)
+- P1: Modell-Kosten weiter senken (Option: Groq GPT-OSS 120B kostenlos)
+- P1: Nach Deploy 20-30 Trades beobachten (20-Trade-Review kommt automatisch)
+- P2: Watchdog manage_external-Toggle im UI (Backend-Setting existiert)
+- P2: Heatmap-UI: gemessene Verteilung visualisieren (clusters_measured)
