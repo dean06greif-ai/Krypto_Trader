@@ -29,6 +29,18 @@ Bestehende, produktiv laufende Daytrading-Website (GitHub: dean06greif-ai/Krypto
 - Regressionstests: `backend/tests/test_ai_trader_quality_fixes.py` (14 Tests, alle grün); bestehende Unit-Tests (ai_lessons_merge, ai_governance) weiter grün. E2E-Tests des Repos brauchen laufenden Server (hier nicht ausführbar, vorbestehend).
 - Commit lokal in /app/krypto_trader erstellt (User pusht/deployt selbst)
 
+## Umgesetzt (2026-06) – Iteration 2
+- **Watchdog-Bugfix**: `manage_external` (Default false) – manuelle Bitunix-App-Positionen werden nur noch angezeigt (Adopt), aber NIE gemanagt (kein SL, kein Dust-/Notfall-Close); Toggle im Settings-Panel; Status zählt `manual_skipped`
+- **Break-Even inkl. Gebühren**: geprüft – war korrekt (Entry+Exit = 2× fee), jetzt als testbarer Helper `breakeven_price()` in bitunix_trade.py; Backtester nutzt dieselbe Formel (Regressionstest)
+- **Zeitplan**: `effective_window()` + optionales `model` je Analyse-Zeitfenster (ai_schedule, Engine-Override, Editor-Select im Frontend, allowed_models im GET /api/ai/schedule)
+- **Kosten-Dashboard**: services/ai_usage.py (Tages-Aggregat pro Rolle/Modell, Kosten-Schätzung), Hook in generate_for_role, GET /api/ai/usage, UI-Block im KI-Team-Bereich
+- **Echte Heatmap**: measured_clusters() aus den live gesammelten Liquidationen (4h-Fenster, Preis-Buckets) ersetzt Modell-Cluster im KI-Prompt (Key liq_clusters_measured; Modell-Cluster bleiben API-kompatibel)
+- **20-Trade-A/B-Review**: start_heatmap_review (bei use_heatmap_data-Wechsel + einmalig beim Deploy), Auswertung in ai_learning._maybe_heatmap_review → Chat-Report (Rolle review), phase_stats() testbar
+- **Konflikt-Anzeige**: /api/ai/insights liefert superseded_by je Lektion; Badge im Lektionen-Panel
+- **Live/Paper-Reihenfolge**: Live links, Paper rechts in AutoTradeModal, NewTradeModal, StrategyComparison, Backtester (Header war bereits korrekt)
+- Tests: 76 Unit-Tests grün (inkl. tests/test_iter2_trader_fixes.py); Testing-Agent-E2E (Backend+Frontend, lokale Instanz) 12/12 Punkte bestanden
+- Lokale Test-Instanz: Backend `python server.py` :8001, Frontend yarn :3000, DB crypto_scanner_test (Produktiv-DB unberührt)
+
 ## Backlog / Nächste Aufgaben
 - P1: Kosten weiter senken – Empfehlung: Haupt-Analyst auf gemini-3.5-flash-lite oder Groq GPT-OSS 120B (free) umstellen (nur UI-Konfig, kein Code)
 - P1: Push zu GitHub durch den User + Deploy auf Render, dann 20-Trade-Beobachtungsfenster

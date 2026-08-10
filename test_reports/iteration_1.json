@@ -1,0 +1,59 @@
+{
+  "summary": "Comprehensive backend+frontend testing of Krypto-Trader iteration (Kosten-Dashboard, Lessons-Konflikte, AI-Config-Flags/Heatmap-A/B, Analyse-Schedule Model, Watchdog manage_external, Live/Paper-Order). All 12 review points verified. 17/17 pytest cases green; UI dashboards, toggles, and schedule model dropdown all render with correct data-testid and defaults. No blocking issues found. Note: '/api/ai/config' is POST-only (values readable via /api/ai/status.config).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Initial page load - session/settings/notifications",
+        "issue": "Occasional 'TypeError: Failed to fetch' on first paint for /api/session/status and /api/settings (both endpoints return 200 when curled). Transient network hiccup - does not block UI; recommend adding retry or grace period to console errors.",
+        "affected_selectors": ["fetchSession", "fetchNotif"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: expose GET /api/ai/config for symmetry (currently only via /api/ai/status.config) - not blocking but review-request wording implied a GET endpoint.",
+    "OPTIONAL: swallow initial 'Failed to fetch' errors in fetchSession/fetchNotif (App.js) to keep console clean during hot reload / cold-start."
+  ],
+  "critical_code_review_comments": [
+    "Live/Paper order is consistent across AutoTradeModal (mode-live before mode-paper), NewTradeModal (['live','paper'].map), StrategyComparison (['all','live','paper']) and Backtester (bt-apply-mode-live before bt-apply-mode-paper).",
+    "Header status widget still displays PAPER on the left and LIVE on the right; not explicitly in scope of the '4 files' listed in review, but worth aligning if 'Live immer links' should also apply to the global header HUD.",
+    "AIScheduleEditor.js correctly renders `<select data-testid=schedule-model-{i}>` with allowed_models grouped by provider (verified: 'gemini · gemini-3.5-flash-lite' etc.)",
+    "ai-usage-dashboard is rendered inside KI-Team block of AITradingPanel (line 1195) and displays real backend data from /api/ai/usage."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "Admin / TestAdmin123! (from /app/memory/test_credentials.md); JWT via POST /api/auth/login, stored in localStorage keys admin_token + admin_token_ts.",
+  "seed_data_creation": "During test: (1) briefly toggled use_heatmap_data=true and reset to false; (2) briefly saved a schedule window (US-Open 15:00-18:00, model=gemini-3.5-flash-lite) and reset to empty; (3) briefly toggled watchdog manage_external true/false. All resets confirmed via GET.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend runs manually as `python server.py` on :8001 (NOT supervisor). Frontend on :3000 exposed via https://trader-refactor-1.preview.emergentagent.com. Admin JWT via POST /api/auth/login -> localStorage keys 'admin_token' & 'admin_token_ts' (see /app/krypto_trader/frontend/src/auth.js). To open AITradingPanel: (1) set admin token in localStorage, (2) click [data-testid=strategy-tab-ai_trader], (3) click [data-testid=edit-strategy-params-btn]. Sub-tabs like ai-team-toggle, ai-master-toggle load sections; use `document.querySelectorAll('details').forEach(d=>d.open=true)` to expand collapsibles like 'Analyse-Zeitplan'. Watchdog toggle sits inside SettingsPanel opened via [data-testid=settings-button]. Verified all 12 review-request items pass. LLM keys intentionally missing - do not treat AI-call failures as bugs.",
+  "verified_items": [
+    "GET /api/ai/usage: correct shape (today.roles, today.total{calls,in_tokens,out_tokens,est_cost_usd}, days[], priced_models[])",
+    "GET /api/ai/lessons/conflicts: returns {active_count:0, superseded:[]}",
+    "GET /api/ai/insights: each lesson gets `superseded_by` (null if none) - verified in code path and empty list currently",
+    "AI config flags via /api/ai/status.config: use_liquidation_data=true, use_heatmap_data=false, lean_prompt=true; POST /api/ai/config with use_heatmap_data:true persists AND writes settings doc `ai_heatmap_review` (baseline=0 trades, target_trades=20, phase_started_at). Reset OK.",
+    "GET /api/ai/schedule: contains allowed_models (5 providers, dict->list). POST with {schedule:[{...,model:'gemini-3.5-flash-lite'}]} saves & GETs back model field.",
+    "POST /api/autotrade/watchdog/config: manage_external true/false persists and is returned in watchdog/status.settings.",
+    "Frontend: KI-Trader Panel -> KI-Team -> data-testid=ai-usage-dashboard renders '💰 Token-Verbrauch heute (geschätzt): 0k rein · 0k raus · 0 Calls · ~0.000 $'",
+    "Frontend: AIScheduleEditor after clicking [data-testid=schedule-add] shows [data-testid=schedule-model-0] with options like 'gemini · gemini-3.5-flash-lite', 'groq · llama-3.3-70b-versatile', ...",
+    "Frontend: AIGovernancePanel (MasterPrompt tab in KI-Trader) has [data-testid=use-liquidation-data-toggle] (checked) and [data-testid=use-heatmap-data-toggle] (unchecked)",
+    "Frontend: SettingsPanel has [data-testid=watchdog-manage-external-toggle], default unchecked",
+    "Live/Paper order (code review): AutoTradeModal.js L95-96, NewTradeModal.js L89 ['live','paper'], StrategyComparison.js L41 ['all','live','paper'], Backtester.js L872-875 - all Live before Paper.",
+    "Regression: GET /api/ai/status 200, /api/ai/lessons 200, /api/autotrade/config 200, /api/autotrade/watchdog/status 200; frontend main page loads (only transient fetchNotif/fetchSession console errors)."
+  ]
+}
