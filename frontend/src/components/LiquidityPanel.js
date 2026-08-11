@@ -91,7 +91,7 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
             </ul>
             <p><b>Liquidations-Heatmap:</b></p>
             <ul>
-              <li>Jede Zeile ist eine Preiszone. Der <b>Heat-Wert (0–100)</b> schätzt, wie viel Liquidations-Liquidität dort liegt: berechnet aus typischen Hebel-Stufen (10x/25x/50x/100x) relativ zu markanten Hochs/Tiefs, gewichtet mit Volumen und Open Interest.</li>
+              <li>Jede Zeile ist eine Preiszone. Der <b>Heat-Wert (0–100)</b> zeigt, wie viel Liquidations-Liquidität dort liegt. <b>Bevorzugte Basis sind ECHTE gemessene Liquidationen</b> (Force-Orders der Börsen der letzten 4 Stunden, zu Preiszonen verdichtet). Liegen zu wenige gemessene Daten vor, greift eine Schätzung aus typischen Hebel-Stufen (10x/25x/50x/100x), gewichtet mit Volumen und Open Interest.</li>
               <li><b>Farbskala:</b> kühl (blau) = wenig Liquidität, heiß (gelb/rot) = dichte Cluster. Preis wird von heißen Zonen oft „magnetisch“ angezogen.</li>
               <li><b>Tags</b> markieren, welche Hebel-Stufe dort liquidiert würde (z. B. „50x Longs“).</li>
             </ul>
@@ -104,7 +104,7 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
               <li><b>POC / VAH / VAL</b> – Volume Profile: Preis mit dem meisten gehandelten Volumen (POC) sowie Ober-/Unterkante der 70%-Value-Area. Wirken als Magnet bzw. Unterstützung/Widerstand.</li>
             </ul>
             <p><b>Orderbook-Wände:</b> echte, aktuell im Orderbuch liegende große Kauf-(Bid) bzw. Verkaufs-(Ask)-Blöcke mit USD-Größe – können als kurzfristige Barriere wirken, aber auch jederzeit gezogen werden (Spoofing möglich).</p>
-            <p className="liq-help-note">⚠ <b>Vertrauenswürdigkeit:</b> Preis, Open Interest, 5-Minuten-Liquidationen, Orderbook-Wände und Volume Profile sind <b>echte Live-Börsendaten</b> (Binance/OKX/Bybit). Die <b>Heatmap selbst ist eine Schätzung</b>: Börsen veröffentlichen keine exakten Liquidationspreise aller Trader, daher rekonstruiert sie (wie auch Coinglass &amp; Co.) die wahrscheinlichen Zonen aus Hebel-Mathematik + OI + Volumen. Die Zonen sind als Orientierung sehr brauchbar, exakte USD-Beträge pro Zone kann aber kein Anbieter garantieren.</p>
+            <p className="liq-help-note">⚠ <b>Vertrauenswürdigkeit:</b> Preis, Open Interest, 5-Minuten-Liquidationen, Orderbook-Wände und Volume Profile sind <b>echte Live-Börsendaten</b> (Binance/OKX/Bybit). Die <b>Heatmap</b> basiert – sobald genug Daten gesammelt sind – auf <b>echten gemessenen Liquidationen</b> (Force-Orders der letzten 4h). Nur wenn dafür zu wenige Daten vorliegen, rekonstruiert sie die wahrscheinlichen Zonen aus Hebel-Mathematik + OI + Volumen (dann als „Schätzung“ gekennzeichnet). Der KI Trader bekommt die reine Formel-Schätzung NICHT mehr als Trade-Begründung.</p>
           </div>
         </details>
 
@@ -135,7 +135,7 @@ const LiquidityPanel = ({ symbol = 'BTCUSDT', onClose }) => {
 
         <div className="liq-grid">
           <div className="liq-card">
-            <div className="liq-card-title">LIQUIDATIONS-HEATMAP (Schätzung)</div>
+            <div className="liq-card-title">LIQUIDATIONS-HEATMAP {heat?.clusters_source === 'measured' ? '(echte Force-Orders, 4h)' : '(Schätzung)'}</div>
             {bins.length === 0 && <div className="liq-empty">Keine Daten.</div>}
             {bins.map((b, i) => {
               const isPrice = price && Math.abs(b.price - price) <= (heat.high - heat.low) / bins.length / 2;

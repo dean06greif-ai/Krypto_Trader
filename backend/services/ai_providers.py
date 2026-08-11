@@ -15,6 +15,7 @@ bei OpenRouter), wird die komplette Modell-Kette mit dem Backup-Key wiederholt.
 """
 import os
 import logging
+from collections import deque
 from typing import AsyncIterator, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -272,10 +273,19 @@ def record_result(provider: str, model: str, status: str, detail: str = "",
                   key_index: int = 0, role: Optional[str] = None,
                   requested: Optional[str] = None):
     """Ergebnis eines Modell-Aufrufs festhalten (ok | rate_limited | error)."""
+    role = role or _current_role.get("role")
     _health[f"{provider}/{model}"] = {
         "provider": provider, "model": model, "status": status,
         "detail": str(detail)[:200], "key_index": key_index, "ts": _now(),
+        "role": role,
     }
+    if status != "ok":
+        # Verlauf für die UI: WAS ist ausgefallen (Rate-Limit / Budget / Fehler),
+        # WELCHER Assistent (Rolle) war betroffen.
+        _recent_failures.append({
+            "ts": _now(), "provider": provider, "model": model, "role": role,
+            "reason": status, "detail": str(detail)[:200],
+        })
     if status == "ok":
         _last_call.update({
             "provider": provider, "model": model, "role": role,
@@ -283,6 +293,22 @@ def record_result(provider: str, model: str, status: str, detail: str = "",
             "fallback": bool((requested and requested != model) or key_index > 0),
             "ts": _now(),
         })
+        if requested and requested != model:
+            # Fallback wurde nötig -> festhalten, worauf ausgewichen wurde
+            for f in reversed(_recent_failures):
+                if f.get("role") == role and not f.get("fallback_used"):
+                    f["fallback_used"] = f"{provider}/{model}"
+                else:
+                    break
+
+
+_recent_failures: deque = deque(maxlen=40)
+_current_role: Dict[str, Optional[str]] = {"role": None}
+
+
+def set_current_role(role: Optional[str]):
+    """Vom KI-Team gesetzt, damit Ausfälle der richtigen Rolle zugeordnet werden."""
+    _current_role["role"] = role
 
 
 def health_status() -> Dict:
@@ -301,6 +327,9 @@ def health_status() -> Dict:
         elif h.get("status") == "skipped_too_large" and age < RATE_LIMIT_COOLDOWN_S:
             skipped.append(entry)
         models[key] = entry
+    recent = []
+    for f in list(_recent_failures)[-15:][::-1]:
+        recent.append({**f, "age_s": int(now - float(f.get("ts", 0)))})
     last = dict(_last_call)
     if last.get("ts"):
         last["age_s"] = int(now - last["ts"])
@@ -310,6 +339,7 @@ def health_status() -> Dict:
         "errors": errors,
         "skipped_too_large": skipped,
         "last_call": last,
+        "recent_failures": recent,
         "fallback_active": bool(last.get("fallback")),
         "providers": available_providers(),
         "backup_keys": backup_keys_info(),

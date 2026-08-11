@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Plus, Trash, FloppyDisk, BellSlash } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 import './AIGovernance.css';
 

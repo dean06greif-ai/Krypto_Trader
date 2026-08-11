@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, PencilSimple, Check, X, CaretLeft, CaretRight, Trash } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import useDragScroll from '../hooks/useDragScroll';
 import { authHeaders } from '../auth';
 

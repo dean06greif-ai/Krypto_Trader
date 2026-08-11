@@ -3,7 +3,7 @@ import {
   ChartBar, TrendUp, TrendDown, Target, CheckCircle, XCircle, Warning,
   ArrowsClockwise, CaretDown, CaretRight, Clock, Lightning, ListChecks,
 } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import './DeepAnalytics.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;

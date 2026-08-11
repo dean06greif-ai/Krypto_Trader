@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TrendUp, TrendDown, Target, Clock, ChartBar, Lightning, CheckCircle, XCircle, Trash, Warning, CaretDown, Plus } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders, isAdmin } from '../auth';
 import NewTradeModal from './NewTradeModal';
 import './PerformanceAnalytics.css';

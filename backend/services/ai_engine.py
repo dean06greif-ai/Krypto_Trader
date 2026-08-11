@@ -1220,6 +1220,7 @@ class AIEngine:
         Der Analyst kann pro Zeitplan-Fenster ein eigenes Modell haben
         (z.B. starkes Modell zur US-Eröffnung). Rückgabe: (text, provider, model)."""
         chain = role_manager.chain(role, self.config)
+        ai_providers.set_current_role(role)
         if role == "analyst":
             w = self.current_window()
             wm = (w or {}).get("model")

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Gear, ChartLineUp, Wallet, TrendUp, TrendDown, Lock, LockOpen, Trophy, ClockCounterClockwise, MagicWand, ChartScatter, Drop, BellRinging, Flask } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 import CapitalModal from './CapitalModal';
 import './Header.css';

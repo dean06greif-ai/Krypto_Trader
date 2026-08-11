@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, CheckCircle, X } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders, isAdmin } from '../auth';
 import TIMEFRAMES from '../constants/timeframes';
 import { INDICATOR_GROUPS, INDICATOR_POOL } from '../lib/indicatorPool';

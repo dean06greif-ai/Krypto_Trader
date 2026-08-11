@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowsClockwise, CheckCircle, Trash, CaretDown, CaretRight } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { regimeColor } from '../lib/regimeColors';
 import { authHeaders, isAdmin } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';

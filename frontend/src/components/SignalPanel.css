@@ -6,8 +6,8 @@
   height: 100%;
   /* Auf kleinen Bildschirmen darf das Signal-Panel den Chart nicht
      zusammendrücken: Höhe zusätzlich an die Viewport-Höhe gekoppelt. */
-  max-height: min(400px, 32vh);
-  overflow-y: auto;
+  /* Kein eigener Scrollbereich mehr: Panel zeigt alle Regeln, gescrollt wird
+     mit dem normalen Seiten-Scroller (Wunsch des Traders). */
 }
 
 .panel-header {

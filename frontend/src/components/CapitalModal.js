@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Wallet, CheckCircle } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 import './CapitalModal.css';
 

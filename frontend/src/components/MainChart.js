@@ -55,15 +55,17 @@ const fmtPrice = (v) => {
 
 // EMA helper (client-side overlay)
 const ema = (values, period) => {
-  if (values.length < period) return [];
+  // Warmup-EMA ab der ersten Kerze (statt null bis zur Periode): die Linie
+  // (auch EMA 200) ist damit über den KOMPLETTEN angezeigten Zeitraum sichtbar
+  // und konvergiert nach ~1 Periode gegen die klassische EMA.
+  if (!values.length) return [];
   const k = 2 / (period + 1);
-  const out = [];
-  let prev = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = 0; i < values.length; i++) {
-    if (i < period - 1) { out.push(null); continue; }
-    if (i === period - 1) { out.push(prev); continue; }
+  const out = new Array(values.length);
+  let prev = values[0];
+  out[0] = prev;
+  for (let i = 1; i < values.length; i++) {
     prev = values[i] * k + prev * (1 - k);
-    out.push(prev);
+    out[i] = prev;
   }
   return out;
 };
@@ -403,7 +405,6 @@ const MainChart = ({ symbol, candleData }) => {
                     <small>zurück zur 1m-Ansicht</small>
                   </button>
                 )}
-                <div className="chart-range-hint">Chart bleibt immer live – die Auswahl lädt nur zusätzliche Vergangenheit dazu</div>
               </div>
             )}
           </span>
@@ -442,7 +443,7 @@ const MainChart = ({ symbol, candleData }) => {
             onClick={() => setHeatOn(v => !v)}
             title={heatOn
               ? 'Liquidations-Zonen ausblenden'
-              : 'Liquidations-Heatmap als farbige Zonen im Chart einblenden (Schätzung aus Hebel-Mathematik + OI + Volumen, lädt bei Bedarf)'}
+              : 'Liquidations-Heatmap als farbige Zonen im Chart einblenden (bevorzugt ECHTE gemessene Liquidationen der letzten 4h; ohne genügend Daten Schätzung aus Hebel-Mathematik + OI + Volumen)'}
             data-testid="chart-heat-toggle"
           >
             HEAT {heatOn && heatInfo ? `· ${heatInfo.zones}` : ''}
@@ -470,7 +471,7 @@ const MainChart = ({ symbol, candleData }) => {
                 <span className="chart-liq-chip heat-low" title="Blaue Zonen: wenig geschätzte Liquidations-Liquidität – Preis läuft hier meist einfach durch">blau = wenig</span>
                 <span className="chart-liq-chip heat-mid" title="Orange Zonen: mittlere Liquiditäts-Dichte – erste Magnet-Wirkung auf den Preis">orange = mittel</span>
                 <span className="chart-liq-chip heat-high" title="Rote Zonen: dichte Liquidations-Cluster – wirken wie Magnete, Sweeps dorthin sind oft Umkehrpunkte">rot = dichte Liq.-Cluster</span>
-                <span className="chart-liq-chip" title="Die Zonen sind eine Schätzung aus typischen Hebel-Stufen (10x-100x), Open Interest und Volumen – keine exakten Börsen-Liquidationspreise. Basis: 15m-Kerzen">Schätzung (Hebel + OI + Volumen) · 15m</span>
+                <span className="chart-liq-chip" title="Basis der Zonen: bevorzugt ECHTE gemessene Liquidationen (Force-Orders der Börsen, letzte 4h). Liegen zu wenige gemessene Daten vor, wird auf eine Schätzung aus typischen Hebel-Stufen (10x-100x), Open Interest und Volumen zurückgegriffen. Basis: 15m-Kerzen">{heatInfo?.source === 'measured' ? 'echte Liquidationen (4h)' : 'Schätzung (Hebel + OI + Volumen)'} · 15m</span>
               </>
             )}
         </div>

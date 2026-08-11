@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Play, MagicWand, Trophy, CheckCircle, FloppyDisk, ChartLine, Cloud, Desktop, Gear, ClockCounterClockwise } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import AssetPicker from './AssetPicker';
 import useInstruments from '../hooks/useInstruments';
 import { fmtShort } from '../lib/time';

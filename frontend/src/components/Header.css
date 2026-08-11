@@ -501,3 +501,16 @@
 .notif-dd-item b { color: #ffcf7d; font-size: 12px; }
 .notif-dd-item span { color: #aab1c7; line-height: 1.4; }
 .notif-dd-item em { font-style: normal; color: #6b7288; font-size: 10.5px; }
+
+/* Mobile-Fix: Benachrichtigungs-Dropdown darf nicht links aus dem Bildschirm ragen */
+@media (max-width: 640px) {
+  .notif-dropdown {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: 58px;
+    width: auto;
+    max-width: none;
+    max-height: 70vh;
+  }
+}

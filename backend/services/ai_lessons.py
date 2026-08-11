@@ -212,6 +212,18 @@ def merge_lessons(old: List[Dict], new: List[Dict], removed: List[str],
     return locked_out + ai_out[:limit]
 
 
+def prompt_order(lessons: List[Dict]) -> List[Dict]:
+    """Einheitliche Reihenfolge (wie im KI-Prompt): locked zuerst, dann Gewicht.
+    Vergibt fortlaufende Nummern (`no`) für aktive Lektionen – dieselben
+    Nummern, von denen die KI spricht ('Lektion 6')."""
+    ordered = sorted(lessons,
+                     key=lambda l: (1 if l.get("locked") else 0, int(l.get("weight", 2))),
+                     reverse=True)
+    for i, l in enumerate(ordered):
+        l["no"] = i + 1
+    return ordered
+
+
 def lessons_text(lessons: List[Dict]) -> str:
     """Prompt-Block: Lektionen inkl. Herkunfts-Markierung.
 
@@ -220,18 +232,16 @@ def lessons_text(lessons: List[Dict]) -> str:
     lessons = active_lessons(lessons)
     if not lessons:
         return "(noch keine Lektionen – zu wenige abgeschlossene Ergebnisse)"
-    ordered = sorted(normalize_all(lessons),
-                     key=lambda l: (1 if l.get("locked") else 0, int(l.get("weight", 2))),
-                     reverse=True)
+    ordered = prompt_order(normalize_all(lessons))
     out = []
-    for i, l in enumerate(ordered):
+    for l in ordered:
         label = WEIGHT_LABELS.get(int(l.get("weight", 2)), "mittel")
         if l.get("locked"):
             mark = ("[VOM TRADER FESTGELEGT/ANGEPASST – unveränderlich, befolgen]"
                     if l.get("origin") != "user" else "[VOM TRADER SELBST GESCHRIEBEN – befolgen]")
         else:
             mark = f"[Gewicht: {label}]"
-        out.append(f"{i + 1}. {mark} {l.get('title')}: {l.get('detail')}")
+        out.append(f"{l['no']}. {mark} {l.get('title')}: {l.get('detail')}")
     return "\n".join(out)
 
 
@@ -249,9 +259,11 @@ class LessonStore:
 
     async def all(self) -> List[Dict]:
         """Alle Lektionen – Themen-Konflikte werden immer on-the-fly
-        konsolidiert, damit UI und Prompt dieselben superseded-Flags sehen."""
+        konsolidiert; aktive Lektionen tragen dieselbe Nummer (`no`) wie im
+        KI-Prompt, superseded Lektionen haben keine Nummer."""
         lessons = normalize_all((await self._doc()).get("lessons"))
         consolidated, _ = consolidate_conflicts(lessons)
+        prompt_order([l for l in consolidated if not l.get("superseded")])
         return consolidated
 
     async def save_all(self, lessons: List[Dict]) -> List[Dict]:

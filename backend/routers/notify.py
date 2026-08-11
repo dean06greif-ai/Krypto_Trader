@@ -18,6 +18,20 @@ async def get_notifications(unread_only: bool = True, limit: int = 20):
     return {"notifications": rows}
 
 
+@router.post("/api/notifications")
+async def add_notification(body: Dict = None):
+    """Von der UI genutzt: unterdrückte doppelte Fehler-Popups landen hier,
+    damit sie in der Glocke nachlesbar bleiben (Toast-Dedupe)."""
+    body = body or {}
+    msg = str(body.get("message") or "").strip()[:400]
+    if not msg:
+        return {"status": "ignored"}
+    await notifications.website_notify(
+        state.db, str(body.get("kind") or "error")[:20],
+        str(body.get("title") or "Fehler")[:80], msg)
+    return {"status": "ok"}
+
+
 @router.post("/api/notifications/read")
 async def mark_notifications_read(body: Dict = None):
     ids = (body or {}).get("ids")

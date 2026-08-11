@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Robot, PaperPlaneRight, X, Trash, ArrowsClockwise, Lightning, CaretDown, CaretUp, Newspaper, PushPin, Brain, GraduationCap, CheckCircle, XCircle, Sliders, Coins, Flask, ArrowCounterClockwise, PencilSimple, Crown, Plus, FloppyDisk, Warning, ArrowDown } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';
 import useDragScroll from '../hooks/useDragScroll';

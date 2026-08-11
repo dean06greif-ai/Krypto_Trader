@@ -22,7 +22,8 @@ import AdminLogin from './components/AdminLogin';
 // mobile.css MUST be imported LAST so its media queries override
 // the component-level CSS (Header.css, StrategyTabs.css, ...).
 import './components/mobile.css';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
+import { toast } from './lib/toast';
 import { isAdmin as isAdminFn, clearToken, authHeaders } from './auth';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;

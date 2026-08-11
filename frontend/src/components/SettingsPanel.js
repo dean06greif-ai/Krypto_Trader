@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SafeOverlay from './SafeOverlay';
 import { X, TelegramLogo, Lightning, ChartLineUp, Plus, Trash, Sliders, PauseCircle, PlayCircle, Power, ArrowsClockwise } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders, isAdmin } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';
 import TIMEFRAMES from '../constants/timeframes';

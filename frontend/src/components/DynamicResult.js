@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FloppyDisk, Trophy } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders, isAdmin } from '../auth';
 import SafeOverlay from './SafeOverlay';
 import './AutoTradeModal.css';

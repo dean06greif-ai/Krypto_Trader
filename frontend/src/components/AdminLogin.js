@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { setToken } from '../auth';
 import './AdminLogin.css';
 

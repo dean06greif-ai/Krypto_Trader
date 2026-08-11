@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Desktop, DownloadSimple, ArrowsClockwise, Trash, Copy, Key, Database, Gear, FloppyDisk } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders, isAdmin } from '../auth';
 import SafeOverlay from './SafeOverlay';
 import './LocalWorkerPanel.css';

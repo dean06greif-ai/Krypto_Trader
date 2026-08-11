@@ -45,10 +45,10 @@ ROLE_LABELS = {
 # bestehenden Katalog (services/ai_providers.ALLOWED_MODELS) inkl. Fallback-KI.
 # Im UI jederzeit änderbar – eine eigene Auswahl überschreibt die Voreinstellung.
 ROLE_PRESETS: Dict[str, Dict] = {
-    # Läuft am häufigsten -> schnell & günstig, starke Fallbacks
-    "analyst": {"provider": "gemini", "model": "gemini-3.6-flash",
-                "fallback_provider": "groq", "fallback_model": "openai/gpt-oss-120b",
-                "fallback2_provider": "cerebras", "fallback2_model": "gpt-oss-120b"},
+    # Läuft am häufigsten -> bestes Gratis-Reasoning-Modell, starke Gratis-Fallbacks
+    "analyst": {"provider": "groq", "model": "openai/gpt-oss-120b",
+                "fallback_provider": "cerebras", "fallback_model": "gpt-oss-120b",
+                "fallback2_provider": "gemini", "fallback2_model": "gemini-3.5-flash-lite"},
     # Wenige Läufe pro Tag -> stärkstes verifiziertes Free-Reasoning-Modell
     "deep_analyst": {"provider": "openrouter",
                      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -62,18 +62,19 @@ ROLE_PRESETS: Dict[str, Dict] = {
     # Reine Datensammlung, LLM nur optional -> günstigstes Modell
     "market_observer": {"provider": "groq", "model": "llama-3.1-8b-instant",
                         "fallback_provider": "gemini", "fallback_model": "gemini-3.1-flash-lite"},
-    # KRITISCH: muss zuverlässig rechnen -> günstiges Flash-Modell + 2 Fallbacks
-    "trade_manager": {"provider": "gemini", "model": "gemini-3.5-flash",
+    # KRITISCH: muss zuverlässig rechnen -> starkes Gratis-Modell + 2 Fallbacks
+    "trade_manager": {"provider": "groq", "model": "openai/gpt-oss-120b",
                       "fallback_provider": "cerebras", "fallback_model": "gpt-oss-120b",
-                      "fallback2_provider": "groq", "fallback2_model": "openai/gpt-oss-120b"},
-    # 24/7-Betrieb -> billigstes Modell, schneller Fallback
-    "news_watcher": {"provider": "gemini", "model": "gemini-3.1-flash-lite",
-                     "fallback_provider": "groq", "fallback_model": "llama-3.1-8b-instant"},
-    "chat": {"provider": "gemini", "model": "gemini-3.5-flash",
-             "fallback_provider": "cerebras", "fallback_model": "gpt-oss-120b"},
-    # KRITISCH: Lektionen wirken dauerhaft -> stärkste Qualität + 2 Fallbacks
-    "learner": {"provider": "gemini", "model": "gemini-3.1-pro-preview",
-                "fallback_provider": "groq", "fallback_model": "openai/gpt-oss-120b",
+                      "fallback2_provider": "gemini", "fallback2_model": "gemini-3.5-flash"},
+    # 24/7-Betrieb -> billigstes Modell (gratis), günstiger Fallback
+    "news_watcher": {"provider": "groq", "model": "llama-3.1-8b-instant",
+                     "fallback_provider": "gemini", "fallback_model": "gemini-3.1-flash-lite"},
+    "chat": {"provider": "groq", "model": "openai/gpt-oss-120b",
+             "fallback_provider": "gemini", "fallback_model": "gemini-3.5-flash"},
+    # KRITISCH: Lektionen wirken dauerhaft -> starkes Gratis-Reasoning primär,
+    # Qualitäts-Fallback auf Gemini Pro (selten -> Cent-Beträge)
+    "learner": {"provider": "groq", "model": "openai/gpt-oss-120b",
+                "fallback_provider": "gemini", "fallback_model": "gemini-3.1-pro-preview",
                 "fallback2_provider": "openrouter",
                 "fallback2_model": "nvidia/nemotron-3-ultra-550b-a55b:free"},
     "summarizer": {"provider": "gemini", "model": "gemini-3.1-flash-lite",
@@ -148,8 +149,22 @@ class AIRoleManager:
     async def load(self, db):
         try:
             doc = await db.settings.find_one({"_id": "ai_roles_config"})
+            # Einmalige Kosten-Migration (Juni 2026, Wunsch des Traders):
+            # ALLE Rollen auf die neuen Preis-/Leistungs-Presets setzen
+            # (Gratis-Modelle primär). Danach greifen gespeicherte Configs
+            # wieder normal; eigene Änderungen im UI bleiben ab dann erhalten.
+            if doc is not None and not doc.get("_cost_migration_v1"):
+                self.config = {r: dict(c) for r, c in DEFAULT_ROLES_CONFIG.items()}
+                payload = {r: dict(c) for r, c in self.config.items()}
+                payload["_cost_migration_v1"] = True
+                await db.settings.update_one(
+                    {"_id": "ai_roles_config"}, {"$set": payload}, upsert=True)
+                logger.info("KI-Rollen: einmalige Kosten-Migration auf "
+                            "Preis-/Leistungs-Presets durchgeführt")
+                return
             if doc:
                 doc.pop("_id", None)
+                doc.pop("_cost_migration_v1", None)
                 for role, cfg in doc.items():
                     if role not in self.config or not isinstance(cfg, dict):
                         continue

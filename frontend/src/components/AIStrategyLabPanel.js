@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Flask, CheckCircle, XCircle, ArrowCounterClockwise, ChartLine, Ghost, SlidersHorizontal, Sparkle, Check } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 import './AIGovernance.css';
 

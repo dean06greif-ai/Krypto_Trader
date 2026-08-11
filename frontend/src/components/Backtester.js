@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Play, Trophy, ClockCounterClockwise, Gear, DownloadSimple, ArrowCounterClockwise, Cloud, Desktop } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import AssetPicker from './AssetPicker';
 import useInstruments from '../hooks/useInstruments';
 import { authHeaders, isAdmin } from '../auth';

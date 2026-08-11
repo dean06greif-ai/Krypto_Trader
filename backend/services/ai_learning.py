@@ -34,9 +34,14 @@ LEARNING_SYSTEM = (
     "TP zu weit -> Gewinne drehen ins Minus)? Behalte bewährte alte Lektionen bei, verwirf "
     "widerlegte, formuliere neue NUR bei ausreichender Datenbasis (siehe DATEN-VALIDIERUNG). "
     "Bei sehr wenigen Daten sei zurückhaltend und markiere Lektionen als vorläufig. "
+    "AUSNAHME: Hat der Trader dir explizit angewiesen, eine bestimmte Lektion aufzunehmen "
+    "oder zu aktivieren, setze bei dieser Lektion \"trader_directive\": true – sie wird "
+    "dann SOFORT ohne Validierungs-Wartezeit aktiv. Hältst du sie für riskant oder "
+    "schlecht, schreibe deine ehrliche Einschätzung in \"critique\" (sie gilt trotzdem). "
     "Antworte AUSSCHLIESSLICH mit validem JSON ohne Markdown, exakt in diesem Schema:\n"
     '{"assessment": "3-6 Sätze ehrliche Selbsteinschätzung auf Deutsch", '
-    '"lessons": [{"title": "Kurztitel", "detail": "konkrete, umsetzbare Regel auf Deutsch"}], '
+    '"lessons": [{"title": "Kurztitel", "detail": "konkrete, umsetzbare Regel auf Deutsch", '
+    '"trader_directive": false, "critique": ""}], '
     '"removed_lessons": ["Titel einer widerlegten Lektion"], '
     '"contradictory_lessons": ["Titel der schwächer validierten Lektion bei Widerspruch/Doppelung"], '
     '"config_changes": [{"symbol": "BTCUSDT", "changes": {}, "reason": "kurz"}]}\n'
@@ -495,6 +500,20 @@ class AILearning:
                     skipped.append(f"{title}: {why}")
                     continue
                 prev = old_by_title.get(key)
+                if l.get("trader_directive") and prev is None:
+                    # ANWEISUNG DES TRADERS: sofort aktiv, KEIN Kandidaten-Gate
+                    # (Hoheitsrecht des Traders). Die KI darf die Lektion
+                    # trotzdem kritisch kommentieren (Feld "critique").
+                    critique = str(l.get("critique") or "")[:300]
+                    fresh.append({"title": title, "detail": detail,
+                                  "model": model_used, "weight": max(run_weight, 3),
+                                  "weight_label": ai_providers.WEIGHT_LABELS.get(
+                                      max(run_weight, 3), "hoch"),
+                                  "origin": "user", "locked": True,
+                                  "updated_at": _now_iso(), "confirmations": 1})
+                    skipped.append(f"{title}: AUF ANWEISUNG DES TRADERS sofort aktiviert"
+                                   + (f" – Einschätzung der KI: {critique}" if critique else ""))
+                    continue
                 if prev is None:
                     # NEUE Lektion: wird erst aktiv, wenn dieselbe Erkenntnis
                     # (exakter Titel) mehrfach wiedererkannt wurde UND die
