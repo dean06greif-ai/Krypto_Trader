@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 6 – Freshness-Guard + Gap-Backfill scheduler refactor: fully verified. Unit-tests (test_scanner_freshness.py 7 tests + test_worker_package.py::TestWorkerPackageFiles 3 tests) all green. Preview URL regression (test_iter6_scanner_regression.py, 5 tests) all green: /api/signals 200, /api/session/status is_active=true, /api/autotrade/trades 200, /api/autotrade/config 200, /api/klines/BTCUSDT last-candle age <10min. Backend logs: 0 'Scan error' entries, 0 'autotrade monitor error', 0 'Marktdaten veraltet' warnings (no stale symbols right now), 0 'Kerzen-Lücke' fills (no gaps happened – expected/organic). Dashboard smoke: LIVE label shows '1MIN · LIVE · 200 bars', 8 canvases, 117 SVG paths (EMA 9/50/200 visible in chart legend), 24 rule-state elements filled (Trend EMA 50 met/RSI Momentum unmet green/grey circles), BTCUSDT price 64019.20 live, session '24/7 MODE · ACTIVE', 0 JS/page errors. Code review of core/scheduler.py: STALE_AFTER_MS=4min, _is_stale correctly whitelists yahoo instruments, _needs_backfill uses >60s gap between buf[-1].ts and klines[0].ts, fresh-only gating for prices[symbol] and evaluate_open_signals is correct, broadcast candle+rule_states runs unconditionally (matches spec).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_scanner_freshness.py",
+    "/app/backend/tests/test_worker_package.py",
+    "/app/backend/tests/test_iter6_scanner_regression.py",
+    "/app/test_reports/pytest/iter6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "core/scheduler.py::_is_stale – correct: uses core.instruments.get(symbol).live_source == 'yahoo' to exempt Gold/Öl/Forex (trading pauses). Fallback (unknown symbol) treats as crypto -> stale check applies. STALE_AFTER_MS=4min is generous enough for 12s poll interval but tight enough to catch a truly frozen feed.",
+    "core/scheduler.py::_needs_backfill – threshold `>60000ms` between buf[-1].timestamp and klines[0].timestamp correctly requires a strict gap (consecutive minutes NOT triggering). Backfill fetches 200 candles and only replaces `klines` when `len(filler) >= len(klines)` – safe fallback if the deep fetch fails/returns short.",
+    "core/scheduler.py::start_scanner – fresh-gated writes to prices[symbol] AND fresh-gated evaluate_open_signals(symbol, price) correctly prevent stale SL/TP hits. broadcast of candle + rule_states ALWAYS runs (as designed for the UI 'LIVE · 200 bars' chart which should keep rendering the last candle even when the feed pauses).",
+    "core/scheduler.py – Log-Drossel _stale_warned[symbol]: nur 1 Warn-Zeile pro 10 min pro Symbol – guter Kompromiss (kein Log-Flood, aber sichtbar). Persists forever in-process; acceptable (small dict, ~20 symbols).",
+    "tests/conftest.py – lädt backend/.env + frontend/.env korrekt via os.environ.setdefault (überschreibt NICHT bereits gesetzte Werte -> CI-freundlich).",
+    "Minor nit (non-blocking): _stale_warned key aging – dict never prunes. In a very long-running process a symbol removed from ALL_SYMBOLS would leave a stale entry. Practically irrelevant with the current symbol universe.",
+    "Minor nit (non-blocking): STALE_AFTER_MS is a module constant, not env-configurable. If a slow exotic feed shows up (e.g. new emerging-market coin) tuning requires code edit + redeploy. Not urgent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter6_scanner_regression.py (new – 5 preview-URL regression tests: signals, session/status, autotrade/trades, autotrade/config, klines freshness age<10min; retry-3x on Cloudflare 502/503/504)"
+  ],
+  "success_rate": {"backend": "100% (15/15 – 7 freshness unit + 3 worker-package + 5 preview regression)", "frontend": "100% (dashboard smoke, LIVE chart, rule-states, 0 JS errors)"},
+  "test_credentials": "Admin / Dea...eif!/Admin (not used this iteration – no auth flows required by review scope)",
+  "seed_data_creation": "None. Strict read-only run per agent-to-agent note (no strategies/lessons/trades/configs/AI/telegram touched).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Freshness/backfill regressions live at /app/backend/tests/test_iter6_scanner_regression.py + /app/backend/tests/test_scanner_freshness.py. Preview URL /api/signals occasionally 502s via Cloudflare when tests run in parallel (pytest-xdist gw*) – the iter6 file already retries 3x on 502/503/504 with 5s backoff, and running serial (-o 'addopts=') is bulletproof. The KI-Warnung toast 'News-Wächter: groq/qwen/qwen3.6-27b – Prompt zu groß fürs Token-Budget' is unrelated to this iteration's scope (LLM quota/context-limit – Fallback-Kette handles it). No mutations, no telegram push triggered.",
+  "rca of the issue": "No bug in this iteration. STALE_AFTER_MS (4min) + Yahoo-whitelist and gap-backfill (>60s) correctly implemented and wired into start_scanner. autotrader.monitor(prices) now only sees fresh crypto prices; evaluate_open_signals gated identically; broadcast(candle) + broadcast(rule_states) unaffected so the UI stays lit even during a stale feed. Local backend log is clean (0 Scan error / autotrade monitor error / Marktdaten veraltet)."
+}

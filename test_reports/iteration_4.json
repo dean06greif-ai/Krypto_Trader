@@ -1,0 +1,39 @@
+{
+  "summary": "Read-only regression run against the public preview URL for the session fixes (KI-Team crash, chat scroll, lesson numbering, providers_health, sticky layout, EMA-200, tooltip text). Backend pytest 5/5 pass (admin login, /api/ai/insights lessons 'no'-numbering, /api/ai/status providers_health lists, /api/ai/supervisor, /api/ai/roles). Frontend UI all 6 target flows pass: (1) Desktop 1920x800 -> document.scrollHeight=961 > innerHeight=800 (page scrolls whole) and [data-testid=signal-panel] overflowY=visible with no inner scroll; (2) opening AI panel via first .strategy-tab-action shows [data-testid=ai-trading-panel]; (3) [data-testid=ai-team-toggle] renders [data-testid=ai-team-panel] with 9 .ai-role-card + [data-testid=ai-supervisor-panel] and ZERO error-boundary; (4) after Lab toggle round-trip, [data-testid=ai-chat-area] is at bottom (scrollHeight-scrollTop-clientHeight = 0); (5) [data-testid=ai-learn-toggle] renders 22 .ai-lesson-no badges (first ten numbers: [6,4,5,1,2,3,11,12,13,14] - locked-first ordering); (6) Mobile 390x844 -> [data-testid=header-notifications-dropdown] bbox x=8, right=382, viewport=390 -> fully in-viewport. Chart EMA-200 pink (#FF5E7A) line spans firstCol=25 -> lastCol=1238 of canvas width 1246 = 97.4% -> full-length EMA line confirmed; MainChart.js source contains only new tooltip title 'Zusätzlichen Zeitraum laden' (old 'der Chart bleibt immer live' fully removed). NO POST/PUT/DELETE was called except the read-only /api/auth/login, per session rules.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/ai/insights", "issue": "Superseded lessons have the 'no' key ABSENT rather than explicitly set to null. Spec in review_request says 'superseded Lektionen haben no=null'. Frontend treats both undefined/null the same (falsy), so numbering still works, but consider serializing 'no': None in services/ai_lessons.py::LessonStore.all() for API-contract clarity."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AITradingPanel dropdown (option renderer)", "issues": ["React console warning: 'In HTML, <span> cannot be a child of <option>. This will cause a hydration error.' Occurs inside a QueryClientProvider-hosted <select> render (visible after opening the KI-Team panel). Non-blocking, but should be cleaned up (a <span> is being placed inside <option> - swap for plain text or a data-attribute)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_session_review_fixes.py",
+    "/app/test_reports/pytest/session_review.xml"
+  ],
+  "action_items": [
+    "Optional: in services/ai_lessons.py::LessonStore.all(), set explicit 'no': None on superseded lessons so the JSON contract matches the review spec ('superseded haben no=null').",
+    "Fix minor React DOM warning about <span> inside <option> triggered from AITradingPanel select rendering (visible on AI panel open)."
+  ],
+  "critical_code_review_comments": [
+    "routers/ai.py::ai_insights (line 34) - endpoint intentionally has no admin dependency; all other /api/ai/* mutators do require_admin. OK as long as insights leaks no secrets - confirm no user_prompt/keys are ever placed in the response.",
+    "services/ai_lessons.py::LessonStore.all() consolidates conflicts on every read (line 265). If the collection grows large this becomes a hot path - consider caching per settings.updated_at.",
+    "Multiple superseded lessons keep no field absent. Prefer explicit None so downstream (Prompt-Nummerierung UI, API consumers) doesn't rely on JS truthy checks."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_session_review_fixes.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin / Dea...eif!/Admin (login returns JWT via POST /api/auth/login on preview URL)",
+  "seed_data_creation": "None - strictly read-only run (only /api/auth/login POST + GETs); no strategies/lessons/trades/configs modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview backend is real production Atlas + real Telegram bot. Only /api/auth/login POST is allowed; never trigger /api/ai/analyze /api/ai/learn /api/ai/deep or any strategy/trade mutation. Reusable regression: /app/backend/tests/test_session_review_fixes.py (uses REACT_APP_BACKEND_URL, retries transient CF 502 on login, tolerates absent-or-null 'no' on superseded). Preview URL occasionally returns Cloudflare 502 on first login within 1-2s - retry logic in _login_token handles it. Chart EMA-200 verification uses canvas pixel scan for #FF5E7A (255,94,122) at tolerance 18 - spanFrac > 0.9 means line covers the full visible chart.",
+  "rca of the issue": "No live bug in this run. Only nit: LessonStore.all() returns superseded lessons without the 'no' key (line 266 in services/ai_lessons.py only calls prompt_order on non-superseded), while the review spec asks for no=null. Fix: after prompt_order(...), do `for l in consolidated: l.setdefault('no', None)` so the JSON contract is explicit."
+}

@@ -1,0 +1,16 @@
+{
+  "summary": "Verified restored standard /app structure and regression tests after moving app out of /app/krypto_trader subfolder. All 6 requested checks pass: (1) Structure OK: /app/backend has split modules (server.py 316 lines, services/, routers/, core/, models/, strategies/, tests/), no StatusCheck template, /app/krypto_trader removed (git shows 'deleted: krypto_trader', now normal tracked files). (2) Supervisor: backend+frontend RUNNING; GET /api/health -> {status:alive} via REACT_APP_BACKEND_URL. (3) Backend regression via public URL: /api/ai/status config has use_heatmap_data=false, use_liquidation_data=true, lean_prompt=true, smart_skip=true; /api/ai/lessons/conflicts=200; /api/ai/token-usage=200; /api/autotrade/watchdog/status settings.manage_external=false; /api/liquidity/heatmap/BTCUSDT returns clusters_measured (measured:true) + clusters_source ('model'); admin login POST /api/auth/login returns JWT token. (4) Unit tests: cd /app/backend && pytest tests/test_ai_trader_iter2_fixes.py tests/test_ai_trader_quality_fixes.py tests/test_position_watchdog.py tests/test_ai_lessons_merge.py tests/test_ai_governance.py -> 95 passed in 3.77s (100% green). (5) Frontend smoke: title 'Crypto Scanner - Trading Signals', tabs Scalping/PBD Model/KI Trader visible, LIVE badge (data-testid=live-overlay) is DOM-before bitunix-balance-widget within .balance-widget-wrapper (liveBeforeBal=true) - matches new convention. (6) KI Trader tab opens without crash: setup gear + chat feed area render, no React error boundary, no breaking console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_ai_trader_iter2_fixes.py", "/app/backend/tests/test_ai_trader_quality_fixes.py", "/app/backend/tests/test_position_watchdog.py", "/app/backend/tests/test_ai_lessons_merge.py", "/app/backend/tests/test_ai_governance.py"],
+  "action_items": [],
+  "critical_code_review_comments": ["server.py at 316 lines is well-sized; router modularization looks clean. Pre-existing failing tests (test_regime_engine, test_ai_team_regression, test_iter_ai_supervisor_auto, test_iter2_review_e2e, test_backtest_optimizer) as flagged by main agent were not re-run per instructions."],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (login returns JWT)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "App now runs at standard /app path (not /app/krypto_trader). Backend Supervisor 8001, Frontend 3000, external URL https://trader-governance.preview.emergentagent.com. Regression suite of 5 test files = 95 tests all pass. LLM keys not set, so no AI analysis triggered.",
+  "rca of the issue": "Not a bug run - verification of structural restore + UI reorder. Confirmed clean state."
+}

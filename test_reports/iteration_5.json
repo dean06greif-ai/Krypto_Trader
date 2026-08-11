@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 5 verification of the 4 session fixes: heat-overlay clusters_source, watchdog manage_external toggle, token_alert notify config, and code review of notifications/token-spike/model-failure paths. Backend pytest 5/5 pass (heatmap has clusters_source='model' + bins list; watchdog/status.settings.manage_external present as bool; POST /api/autotrade/watchdog/config without admin token -> 401; admin-token toggle ON returns settings.manage_external=true, IMMEDIATE reset OFF returns false, verified via a fresh GET). Frontend UI all 3 target flows pass (Playwright on preview URL): (1) [data-testid=chart-heat-toggle] click reveals [data-testid=chart-heat-legend] with content 'Schätzung (Hebel + OI + Volumen) · 15m' (source=model, as expected since Force-Order buffer is still filling – both 'echte Liquidationen (4h)' and 'Schätzung' are valid outputs); (2) After localStorage admin_token + reload -> settings-button -> tab-control -> [data-testid=watchdog-manage-external-toggle] visible; checkbox click ON (checked=true, toast 'Watchdog verwaltet externe Positionen jetzt aktiv') then OFF (checked=false, toast 'Externe Positionen werden nur beobachtet, nicht angefasst') – end state MUST be false and is verified false via API GET /api/autotrade/watchdog/status after the UI actions; (3) tab-telegram shows 'Token-Kosten-Wächter (ungewöhnlich hoher Verbrauch einer KI-Rolle)' as toggle row with checkbox (NOT changed). No AI generation was triggered, no telegram push initiated, no configs mutated except manage_external which is now false again (dual-verified).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter5_session_fixes.py",
+    "/app/test_reports/pytest/iter5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "services/notifications.py::notify_model_failure – correct: respects website_ai_failure toggle, dedupe_key includes provider/model/reason so identical repeated failures share a 15min cooldown, role label falls back cleanly to raw role or 'unbekannte Rolle', detail truncated to 120 chars.",
+    "services/notifications.py::notify_token_spike – correct dedupe via `web:token:{role}:{day}` and `tg:token:{role}:{day}` guarantees max 1x per role per Berlin-day, cooldown 1440 min. baseline==0 branch avoids ZeroDivisionError and phrases 'noch keine Vergleichstage'. _de_num uses German thousands separator ('.').",
+    "services/ai_providers.py::record_result – on status != 'ok' schedules notify_model_failure via asyncio.get_running_loop().create_task; bare except in the outer try is intentional (no running loop in sync test contexts). Note: use of the private `_current_role` at top of record_result is fine for the request-scoped role.",
+    "services/ai_engine.py::_check_token_alert – logic is correct: today >= TOKEN_ALERT_MIN (120k) AND (baseline == 0 OR today >= baseline * TOKEN_ALERT_FACTOR (2.5)); baseline is the 7-day average of prior days only ({'date': {'$lt': day}}). _track_tokens wraps _check_token_alert in try/except so a notify failure never aborts the analysis. Est-token math (len(prompt)+len(system)+len(text))//4 is a rough approximation (matches estimate_tokens' 3-char rule of thumb within ~15%).",
+    "routers/autotrade.py::set_watchdog_config – Depends(require_admin) enforced, returns settings dict; anonymous POST correctly rejected (verified with 401 in pytest).",
+    "Minor nit (non-blocking): notifications._last_sent is a module-level dict that grows monotonically; keys include timestamp-relative info like `web:token:{role}:{YYYY-MM-DD}` so old entries accumulate. Not a leak in practice (small keyspace, ~20 roles x days) but a periodic prune would be tidier."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter5_session_fixes.py (new – 5 pytest tests, all read-only except the manage_external true/false round-trip which resets to false)"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (3/3)"},
+  "test_credentials": "Admin / Dea...eif!/Admin (via POST /api/auth/login on the preview URL)",
+  "seed_data_creation": "None. Only mutation: /api/autotrade/watchdog/config manage_external true -> false (round-trip in test_watchdog_manage_external_toggle_and_reset and in the Playwright UI test; final state verified false via GET /api/autotrade/watchdog/status).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview backend runs against PRODUCTION Mongo Atlas + real Telegram bot. Reusable regression file: /app/backend/tests/test_iter5_session_fixes.py (needs REACT_APP_BACKEND_URL exported; conftest of previous iter4 still applies). Heatmap endpoint on preview intermittently returns Cloudflare 502 during warmup – the test retries 4x with backoff and needs ~30-90s cold. The heat-chip on preview says 'Schätzung' locally because the measured Force-Order buffer is still small (expected). CRITICAL invariant validated by this run: no strategy/lesson/trade/AI/telegram mutation happened; the only setting touched is manage_external which ends False.",
+  "rca of the issue": "No live bug in this iteration. All 4 features work end-to-end. Heat-overlay chip correctly propagates clusters_source ('model' in current preview state, 'measured' once enough force-order data is buffered). Watchdog toggle correctly persists via POST /api/autotrade/watchdog/config with require_admin guard. Token-Kosten-Wächter toggle is present in Telegram tab (default True per DEFAULT_CONFIG). notify_model_failure + notify_token_spike code paths are correct with proper dedupe/cooldown."
+}

@@ -1,0 +1,3870 @@
+bringing up nodes...
+bringing up nodes...
+
+.....................................................FF....F............ [  5%]
+..........................EF...E.EEF..FFE.EE..EEEEEFEE.................. [ 11%]
+.................E.E.EE.EE...EEEEFEE.................................... [ 17%]
+....................................................EEEEEEEEEEEEEEEEEE.. [ 23%]
+...............................................................E.E...... [ 29%]
+............................EEEE........................................ [ 35%]
+....................s.........................................ssssssssss [ 41%]
+........F..............F....................FEEEEEE.....EEFFFFF..FF..F.E [ 46%]
+............................................EFFEFEEE..............FF...F [ 52%]
+...............FFF.....................EEEEEEE........EEEEE............. [ 58%]
+....................EEEEEE..................ssssss...................... [ 64%]
+........EEEEE...............ssEEE............s.........EFFF............. [ 70%]
+...............EEEE....EEE..................F.E............EEEE......... [ 76%]
+...Fss.F...........E...F..EEEEEE..F........EEE..EEEE...EEE..E........... [ 82%]
+..EEEEEEEEE.....ssss...............F..FEE.F.................EFFFEsE.EEEE [ 88%]
+EE..E.......EEEE.E..EE..F..EE......F.sEEEE.E....................ss...... [ 93%]
+....F....EE.EEEEEE.E.......FEE.EF....EEEE.........EEEEEEEF.EEE.s.s...... [ 99%]
+..E                                                                      [100%]
+==================================== ERRORS ====================================
+______ ERROR at setup of test_master_prompt_post_admin_increments_version ______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+_________________ ERROR at setup of test_master_prompt_restore _________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+__________________ ERROR at setup of test_lesson_create_admin __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+__________________ ERROR at setup of test_lesson_patch_admin ___________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+__________________ ERROR at setup of test_lesson_delete_admin __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+___________ ERROR at setup of test_validation_post_admin_and_persist ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+______________ ERROR at setup of test_validation_restore_defaults ______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+________________ ERROR at setup of test_strategies_create_admin ________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+_______________ ERROR at setup of test_strategies_decide_approve _______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+____________ ERROR at setup of test_strategies_decide_approve_live _____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+________________ ERROR at setup of test_strategies_decide_reset ________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+_________ ERROR at setup of test_strategies_register_test_not_testable _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+_______________ ERROR at setup of test_strategies_settings_admin _______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+_______________ ERROR at setup of test_strategies_reject_cleanup _______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_governance_api.py:30: AssertionError
+_______ ERROR at setup of test_schedule_post_stores_and_filters_invalid ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+___________________ ERROR at setup of test_schedule_cleanup ____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+___________ ERROR at setup of test_master_prompt_post_with_new_rules ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+__________________ ERROR at setup of test_master_prompt_reset __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+____________ ERROR at setup of test_validation_post_macro_persists _____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+__________________ ERROR at setup of test_validation_restore ___________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+_____________ ERROR at setup of test_notify_guard_set_and_persist ______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+_________________ ERROR at setup of test_notify_guard_invalid __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+_________________ ERROR at setup of test_notify_guard_restore __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+___________________ ERROR at setup of test_create_candidate ____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+_____________ ERROR at setup of test_macro_set_and_ignore_unknown ______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+___________________ ERROR at setup of test_candidate_cleanup ___________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    @pytest.fixture(scope="module")
+    def token(session):
+        r = session.post(f"{BASE}/api/auth/login",
+                         json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_ai_iter3_api.py:37: AssertionError
+_____________ ERROR at setup of test_dean_smoke_no_500[/api/coins] _____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+____________ ERROR at setup of test_dean_smoke_no_500[/api/signals] ____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+___________ ERROR at setup of test_dean_smoke_no_500[/api/settings] ____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+________ ERROR at setup of test_dean_smoke_no_500[/api/session/status] _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+__________ ERROR at setup of test_dean_smoke_no_500[/api/strategies] ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+__ ERROR at setup of test_dean_smoke_no_500[/api/strategies/builder-options] ___
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_______ ERROR at setup of test_dean_smoke_no_500[/api/autotrade/config] ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_______ ERROR at setup of test_dean_smoke_no_500[/api/autotrade/trades] ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_______ ERROR at setup of test_dean_smoke_no_500[/api/autotrade/capital] _______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_____ ERROR at setup of test_dean_smoke_no_500[/api/autotrade/sync-status] _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_________ ERROR at setup of test_dean_smoke_no_500[/api/ai/lab/status] _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+________ ERROR at setup of test_dean_smoke_no_500[/api/ai/trade/status] ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_____ ERROR at setup of test_dean_smoke_no_500[/api/ai/closed_loop/status] _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_________ ERROR at setup of test_dean_smoke_no_500[/api/ai/ml/status] __________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+______ ERROR at setup of test_dean_smoke_no_500[/api/ai/observer/status] _______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+________ ERROR at setup of test_dean_smoke_no_500[/api/ai/memory/stats] ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+________ ERROR at setup of test_dean_smoke_no_500[/api/regime-lab/list] ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+__ ERROR at setup of test_dean_smoke_no_500[/api/regime-lab/engine/defaults] ___
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd8259010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+____________ ERROR at setup of test_engine_defaults_contains_kombi _____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login",
+                          json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                          timeout=15)
+>       assert r.status_code == 200, f"Login fehlgeschlagen: {r.text}"
+E       AssertionError: Login fehlgeschlagen: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_etappe1_kombi.py:261: AssertionError
+___________ ERROR at setup of test_kombi_calibrate_validates_symbols ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login",
+                          json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                          timeout=15)
+>       assert r.status_code == 200, f"Login fehlgeschlagen: {r.text}"
+E       AssertionError: Login fehlgeschlagen: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_etappe1_kombi.py:261: AssertionError
+_______ ERROR at setup of test_custom_strategy_default_params_populated ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODg2Nn0._RaH17dAuCJ-R1CYOSvSCdSeponvDOdTRoLBQcCTEVs', 'Content-Type': 'application/json'}
+
+    @pytest.fixture(scope="module")
+    def qa_strategies(auth_headers):
+        # cleanup first (idempotent)
+        for sid in ("qa_ai_strat", "qa_bad"):
+            requests.delete(f"{BASE_URL}/api/strategies/custom/{sid}", headers=auth_headers, timeout=TIMEOUT)
+        r1 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_STRAT, timeout=TIMEOUT)
+        assert r1.status_code in (200, 201), r1.text
+        r2 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_BAD, timeout=TIMEOUT)
+>       assert r2.status_code in (200, 201), r2.text
+E       AssertionError: {"detail":{"message":"Strategie abgewiesen: Regeln nicht auswertbar","problems":["long_rules[0]: Indikator 'supertrend' wird nicht unterstützt"],"fixes":[{"side":"long_rules","index":0,"field":"indicator","from":"supertrend","to":"bb_upper","label":"LONG 1: 'supertrend' → 'bb_upper'"}]}}
+E       assert 422 in (200, 201)
+E        +  where 422 = <Response [422]>.status_code
+
+tests/test_iteration_review.py:239: AssertionError
+_____________ ERROR at setup of test_optimizer_run_custom_strategy _____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODg2Nn0._RaH17dAuCJ-R1CYOSvSCdSeponvDOdTRoLBQcCTEVs', 'Content-Type': 'application/json'}
+
+    @pytest.fixture(scope="module")
+    def qa_strategies(auth_headers):
+        # cleanup first (idempotent)
+        for sid in ("qa_ai_strat", "qa_bad"):
+            requests.delete(f"{BASE_URL}/api/strategies/custom/{sid}", headers=auth_headers, timeout=TIMEOUT)
+        r1 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_STRAT, timeout=TIMEOUT)
+        assert r1.status_code in (200, 201), r1.text
+        r2 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_BAD, timeout=TIMEOUT)
+>       assert r2.status_code in (200, 201), r2.text
+E       AssertionError: {"detail":{"message":"Strategie abgewiesen: Regeln nicht auswertbar","problems":["long_rules[0]: Indikator 'supertrend' wird nicht unterstützt"],"fixes":[{"side":"long_rules","index":0,"field":"indicator","from":"supertrend","to":"bb_upper","label":"LONG 1: 'supertrend' → 'bb_upper'"}]}}
+E       assert 422 in (200, 201)
+E        +  where 422 = <Response [422]>.status_code
+
+tests/test_iteration_review.py:239: AssertionError
+__________________ ERROR at setup of test_backtest_run_custom __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODg2Nn0._RaH17dAuCJ-R1CYOSvSCdSeponvDOdTRoLBQcCTEVs', 'Content-Type': 'application/json'}
+
+    @pytest.fixture(scope="module")
+    def qa_strategies(auth_headers):
+        # cleanup first (idempotent)
+        for sid in ("qa_ai_strat", "qa_bad"):
+            requests.delete(f"{BASE_URL}/api/strategies/custom/{sid}", headers=auth_headers, timeout=TIMEOUT)
+        r1 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_STRAT, timeout=TIMEOUT)
+        assert r1.status_code in (200, 201), r1.text
+        r2 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_BAD, timeout=TIMEOUT)
+>       assert r2.status_code in (200, 201), r2.text
+E       AssertionError: {"detail":{"message":"Strategie abgewiesen: Regeln nicht auswertbar","problems":["long_rules[0]: Indikator 'supertrend' wird nicht unterstützt"],"fixes":[{"side":"long_rules","index":0,"field":"indicator","from":"supertrend","to":"bb_upper","label":"LONG 1: 'supertrend' → 'bb_upper'"}]}}
+E       assert 422 in (200, 201)
+E        +  where 422 = <Response [422]>.status_code
+
+tests/test_iteration_review.py:239: AssertionError
+_____ ERROR at setup of test_backtest_strategy_warnings_unknown_indicator ______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODg2Nn0._RaH17dAuCJ-R1CYOSvSCdSeponvDOdTRoLBQcCTEVs', 'Content-Type': 'application/json'}
+
+    @pytest.fixture(scope="module")
+    def qa_strategies(auth_headers):
+        # cleanup first (idempotent)
+        for sid in ("qa_ai_strat", "qa_bad"):
+            requests.delete(f"{BASE_URL}/api/strategies/custom/{sid}", headers=auth_headers, timeout=TIMEOUT)
+        r1 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_STRAT, timeout=TIMEOUT)
+        assert r1.status_code in (200, 201), r1.text
+        r2 = requests.post(f"{BASE_URL}/api/strategies/custom", headers=auth_headers, json=QA_BAD, timeout=TIMEOUT)
+>       assert r2.status_code in (200, 201), r2.text
+E       AssertionError: {"detail":{"message":"Strategie abgewiesen: Regeln nicht auswertbar","problems":["long_rules[0]: Indikator 'supertrend' wird nicht unterstützt"],"fixes":[{"side":"long_rules","index":0,"field":"indicator","from":"supertrend","to":"bb_upper","label":"LONG 1: 'supertrend' → 'bb_upper'"}]}}
+E       assert 422 in (200, 201)
+E        +  where 422 = <Response [422]>.status_code
+
+tests/test_iteration_review.py:239: AssertionError
+____________________ ERROR at setup of test_builder_options ____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:23: AssertionError
+_____________________ ERROR at setup of test_rule_preview ______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:23: AssertionError
+___________ ERROR at setup of test_backtest_run_with_custom_strategy ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:23: AssertionError
+______________ ERROR at setup of test_trade_guard_get_and_update _______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:23: AssertionError
+________________ ERROR at setup of test_telegram_notify_config _________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:23: AssertionError
+______________ ERROR at setup of test_notifications_list_and_read ______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:23: AssertionError
+__________ ERROR at setup of TestDiscoveryOptimizer.test_admin_login ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+________ ERROR at setup of TestDiscoveryOptimizer.test_start_discovery _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+_______________ ERROR at setup of test_ai_models_watch_run_admin _______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = _post("/api/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter3_ai_improvements.py:53: AssertionError
+__________ ERROR at setup of TestDynamicOptimizer.test_start_dynamic ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+___________ ERROR at setup of TestDynamicOptimizer.test_dynamic_save ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+_________ ERROR at setup of TestDynamicOptimizer.test_dynamic_refresh __________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+__________ ERROR at setup of TestDynamicOptimizer.test_dynamic_apply ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+__________ ERROR at setup of TestDynamicOptimizer.test_dynamic_delete __________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+__ ERROR at setup of TestRegimeIter3LiveFix.test_segments_final_count_5_to_60 __
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+____ ERROR at setup of TestRegimeIter3LiveFix.test_live_segments_under_200 _____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+_______ ERROR at setup of TestRegimeIter3LiveFix.test_validation_passed ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+_ ERROR at setup of TestRegimeIter3LiveFix.test_live_segments_are_directional __
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+_ ERROR at setup of TestRegimeIter3LiveFix.test_live_segments_eth_are_directional _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+______ ERROR at setup of TestRegimeIter3LiveFix.test_current_regime_shape ______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+_______ ERROR at setup of TestRegimeIter3LiveFix.test_corrections_block ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+______ ERROR at setup of test_kombi_calibrate_auth_and_symbols_validation ______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a9150d5390>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        # Credentials were explicitly supplied in the review request.
+        response = api_client.post(
+            f"{API}/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=20,
+        )
+        if response.status_code != 200:
+>           pytest.fail(f"Admin authentication failed: {response.status_code} {response.text[:300]}")
+E           Failed: Admin authentication failed: 401 {"detail":"Falsche Zugangsdaten"}
+
+tests/backend_test.py:34: Failed
+__________________ ERROR at setup of test_kombi_calibrate_e2e __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a9150d5390>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        # Credentials were explicitly supplied in the review request.
+        response = api_client.post(
+            f"{API}/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=20,
+        )
+        if response.status_code != 200:
+>           pytest.fail(f"Admin authentication failed: {response.status_code} {response.text[:300]}")
+E           Failed: Admin authentication failed: 401 {"detail":"Falsche Zugangsdaten"}
+
+tests/backend_test.py:34: Failed
+________ ERROR at setup of test_analyze_detector_regression_e2e[kombi] _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a9150d5390>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        # Credentials were explicitly supplied in the review request.
+        response = api_client.post(
+            f"{API}/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=20,
+        )
+        if response.status_code != 200:
+>           pytest.fail(f"Admin authentication failed: {response.status_code} {response.text[:300]}")
+E           Failed: Admin authentication failed: 401 {"detail":"Falsche Zugangsdaten"}
+
+tests/backend_test.py:34: Failed
+_______ ERROR at setup of test_analyze_detector_regression_e2e[reactive] _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a9150d5390>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        # Credentials were explicitly supplied in the review request.
+        response = api_client.post(
+            f"{API}/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=20,
+        )
+        if response.status_code != 200:
+>           pytest.fail(f"Admin authentication failed: {response.status_code} {response.text[:300]}")
+E           Failed: Admin authentication failed: 401 {"detail":"Falsche Zugangsdaten"}
+
+tests/backend_test.py:34: Failed
+_________ ERROR at setup of test_analyze_detector_regression_e2e[ema] __________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a9150d5390>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        # Credentials were explicitly supplied in the review request.
+        response = api_client.post(
+            f"{API}/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=20,
+        )
+        if response.status_code != 200:
+>           pytest.fail(f"Admin authentication failed: {response.status_code} {response.text[:300]}")
+E           Failed: Admin authentication failed: 401 {"detail":"Falsche Zugangsdaten"}
+
+tests/backend_test.py:34: Failed
+_____________ ERROR at setup of test_discovery_with_all_robustness _____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter11_robustness.py:27: AssertionError
+_________ ERROR at setup of test_discovery_regression_no_robust_fields _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter11_robustness.py:27: AssertionError
+__________________ ERROR at setup of test_params_mode_with_wf __________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter11_robustness.py:27: AssertionError
+____________________ ERROR at setup of test_days_clamp_5500 ____________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter11_robustness.py:27: AssertionError
+______________ ERROR at setup of test_apply_from_top5_definition _______________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter11_robustness.py:27: AssertionError
+____________ ERROR at setup of test_localworker_use_gpu_persistence ____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter11_robustness.py:27: AssertionError
+_________ ERROR at setup of TestLocalWorker.test_worker_status_online __________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+_______________ ERROR at setup of TestLocalWorker.test_manifest ________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+_ ERROR at setup of TestLocalWorker.test_local_analyze_5m_300d_worker_stays_online _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+___________ ERROR at setup of TestLocalWorker.test_cancel_within_5s ____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+__ ERROR at setup of TestLocalWorker.test_disconnect_detection_and_reconnect ___
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+______ ERROR at setup of TestDynamic.test_apply_activates_nnfx_strategies ______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8dd42423d0>
+
+    @pytest.fixture(scope="module")
+    def token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_v2_integration.py:31: AssertionError
+_______ ERROR at setup of TestDynamic.test_settings_require_confirmation _______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8dd42423d0>
+
+    @pytest.fixture(scope="module")
+    def token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_v2_integration.py:31: AssertionError
+_________ ERROR at setup of TestDynamic.test_dismiss_returns_dismissed _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8dd42423d0>
+
+    @pytest.fixture(scope="module")
+    def token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_v2_integration.py:31: AssertionError
+________ ERROR at setup of TestBacktesterRegression.test_start_backtest ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+__ ERROR at setup of TestOptimizerEquity.test_scope_optimized_returns_points ___
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914ea6690>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_optimizer_equity.py:37: AssertionError
+_ ERROR at setup of TestOptimizerEquity.test_scope_all_includes_more_or_equal_symbols _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914ea6690>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_optimizer_equity.py:37: AssertionError
+______ ERROR at setup of TestOptimizerEquity.test_unknown_id_returns_404 _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914ea6690>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_optimizer_equity.py:37: AssertionError
+___________ ERROR at setup of TestOptimizerEquity.test_public_access ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914ea6690>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_optimizer_equity.py:37: AssertionError
+_ ERROR at setup of TestStrategyValidation.test_invalid_indicator_returns_422_with_problems_and_fixes _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xf9a925e489d0>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly29_review.py:28: AssertionError
+_ ERROR at setup of TestStrategyValidation.test_alias_ema_200_canonicalized_and_saved _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xf9a925e489d0>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly29_review.py:28: AssertionError
+_ ERROR at setup of TestStrategyValidation.test_unsupported_timeframe_7m_returns_422 _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xf9a925e489d0>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly29_review.py:28: AssertionError
+______________ ERROR at setup of TestHealthAuth.test_verify_token ______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a915144050>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+_ ERROR at setup of TestAutotradeRegression.test_endpoint_reachable[/api/autotrade/config] _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:15: AssertionError
+_ ERROR at setup of TestAutotradeRegression.test_endpoint_reachable[/api/autotrade/trades] _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:15: AssertionError
+_ ERROR at setup of TestAutotradeRegression.test_endpoint_reachable[/api/autotrade/sync-status] _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:15: AssertionError
+_ ERROR at setup of TestAutotradeRegression.test_endpoint_reachable[/api/autotrade/balance] _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:15: AssertionError
+_______ ERROR at setup of TestWorkerGate.test_local_dynamic_gate_present _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter13_bugfixes_features.py:19: AssertionError
+_____________ ERROR at setup of TestBacktestCloudExports.test_run ______________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+________ ERROR at setup of TestBacktestCloudExports.test_export_candles ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+________ ERROR at setup of TestBacktestCloudExports.test_export_trades _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+_________ ERROR at setup of TestBacktester.test_reject_unknown_symbol __________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter17_new_assets.py:31: AssertionError
+_____ ERROR at setup of TestBacktester.test_regression_crypto_still_works ______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter17_new_assets.py:31: AssertionError
+________ ERROR at setup of TestBacktester.test_multi_asset_new_universe ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter17_new_assets.py:31: AssertionError
+_ ERROR at setup of TestBacktestAutoLevAndDays.test_backtest_auto_leverage_and_pnl_pct _
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42179d0>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+_ ERROR at setup of TestBacktestAutoLevAndDays.test_backtest_days_cap_accepts_1440 _
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42179d0>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+____ ERROR at setup of TestBacktestAutoLevAndDays.test_backtest_date_range _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42179d0>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+_ ERROR at setup of TestEngineDefaultsGroups.test_persist_days_default_and_clip _
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42b2f10>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+_ ERROR at setup of TestDynamicTransitionSettings.test_persist_transition_fields _
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42b2f10>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+_____ ERROR at setup of TestDynamicTransitionSettings.test_lock_days_clip ______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42b2f10>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+__ ERROR at setup of TestDynamicTransitionSettings.test_invalid_mode_ignored ___
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42b2f10>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+________ ERROR at setup of TestRegimeCalibrate.test_calibrate_centered _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+___________ ERROR at setup of TestRegimeCalibrate.test_calibrate_hmm ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+__ ERROR at setup of TestRegimeCalibrate.test_calibrate_invalid_truth_source ___
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+__________ ERROR at setup of TestStrategyRegression.test_rule_preview __________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8dd432f550>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly29_review.py:28: AssertionError
+________________ ERROR at setup of TestRegimeModes.test_mode_3 _________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+________ ERROR at setup of TestRegimeModes.test_mode_5_default_adaptive ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+___________ ERROR at setup of TestRegimeModes.test_mode_9_backcompat ___________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+_____ ERROR at setup of TestAnalyzeMiniPhaseAuto.test_segments_reasonable ______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd41dc510>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter2_miniphase_mtf_volume.py:29: AssertionError
+_ ERROR at setup of TestAnalyzeMiniPhaseAuto.test_corrections_min_phase_days_positive _
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd41dc510>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter2_miniphase_mtf_volume.py:29: AssertionError
+____ ERROR at setup of TestAnalyzeMiniPhaseAuto.test_live_segments_present _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd41dc510>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter2_miniphase_mtf_volume.py:29: AssertionError
+_______ ERROR at setup of TestLocalWorkerPackage.test_manifest_complete ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd4213490>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+_______ ERROR at setup of TestLocalWorkerPackage.test_package_zip_valid ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd4213490>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+______ ERROR at setup of TestLocalWorkerPackage.test_worker_status_online ______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd4213490>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+______ ERROR at setup of TestWatchdog.test_run_with_admin_returns_skipped ______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:15: AssertionError
+____ ERROR at setup of TestWatchdog.test_config_update_persists_and_clamps _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:15: AssertionError
+_ ERROR at setup of TestOptimizerApplyParams.test_apply_params_with_timeframe __
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:39: AssertionError
+_________ ERROR at setup of TestDynamicManagement.test_settings_update _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter13_bugfixes_features.py:19: AssertionError
+____________ ERROR at setup of TestRegression.test_reset_available _____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter13_bugfixes_features.py:19: AssertionError
+_________ ERROR at setup of TestDynamicOptimizer.test_per_regime_true __________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter15_refactor_candles.py:42: AssertionError
+_________ ERROR at setup of TestDynamicOptimizer.test_per_regime_false _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter15_refactor_candles.py:42: AssertionError
+_________ ERROR at setup of TestOptimizerDiscoveryCombo.test_discovery _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+___________ ERROR at setup of TestOptimizerDiscoveryCombo.test_combo ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+_________ ERROR at setup of TestOptimizerDynamic.test_per_regime_true __________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+_________ ERROR at setup of TestOptimizerDynamic.test_per_regime_false _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+_______ ERROR at setup of TestAILessonsConfig.test_max_lessons_persists ________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter17_new_assets.py:31: AssertionError
+_______ ERROR at setup of TestStrategyBackup.test_export_custom_strategy _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+_ ERROR at setup of TestStrategyBackup.test_export_import_roundtrip_delete_restore _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+____ ERROR at setup of TestOptimizer.test_optimizer_params_with_new_groups _____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+____ ERROR at setup of TestOptimizer.test_optimizer_discovery_trade_params _____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+_________________ ERROR at setup of TestRegression.test_login __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914fb5810>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+_______ ERROR at setup of TestRegimeLabRegression.test_cloud_ema_analyze _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914fb5810>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+__ ERROR at setup of TestRegimeLabRegression.test_optimize_accept_and_cancel ___
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914fb5810>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+____ ERROR at setup of TestEMARegimeAnalyze.test_analyze_with_ema_detector _____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a91521e290>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+___ ERROR at setup of TestEMARegimeAnalyze.test_reactive_detector_regression ___
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a91521e290>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:40: AssertionError
+__________ ERROR at setup of TestWorkerPackage.test_manifest_complete __________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+________ ERROR at setup of TestWorkerPackage.test_package_zip_contents _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+____ ERROR at setup of TestOptimizerDeepTest.test_optimizer_with_deep_test _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+___ ERROR at setup of TestOptimizerDeepTest.test_optimizer_without_deep_test ___
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+_____ ERROR at setup of TestHealthRegression.test_regime_lab_active_no_500 _____
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd4213490>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+_______ ERROR at setup of TestAnalyzeValidation.test_engine_quatsch_400 ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8e2104dd90>
+
+    @pytest.fixture(scope="module")
+    def token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_v2_integration.py:31: AssertionError
+_ ERROR at setup of TestAnalyzeValidation.test_engine_v2_starts_and_completes __
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8e2104dd90>
+
+    @pytest.fixture(scope="module")
+    def token(api):
+        r = api.post(f"{BASE_URL}/api/auth/login",
+                     json={"username": "Admin", "password": "admin"})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_v2_integration.py:31: AssertionError
+________ ERROR at setup of TestCloudBacktestExport.test_run_and_export _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter15_refactor_candles.py:42: AssertionError
+______ ERROR at setup of TestDynamicSaveSubStrategies.test_save_and_list _______
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter15_refactor_candles.py:42: AssertionError
+_____________ ERROR at setup of TestLocalBacktest.test_local_365d ______________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter15_refactor_candles.py:42: AssertionError
+________ ERROR at setup of TestLocalWorkerStatus.test_required_version _________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+_______________ ERROR at setup of TestCurrentRegime.test_btc_60d _______________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+____________ ERROR at setup of TestOptimizerParams.test_params_run _____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def auth():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter16_optimizer_pool_regression.py:57: AssertionError
+________ ERROR at setup of TestOptimizer.test_optimizer_forex_and_index ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def admin_token():
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=10)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter17_new_assets.py:31: AssertionError
+_ ERROR at setup of TestBacktestDefinitionOverride.test_backtest_strategy_configs_definition_override _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+___________ ERROR at setup of TestEquityEndpoint.test_equity_and_csv ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+__________ ERROR at setup of TestEmaCompare.test_ema_compare_endpoint __________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a914fee010>
+
+    @pytest.fixture(scope="module")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200, f"Login failed: {r.status_code} {r.text[:200]}"
+E       AssertionError: Login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_regime_fundament.py:50: AssertionError
+_ ERROR at setup of TestAutotradeAutoLeverage.test_set_and_read_auto_leverage __
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xfa8dd42179d0>
+
+    @pytest.fixture(scope="session")
+    def admin_token(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:41: AssertionError
+_ ERROR at setup of TestBacktestEquityRegression.test_backtest_equity_still_works _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api_client = <requests.sessions.Session object at 0xf9a9173c6b90>
+
+    @pytest.fixture(scope="module")
+    def admin_client(api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
+E       AssertionError: login failed: 401 {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_optimizer_equity.py:37: AssertionError
+____________________ ERROR at setup of TestAuth.test_login _____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+__ ERROR at setup of TestRegimeAnalyzeCloud.test_analyze_cloud_ideal_segments __
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="module")
+    def token():
+        r = requests.post(f"{API}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter5_regime_calibrate_worker.py:29: AssertionError
+______ ERROR at setup of TestWorkerStatus.test_worker_online_and_current _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+___________ ERROR at setup of TestRegimeEngineDefaults.test_defaults ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+_________ ERROR at setup of TestLocalBacktest.test_local_backtest_runs _________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+__ ERROR at setup of TestRegimeLabOptimizeDeep.test_regime_lab_optimize_deep ___
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    @pytest.fixture(scope="session")
+    def token():
+        r = requests.post(f"{BASE_URL}/api/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_deep_update.py:24: AssertionError
+___ ERROR at setup of TestEngineDefaultsIter2.test_defaults_expose_new_keys ____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a915019050>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter2_miniphase_mtf_volume.py:29: AssertionError
+_ ERROR at setup of TestAnalyzeMiniPhaseFixed.test_more_min_phase_days_reduces_segments _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a915019050>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter2_miniphase_mtf_volume.py:29: AssertionError
+_ ERROR at setup of TestEngineDefaultsRegression.test_defaults_still_have_iter2_keys _
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a9150bf410>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_iter3_live_fix.py:42: AssertionError
+___ ERROR at setup of TestEngineDefaults.test_engine_defaults_reactive_keys ____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a914fb1890>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+____ ERROR at setup of TestExistingAnalysis.test_reactive_analysis_payload _____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a914fb1890>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+_____ ERROR at setup of TestRegimeAnalyzeCloud.test_cloud_analyze_reactive _____
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a914fb1890>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+_ ERROR at setup of TestRegimeAnalyzeLocal.test_local_worker_analyze_reactive __
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xfa8dd4213490>
+
+    @pytest.fixture(scope="session")
+    def token(session: requests.Session) -> str:
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Falsche Zugangsdaten"}
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:42: AssertionError
+=================================== FAILURES ===================================
+______________ test_load_keeps_preset_when_user_never_configured _______________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    def test_load_keeps_preset_when_user_never_configured():
+        mgr = ai_roles.AIRoleManager()
+        stored = {"analyst": {"enabled": False, "provider": None, "model": None}}
+        asyncio.run(mgr.load(_FakeDB(stored)))
+        cfg = mgr.role_cfg("analyst")
+>       assert cfg["enabled"] is False                      # Nutzer-Einstellung übernommen
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert True is False
+
+tests/test_ai_lab.py:254: AssertionError
+________________________ test_load_respects_user_choice ________________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    def test_load_respects_user_choice():
+        mgr = ai_roles.AIRoleManager()
+        stored = {"analyst": {"provider": "mistral", "model": "mistral-small-latest",
+                              "user_configured": True}}
+        asyncio.run(mgr.load(_FakeDB(stored)))
+        cfg = mgr.role_cfg("analyst")
+>       assert cfg["provider"] == "mistral" and cfg["model"] == "mistral-small-latest"
+E       AssertionError: assert ('groq' == 'mistral'
+E         
+E         - mistral
+E         + groq)
+
+tests/test_ai_lab.py:264: AssertionError
+____________________ test_chain_appends_available_providers ____________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0xfa8dd4522bd0>
+
+    def test_chain_appends_available_providers(monkeypatch):
+        from services import ai_providers
+        monkeypatch.setattr(ai_providers, "available_providers",
+                            lambda: {"gemini": False, "mistral": True, "groq": False,
+                                     "openrouter": False, "github": False, "cerebras": False})
+        mgr = ai_roles.AIRoleManager()
+        chain = mgr.chain("analyst", {"provider": "gemini", "model": "gemini-3.5-flash"})
+        providers = [p for p, _m in chain]
+        assert "mistral" in providers, "Provider mit Key muss als Rettung angehängt werden"
+>       assert providers[0] == "gemini", "Voreinstellung bleibt erste Wahl"
+E       AssertionError: Voreinstellung bleibt erste Wahl
+E       assert 'groq' == 'gemini'
+E         
+E         - gemini
+E         + groq
+
+tests/test_ai_lab.py:309: AssertionError
+_____________________________ test_ai_status_shape _____________________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    def test_ai_status_shape():
+        r = requests.get(f"{BASE_URL}/api/ai/status", timeout=15)
+        assert r.status_code == 200, r.text[:300]
+        data = r.json()
+        # roles
+        roles = data.get("roles") or {}
+        assert REQUIRED_ROLES.issubset(set(roles.keys())), f"roles missing: got {set(roles.keys())}"
+        # provider keys
+        pk = data.get("provider_keys") or {}
+        for p in ("gemini", "groq", "openrouter", "mistral", "github", "cerebras"):
+>           assert p in pk, f"provider_keys missing {p}: {pk}"
+E           AssertionError: provider_keys missing github: {'gemini': True, 'groq': True, 'openrouter': True, 'mistral': True, 'cerebras': True}
+E           assert 'github' in {'gemini': True, 'groq': True, 'openrouter': True, 'mistral': True, ...}
+
+tests/test_ai_team_api.py:62: AssertionError
+_______________________ test_lesson_patch_requires_admin _______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    def test_lesson_patch_requires_admin(session):
+>       lid = LESSON_ID["id"]
+              ^^^^^^^^^^^^^^^
+E       KeyError: 'id'
+
+tests/test_ai_governance_api.py:176: KeyError
+______________________ test_ai_insights_contains_lessons _______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    def test_ai_insights_contains_lessons(session):
+        r = session.get(f"{BASE}/api/ai/insights", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        assert "master_prompt" in data
+        assert "validation" in data
+        # lessons somewhere
+        txt = str(data)
+>       assert LESSON_ID["id"] in txt
+               ^^^^^^^^^^^^^^^
+E       KeyError: 'id'
+
+tests/test_ai_governance_api.py:190: KeyError
+______________________ test_lesson_delete_requires_admin _______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    def test_lesson_delete_requires_admin(session):
+>       lid = LESSON_ID["id"]
+              ^^^^^^^^^^^^^^^
+E       KeyError: 'id'
+
+tests/test_ai_governance_api.py:194: KeyError
+______________________ test_strategies_ghost_trades_empty ______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a925cede50>
+
+    def test_strategies_ghost_trades_empty(session):
+>       cid = CAND["id"]
+              ^^^^^^^^^^
+E       KeyError: 'id'
+
+tests/test_ai_governance_api.py:299: KeyError
+__________________________ test_macro_requires_admin ___________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+session = <requests.sessions.Session object at 0xf9a91739f8d0>
+
+    def test_macro_requires_admin(session):
+>       cid = CAND["id"]
+              ^^^^^^^^^^
+E       KeyError: 'id'
+
+tests/test_ai_iter3_api.py:286: KeyError
+_________________________ test_lessons_crud_regression _________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODg4OH0.3TqF9m6xJzpbXguRx1n3Wx9hvsdITYNI75IauUaj5FE', 'Content-Type': 'application/json'}
+
+    def test_lessons_crud_regression(auth_headers):
+        _cleanup_test_lessons(auth_headers)
+        lid = _create_lesson(auth_headers, "ITEST_CRUD_ONE", content="c1")
+        # PATCH
+        r = requests.patch(f"{BASE_URL}/api/ai/lessons/{lid}", headers=auth_headers,
+                          json={"detail": "c1-updated", "content": "c1-updated"}, timeout=10)
+        assert r.status_code in (200, 204), r.text
+        # GET verify
+        all_l = requests.get(f"{BASE_URL}/api/ai/lessons", timeout=10).json()
+        lessons = all_l.get("lessons", all_l if isinstance(all_l, list) else [])
+        found = next((l for l in lessons if (l.get("id") or l.get("_id")) == lid), None)
+        assert found is not None
+>       assert "c1-updated" in (found.get("detail") or found.get("content") or "")
+E       AssertionError: assert 'c1-updated' in (('c1'))
+E        +  where 'c1' = <built-in method get of dict object at 0xf9a9151d5640>('detail')
+E        +    where <built-in method get of dict object at 0xf9a9151d5640> = {'id': 'les_6aa905299c', 'title': 'ITEST_CRUD_ONE', 'detail': 'c1', 'weight': 3, ...}.get
+
+tests/test_ai_quality_fixes_integration.py:213: AssertionError
+_______________________ test_strategy_assist_without_key _______________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+api = <requests.sessions.Session object at 0xfa8dd4371190>
+auth = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODg4MH0.eTm0YtlN-j6cZqmI8szK4Tp__oSlLc_cwfY2kTcLJ1w'}
+
+    def test_strategy_assist_without_key(api, auth):
+        r = api.post(f"{BASE_URL}/api/ai/strategies/assist",
+                     json={"thesis": "RSI unter 30 kaufen, ueber 70 verkaufen"},
+                     headers=auth, timeout=25)
+        # Ohne LLM-Key erwarten wir 400 mit klarer Meldung – KEIN 500
+>       assert r.status_code == 400, f"unexpected {r.status_code}: {r.text[:200]}"
+E       AssertionError: unexpected 200: {"status":"ok","model":"groq/openai/gpt-oss-120b","candidate_id":null,"ts":"2026-08-11T07:15:05.658704+00:00","feedback":"Die Grundidee, überkaufte und überverkaufte Zustände per RSI zu nutzen, ist kl
+E       assert 200 == 400
+E        +  where 200 = <Response [200]>.status_code
+
+tests/test_iter_chat_cmds_e2e.py:276: AssertionError
+_________________________ test_admin_login_returns_jwt _________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    def test_admin_login_returns_jwt():
+        r = requests.post(f"{API}/auth/login", json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter_rly28_review.py:38: AssertionError
+____________________ TestDiscoveryOptimizer.test_poll_done _____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e87110>
+
+    def test_poll_done(self):
+>       assert TestDiscoveryOptimizer.job_id
+E       assert None
+E        +  where None = TestDiscoveryOptimizer.job_id
+
+tests/test_iter12_dynamic_optimizer.py:111: AssertionError
+___________________ TestDiscoveryOptimizer.test_top0_checks ____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e87710>
+
+    def test_top0_checks(self):
+        t0 = TestDiscoveryOptimizer.top0
+>       assert t0 is not None
+E       assert None is not None
+
+tests/test_iter12_dynamic_optimizer.py:123: AssertionError
+____________ TestDiscoveryOptimizer.test_top0_rank_reason_and_fail _____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e87cd0>
+
+    def test_top0_rank_reason_and_fail(self):
+        t0 = TestDiscoveryOptimizer.top0
+>       assert isinstance(t0.get("rank_reason"), str) and t0["rank_reason"].strip()
+                          ^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'get'
+
+tests/test_iter12_dynamic_optimizer.py:132: AttributeError
+________________ TestDiscoveryOptimizer.test_equity_fast_stored ________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e98390>
+
+    def test_equity_fast_stored(self):
+>       assert TestDiscoveryOptimizer.job_id
+E       assert None
+E        +  where None = TestDiscoveryOptimizer.job_id
+
+tests/test_iter12_dynamic_optimizer.py:136: AssertionError
+________________ TestDiscoveryOptimizer.test_export_trades_csv _________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e86410>
+
+    def test_export_trades_csv(self):
+        r = requests.get(f"{BASE_URL}/api/optimizer/export/{TestDiscoveryOptimizer.job_id}",
+                         params={"kind": "trades"}, timeout=30)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Keine Trade-Daten für diesen Lauf gefunden – Export ist ab jetzt für neue Optimierungen verfügbar"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:150: AssertionError
+________________ TestDiscoveryOptimizer.test_export_equity_csv _________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e86010>
+
+    def test_export_equity_csv(self):
+        r = requests.get(f"{BASE_URL}/api/optimizer/export/{TestDiscoveryOptimizer.job_id}",
+                         params={"kind": "equity"}, timeout=30)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Keine Trade-Daten für diesen Lauf gefunden – Export ist ab jetzt für neue Optimierungen verfügbar"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:162: AssertionError
+__________________ TestDiscoveryOptimizer.test_history_checks __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDiscoveryOptimizer object at 0xf9a925e86c90>
+
+    def test_history_checks(self):
+        r = requests.get(f"{BASE_URL}/api/optimizer/history", params={"limit": 25}, timeout=15)
+        assert r.status_code == 200, r.text
+        j = r.json()
+        items = j.get("history") if isinstance(j, dict) else j
+        assert isinstance(items, list) and items, "history empty"
+        # Deterministisch: den Discovery-Lauf DIESER Klasse prüfen (andere
+        # parallele Läufe verschmutzen die History).
+        target = next((t for t in items
+                       if t.get("id") == TestDiscoveryOptimizer.job_id), None)
+        if target is None:
+            target = next((t for t in items
+                           if isinstance(t.get("checks_enabled"), (int, float))), None)
+>       assert target is not None, f"no history entry with checks: {items[:3]}"
+E       AssertionError: no history entry with checks: [{'id': '7fb268457120', 'created_at': '2026-08-11T07:13:51.261079+00:00', 'mode': 'discovery', 'days': 2, 'timeframe': '15m', 'symbols': ['BTCUSDT'], 'objective': 'combo', 'strategy': 'Discovery', 'rules_n': 2, 'pnl': 15.99, 'win_rate': 100.0, 'trades': 3, 'max_drawdown': 0.0, 'wf_mode': None, 'wf': None, 'test_pnl': None, 'dd_ratio_pct': None, 'constancy_dev': None, 'passed': True, 'checks_passed': None, 'checks_enabled': None, 'fail_reasons': [], 'rank_reason': 'Sortiert nach Such-Score (24.0). Keine Filter-Tests aktiv.', 'top5_n': 5}, {'id': 'e4eabcc1001b', 'created_at': '2026-08-11T07:13:28.988270+00:00', 'mode': 'params', 'days': 5, 'timeframe': '5m', 'symbols': ['BTCUSDT'], 'objective': 'combo', 'strategy': 'Smart Money RSI Reversal', 'rules_n': 0, 'pnl': 27.66, 'win_rate': 100.0, 'trades': 2, 'max_drawdown': 0.0, 'wf_mode': None, 'wf': None, 'test_pnl': None, 'dd_ratio_pct': None, 'constancy_dev': None, 'passed': True, 'checks_passed': None, 'checks_enabled': None, 'fail_reasons': [], 'rank_reason': 'Sortiert nach Such-Score (41.5). Keine Filter-Tests aktiv.', 'top5_n': 5}, {'id': '1fcf565b4778', 'created_at': '2026-08-11T07:11:45.922831+00:00', 'mode': 'discovery', 'days': 2, 'timeframe': '15m', 'symbols': ['BTCUSDT'], 'objective': 'combo', 'strategy': 'TEST_BASE_CUSTOM', 'rules_n': 3, 'pnl': 14.69, 'win_rate': 100.0, 'trades': 1, 'max_drawdown': 0.0, 'wf_mode': None, 'wf': None, 'test_pnl': None, 'dd_ratio_pct': None, 'constancy_dev': None, 'passed': True, 'checks_passed': None, 'checks_enabled': None, 'fail_reasons': [], 'rank_reason': 'Sortiert nach Such-Score (22.0). Keine Filter-Tests aktiv.', 'top5_n': 5}]
+E       assert None is not None
+
+tests/test_iter12_dynamic_optimizer.py:181: AssertionError
+__________________________ test_ai_rewards_seed_data ___________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    def test_ai_rewards_seed_data():
+        r = _get("/api/ai/rewards", params={"days": 90})
+        assert r.status_code == 200, r.text[:300]
+        body = r.json()
+        for k in ("history", "by_regime", "summary"):
+            assert k in body, f"missing {k}"
+        hist = body["history"]
+        assert isinstance(hist, list) and len(hist) >= 5, f"expected >=5 history entries, got {len(hist)}"
+        # cumulative curve
+        assert any("cum" in h for h in hist), "history entries must contain 'cum' cumulative field"
+        by_regime = body["by_regime"]
+        assert isinstance(by_regime, list) and len(by_regime) >= 4, f"expected >=4 regimes, got {len(by_regime)}"
+        regime_names = {r.get("regime") for r in by_regime}
+>       assert "breakout_volatil" in regime_names, f"missing breakout_volatil regime; got {regime_names}"
+E       AssertionError: missing breakout_volatil regime; got {'range_normal', 'breakout_normal', 'range_ruhig', 'breakout_ruhig'}
+E       assert 'breakout_volatil' in {'breakout_normal', 'breakout_ruhig', 'range_normal', 'range_ruhig'}
+
+tests/test_iter3_ai_improvements.py:103: AssertionError
+____________________ TestDynamicOptimizer.test_poll_dynamic ____________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDynamicOptimizer object at 0xfa8e0318af50>
+
+    def test_poll_dynamic(self):
+>       job = _poll(TestDynamicOptimizer.job_id, timeout=420, interval=5)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_iter12_dynamic_optimizer.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+job_id = None, timeout = 420, interval = 5
+
+    def _poll(job_id, timeout=240, interval=3):
+        t0 = time.time()
+        last = None
+        while time.time() - t0 < timeout:
+            r = requests.get(f"{BASE_URL}/api/optimizer/status/{job_id}", timeout=15)
+>           assert r.status_code == 200, r.text
+E           AssertionError: {"detail":"Job nicht gefunden"}
+E           assert 404 == 200
+E            +  where 404 = <Response [404]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:70: AssertionError
+___________________ TestDynamicOptimizer.test_dynamic_shape ____________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDynamicOptimizer object at 0xfa8e0318b610>
+
+    def test_dynamic_shape(self):
+        res = TestDynamicOptimizer.result or {}
+        dyn = res.get("dynamic")
+>       assert dyn, f"dynamic key missing in result keys={list(res)}"
+E       AssertionError: dynamic key missing in result keys=[]
+E       assert None
+
+tests/test_iter12_dynamic_optimizer.py:297: AssertionError
+____________________ TestDynamicOptimizer.test_dynamic_list ____________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestDynamicOptimizer object at 0xfa8e0318c490>
+
+    def test_dynamic_list(self):
+        r = requests.get(f"{BASE_URL}/api/dynamic/list", timeout=15)
+        assert r.status_code == 200, r.text
+        j = r.json()
+        items = j.get("strategies") or j.get("items") or (j if isinstance(j, list) else [])
+        ids = [it.get("id") for it in items]
+>       assert TestDynamicOptimizer.dyn_id in ids, f"saved id not in list: {ids}"
+E       AssertionError: saved id not in list: ['dyn_a59ca705']
+E       assert None in ['dyn_a59ca705']
+E        +  where None = TestDynamicOptimizer.dyn_id
+
+tests/test_iter12_dynamic_optimizer.py:345: AssertionError
+______________________________ test_worker_status ______________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+    def test_worker_status():
+        r = requests.get(f"{API}/localworker/status")
+        assert r.status_code == 200
+        d = r.json()
+        workers = d.get("workers", [])
+        assert len(workers) >= 1
+        w = workers[0]
+        # sim_workers kommt vom Worker als int oder numerischer String ("0" = alle Kerne)
+        sw = w.get("sim_workers")
+>       assert sw is not None and int(sw) >= 0, w
+E       AssertionError: {'worker_id': 'pytest-6e177ed0', 'name': 'PytestWorker', 'version': 'test', 'online': False, ...}
+E       assert (None is not None)
+
+tests/test_iter9_e2e.py:146: AssertionError
+________________________ test_local_multicore_backtest _________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+h = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODkxNn0.vcuAkRCImLzxfwU2O2k4O-17kK3I0VnD4vYVFA9yMh8'}
+
+    def test_local_multicore_backtest(h):
+        assert _wait_no_active("backtest")
+        _stids = _list_strategy_ids()
+        ids = _stids[:3]
+        payload = {
+            "strategy_ids": ids,
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "date_from": "2026-07-20",
+            "date_to": "2026-07-22",
+            "execution": "local",
+        }
+        r = requests.post(f"{API}/backtest/run", headers=h, json=payload)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Kein lokaler Worker verbunden – Worker starten oder Cloud-Ausführung wählen"}
+E       assert 503 == 200
+E        +  where 503 = <Response [503]>.status_code
+
+tests/test_iter9_e2e.py:167: AssertionError
+____________________________ test_ai_leverage_clamp ____________________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+admin_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODkyMn0.C_QtGc2wUr6Ns3lZ9Cx2yg3kDh1rfcTwkStFs0I1zMw'}
+
+    def test_ai_leverage_clamp(admin_headers):
+        # Ensure kill switch off
+        _set_kill_switch(admin_headers, False)
+        # Configure ai_trader for BTCUSDT paper
+        r = requests.post(f"{BASE_URL}/api/autotrade/strategy/ai_trader/coin/BTCUSDT",
+                          headers=admin_headers, json={"mode": "paper", "enabled": True}, timeout=30)
+        assert r.status_code == 200, f"strategy config failed {r.status_code} {r.text}"
+    
+        # Verify max_leverage setting is 50 via /api/ai/trade/status
+        status = requests.get(f"{BASE_URL}/api/ai/trade/status", headers=admin_headers, timeout=30).json()
+        max_lev = ((status.get("status") or {}).get("settings") or {}).get("max_leverage")
+>       assert max_lev is not None and float(max_lev) <= 50, f"trade_manager max_leverage must be <=50, got {max_lev}"
+E       AssertionError: trade_manager max_leverage must be <=50, got 125
+E       assert (125 is not None and 125.0 <= 50)
+E        +  where 125.0 = float(125)
+
+tests/test_review_bugfix_e2e.py:102: AssertionError
+_____________________ test_local_determinism_cores_1_vs_0 ______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+h = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODkxNn0.vcuAkRCImLzxfwU2O2k4O-17kK3I0VnD4vYVFA9yMh8'}
+
+    def test_local_determinism_cores_1_vs_0(h):
+        assert _wait_no_active("backtest")
+        _stids = _list_strategy_ids()
+        ids = _stids[:2]
+    
+        try:
+            _set_cores(h, 1)
+            assert _wait_no_active("backtest")
+>           r1 = _run_local_bt(h, ids)
+                 ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_iter9_e2e.py:222: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+h = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODkxNn0.vcuAkRCImLzxfwU2O2k4O-17kK3I0VnD4vYVFA9yMh8'}
+strategy_ids = ['scalping_4_rules', 'ema_pullback_scalping']
+
+    def _run_local_bt(h, strategy_ids):
+        payload = {
+            "strategy_ids": strategy_ids,
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "date_from": "2026-07-20",
+            "date_to": "2026-07-22",
+            "execution": "local",
+        }
+        r = requests.post(f"{API}/backtest/run", headers=h, json=payload)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Kein lokaler Worker verbunden – Worker starten oder Cloud-Ausführung wählen"}
+E       assert 503 == 200
+E        +  where 503 = <Response [503]>.status_code
+
+tests/test_iter9_e2e.py:193: AssertionError
+________________________ test_local_multicore_optimizer ________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+h = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODkxNn0.vcuAkRCImLzxfwU2O2k4O-17kK3I0VnD4vYVFA9yMh8'}
+
+    def test_local_multicore_optimizer(h):
+        assert _wait_no_active("optimizer")
+        payload = {
+            "strategy_id": "rsi_only",
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "days": 7,
+            "iterations": 20,
+            "mode": "params",
+            "execution": "local",
+        }
+        r = requests.post(f"{API}/optimizer/run", headers=h, json=payload)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Kein lokaler Worker verbunden – Worker starten oder Cloud-Ausführung wählen"}
+E       assert 503 == 200
+E        +  where 503 = <Response [503]>.status_code
+
+tests/test_iter9_e2e.py:253: AssertionError
+___________________ test_local_optimizer_cancel_then_new_job ___________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+h = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODkxNn0.vcuAkRCImLzxfwU2O2k4O-17kK3I0VnD4vYVFA9yMh8'}
+
+    def test_local_optimizer_cancel_then_new_job(h):
+        assert _wait_no_active("optimizer")
+        payload = {
+            "mode": "discovery",
+            "indicators": ["rsi", "ema", "macd", "bollinger"],
+            "max_rules": 3,
+            "symbols": ["BTCUSDT", "ETHUSDT"],
+            "days": 90,
+            "timeframe": "1m",
+            "execution": "local",
+        }
+        r = requests.post(f"{API}/optimizer/run", headers=h, json=payload)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Kein lokaler Worker verbunden – Worker starten oder Cloud-Ausführung wählen"}
+E       assert 503 == 200
+E        +  where 503 = <Response [503]>.status_code
+
+tests/test_iter9_e2e.py:273: AssertionError
+_________________ TestBacktesterRegression.test_poll_backtest __________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestBacktesterRegression object at 0xf9a925e99250>
+
+    def test_poll_backtest(self):
+        jid = TestBacktesterRegression.job_id
+        t0 = time.time()
+        while time.time() - t0 < 240:
+            r = requests.get(f"{BASE_URL}/api/backtest/status/{jid}", timeout=15)
+>           assert r.status_code == 200
+E           assert 404 == 200
+E            +  where 404 = <Response [404]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:241: AssertionError
+________________ TestBacktesterRegression.test_backtest_equity _________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestBacktesterRegression object at 0xf9a925e99910>
+
+    def test_backtest_equity(self):
+        r = requests.get(f"{BASE_URL}/api/backtest/equity/{TestBacktesterRegression.job_id}",
+                         timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Keine Trade-Daten für diesen Backtest gefunden"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:252: AssertionError
+_____________ TestBacktesterRegression.test_backtest_export_trades _____________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestBacktesterRegression object at 0xf9a925e9a010>
+
+    def test_backtest_export_trades(self):
+        r = requests.get(f"{BASE_URL}/api/backtest/export/{TestBacktesterRegression.job_id}",
+                         params={"kind": "trades"}, timeout=20)
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"Keine Trade-Daten für diesen Backtest gefunden"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_iter12_dynamic_optimizer.py:259: AssertionError
+______________________ TestHealthAuth.test_login_success _______________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_merge_ema_regime.TestHealthAuth object at 0xf9a925cecf50>
+api_client = <requests.sessions.Session object at 0xf9a915144050>
+
+    def test_login_success(self, api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PASS},
+                            timeout=15)
+>       assert r.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_merge_ema_regime.py:97: AssertionError
+____________________ TestAIProposals.test_proposals_listed _____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_ai_trader_iter10.TestAIProposals object at 0xf9a92a434210>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxOTAyN30.NJ5DUoz7-j-QRgUY_1_pUcy_sYy8xqFqnLe5S4hb610', 'Content-Type': 'application/json'}
+
+    def test_proposals_listed(self, auth_headers):
+        props = self._list_pending(auth_headers)
+        assert isinstance(props, list)
+        # after learning we expect >=1 pending. If empty, trigger a learn first.
+        if not props:
+            requests.post(f"{BASE_URL}/api/ai/learn", headers=auth_headers, json={}, timeout=180)
+            props = self._list_pending(auth_headers)
+>       assert props, "expected at least one pending proposal after learn"
+E       AssertionError: expected at least one pending proposal after learn
+E       assert []
+
+tests/test_ai_trader_iter10.py:169: AssertionError
+_____________________ TestResearch.test_research_run_admin _____________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_ai_lab_api.TestResearch object at 0xfa8e07832790>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODk3MX0.l2A1yAHs9Re9UQ8WVaf0he-KrzWiTUSu2vJimNCkiWA', 'Content-Type': 'application/json'}
+
+    def test_research_run_admin(self, auth_headers):
+        r = requests.post(f"{BASE_URL}/api/ai/research/run",
+                          headers=auth_headers, timeout=90)
+>       assert r.status_code == 200, f"body: {r.text[:300]}"
+E       AssertionError: body: <!DOCTYPE html>
+E         <!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+E         <!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+E         <!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+E         <!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!
+E       assert 502 == 200
+E        +  where 502 = <Response [502]>.status_code
+
+tests/test_ai_lab_api.py:137: AssertionError
+__________________ TestAITraderRegression.test_ai_analyze_run __________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_ai_lab_api.TestAITraderRegression object at 0xfa8e07843990>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxODk3MX0.l2A1yAHs9Re9UQ8WVaf0he-KrzWiTUSu2vJimNCkiWA', 'Content-Type': 'application/json'}
+
+    def test_ai_analyze_run(self, auth_headers):
+        """LLM-driven analyze must return status=ok with decisions.
+        Real user route – we do not enable trading."""
+        r = requests.post(f"{BASE_URL}/api/ai/analyze",
+                          headers=auth_headers, json={}, timeout=180)
+        assert r.status_code == 200, f"body: {r.text[:400]}"
+        data = r.json()
+>       assert data.get("status") == "ok", f"analyze not ok: {data}"
+E       AssertionError: analyze not ok: {'status': 'error', 'detail': "Gruppen-Analyse fehlgeschlagen: Krypto: Error code: 401 - {'detail': 'Invalid API Key'}; Forex: Error code: 401 - {'detail': 'Invalid API Key'}; Indizes & Rohstoffe: Error code: 401 - {'detail': 'Invalid API Key'}"}
+E       assert 'error' == 'ok'
+E         
+E         - ok
+E         + error
+
+tests/test_ai_lab_api.py:349: AssertionError
+_______ TestIndicatorCacheAPI.test_clear_as_admin_returns_status_cleared _______
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter2_open_trades_and_indicator_cache_api.TestIndicatorCacheAPI object at 0xf9a925f06490>
+client = <requests.sessions.Session object at 0xf9a9173a3710>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxOTA0Mn0.7KlSrqXeNV_OZXw8QdY7h1Koy1VZbV1K4f46_f2xAFI'}
+
+    def test_clear_as_admin_returns_status_cleared(self, client, auth_headers):
+        r = client.post(f"{BASE_URL}/api/system/indicator-cache/clear",
+                        headers=auth_headers, timeout=30)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("status") == "cleared", data
+        assert "files_removed" in data
+        assert isinstance(data["files_removed"], int)
+        # Nach clear muss stats mem_items=0 zeigen
+        r2 = client.get(f"{BASE_URL}/api/system/indicator-cache", timeout=15)
+        s = r2.json()
+>       assert s["mem_items"] == 0, s
+E       AssertionError: {'mem_items': 3, 'mem_limit': 1024, 'disk_enabled': True, 'disk_files': 3, ...}
+E       assert 3 == 0
+
+tests/test_iter2_open_trades_and_indicator_cache_api.py:94: AssertionError
+__________________ TestAuth.test_login_success_returns_token ___________________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_watchdog_api_review.TestAuth object at 0xfa8e02d8a590>
+
+    def test_login_success_returns_token(self):
+        r = requests.post(f"{BASE_URL}/api/auth/login",
+                          json={"username": "Admin", "password": "admin"}, timeout=15)
+>       assert r.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_watchdog_api_review.py:31: AssertionError
+________ TestWatchdog.test_status_returns_configured_false_and_settings ________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_watchdog_api_review.TestWatchdog object at 0xfa8e02d8b890>
+
+    def test_status_returns_configured_false_and_settings(self):
+        r = requests.get(f"{BASE_URL}/api/autotrade/watchdog/status", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+>       assert data.get("configured") is False
+E       AssertionError: assert True is False
+E        +  where True = <built-in method get of dict object at 0xfa8dd43bad40>('configured')
+E        +    where <built-in method get of dict object at 0xfa8dd43bad40> = {'configured': True, 'settings': {'enabled': True, 'interval_sec': 120, 'fallback_sl_percent': 2.0, 'max_sl_retries': 3, ...}, 'adopted': 0, 'emergency_closed': 0, ...}.get
+
+tests/test_watchdog_api_review.py:51: AssertionError
+___________ TestWorkerPackageFiles.test_local_worker_not_gitignored ____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_worker_package.TestWorkerPackageFiles object at 0xfa8e02cc9650>
+
+    def test_local_worker_not_gitignored(self):
+        gi = (ROOT / ".gitignore").read_text(encoding="utf-8")
+>       assert "!local_worker/" in gi, \
+            ".gitignore-Schutz für local_worker/ fehlt (Whitelist-Eintrag)"
+E       AssertionError: .gitignore-Schutz für local_worker/ fehlt (Whitelist-Eintrag)
+E       assert '!local_worker/' in '# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.\n\n# IDE and editors\n.idea/\n....ls\nfrontend/node_modules/.cache/default-development/1.pack\nfrontend/node_modules/.cache/default-development/4.pack\n'
+
+tests/test_worker_package.py:30: AssertionError
+___________ TestOptimizerApplyParams.test_strategy_configs_timeframe ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter12_dynamic_optimizer.TestOptimizerApplyParams object at 0xf9a925e7b3d0>
+
+    def test_strategy_configs_timeframe(self):
+        r = requests.get(f"{BASE_URL}/api/backtest/strategy-configs", timeout=15)
+        assert r.status_code == 200, r.text
+        j = r.json()
+        cfgs = j.get("configs") if isinstance(j, dict) else j
+        if isinstance(cfgs, dict):
+            entry = cfgs.get("bollinger_reversion")
+        else:
+            entry = next((c for c in cfgs if c.get("strategy_id") == "bollinger_reversion"), None)
+>       assert entry is not None, f"bollinger_reversion missing in configs: {list(cfgs) if isinstance(cfgs, dict) else cfgs}"
+E       AssertionError: bollinger_reversion missing in configs: ['vwap_reversion', 'rsi_only', 'custom_0ff2a609', 'scalping_4_rules', 'custom_251ef959', 'custom_14f031ff', 'custom_ee226961', 'custom_ee226961test', 'custom_14f031fftest', 'custom_38808cce', 'custom_c3bf1061', 'custom_4b879e5e', 'custom_84cf6491', 'custom_2dd13982', 'custom_853a8532', 'custom_fa8e79ed', 'custom_194459b2']
+E       assert None is not None
+
+tests/test_iter12_dynamic_optimizer.py:212: AssertionError
+_____________________ TestOOMGuard.test_equity_big_run_400 _____________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter13_bugfixes_features.TestOOMGuard object at 0xf9a925eb0450>
+
+    def test_equity_big_run_400(self):
+        result = {"mode": "discovery", "days": 2000,
+                  "symbols": ["BTCUSDT", "ETHUSDT"], "timeframe": "1m",
+                  "definition": {"name": "x", "indicators": {},
+                                 "long_rules": [], "short_rules": []}}
+        self._insert_fake("fake_big", result)
+        try:
+            r = requests.get(f"{BASE_URL}/api/optimizer/equity/fake_big?scope=optimized",
+                             timeout=15)
+>           assert r.status_code == 400, f"expected 400 RAM guard, got {r.status_code}: {r.text[:200]}"
+E           AssertionError: expected 400 RAM guard, got 404: {"detail":"Kein Ergebnis für diesen Lauf gefunden"}
+E           assert 404 == 400
+E            +  where 404 = <Response [404]>.status_code
+
+tests/test_iter13_bugfixes_features.py:108: AssertionError
+________________ TestOOMGuard.test_equity_dynamic_no_trades_400 ________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter13_bugfixes_features.TestOOMGuard object at 0xf9a925eb0a10>
+
+    def test_equity_dynamic_no_trades_400(self):
+        result = {"mode": "dynamic", "days": 14, "symbols": ["BTCUSDT"],
+                  "timeframe": "5m"}
+        self._insert_fake("fake_dyn", result)
+        try:
+            r = requests.get(f"{BASE_URL}/api/optimizer/equity/fake_dyn?scope=optimized",
+                             timeout=15)
+>           assert r.status_code == 400, f"expected 400, got {r.status_code}: {r.text[:200]}"
+E           AssertionError: expected 400, got 404: {"detail":"Kein Ergebnis für diesen Lauf gefunden"}
+E           assert 404 == 400
+E            +  where 404 = <Response [404]>.status_code
+
+tests/test_iter13_bugfixes_features.py:121: AssertionError
+___________ TestAIAnalyzeChat.test_analyze_runs_and_history_updated ____________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_ai_trader_iter10.TestAIAnalyzeChat object at 0xfa8e07729810>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxOTA1NH0.j8V7Z8rIthZgIvWfPl8u57-tc_UvfV2O4zt4qpRDLkQ', 'Content-Type': 'application/json'}
+
+    def test_analyze_runs_and_history_updated(self, auth_headers):
+        # get history len before
+        hb = requests.get(f"{BASE_URL}/api/ai/chat/history", headers=auth_headers, timeout=15)
+        hb_data = hb.json() if hb.status_code == 200 else {}
+        before_msgs = hb_data.get("messages") or hb_data.get("history") or []
+        before_n = len(before_msgs)
+    
+        r = requests.post(f"{BASE_URL}/api/ai/analyze", headers=auth_headers, json={}, timeout=240)
+        if r.status_code in (429, 502, 503, 504):
+            time.sleep(12)
+            r = requests.post(f"{BASE_URL}/api/ai/analyze", headers=auth_headers, json={}, timeout=240)
+        assert r.status_code == 200, f"analyze failed: {r.status_code} {r.text[:300]}"
+        data = r.json()
+>       assert data.get("status") == "ok", f"analyze status not ok: {data}"
+E       AssertionError: analyze status not ok: {'status': 'error', 'detail': "Gruppen-Analyse fehlgeschlagen: Krypto: Error code: 401 - {'detail': 'Invalid API Key'}; Forex: Error code: 401 - {'detail': 'Invalid API Key'}; Indizes & Rohstoffe: Error code: 401 - {'detail': 'Invalid API Key'}"}
+E       assert 'error' == 'ok'
+E         
+E         - ok
+E         + error
+
+tests/test_ai_trader_iter10.py:247: AssertionError
+______________ TestAIAnalyzeChat.test_chat_sse_platform_knowledge ______________
+[gw0] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_ai_trader_iter10.TestAIAnalyzeChat object at 0xfa8e07716110>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxOTA1NH0.j8V7Z8rIthZgIvWfPl8u57-tc_UvfV2O4zt4qpRDLkQ', 'Content-Type': 'application/json'}
+
+    def test_chat_sse_platform_knowledge(self, auth_headers):
+        # SSE stream: use requests with stream=True
+        r = requests.post(f"{BASE_URL}/api/ai/chat", headers=auth_headers,
+                          json={"message": "Was macht diese Website?"},
+                          timeout=120, stream=True)
+        assert r.status_code == 200, r.text[:200]
+        collected = ""
+        start = time.time()
+        for line in r.iter_lines(decode_unicode=True):
+            if line:
+                collected += line + "\n"
+            if len(collected) > 200 or (time.time() - start) > 90:
+                break
+        r.close()
+        assert len(collected) > 20, f"empty stream: {collected!r}"
+        # Some platform-y content expected
+        lc = collected.lower()
+        # be lenient - just require non-empty response
+>       assert any(k in lc for k in ["krypto", "trad", "signal", "strateg", "scanner", "plattform", "website"]), \
+            f"no platform-content in stream: {collected[:400]}"
+E       AssertionError: no platform-content in stream: data: {"t": "\n\u26a0\ufe0f Alle Modelle rate-limited/fehlgeschlagen. Error code: 402 - {'message': 'Payment required to access this resource. Visit your billing tab.', 'type': 'payment_required_error', 'param': 'quota',"}
+E         
+E       assert False
+E        +  where False = any(<generator object TestAIAnalyzeChat.test_chat_sse_platform_knowledge.<locals>.<genexpr> at 0xfa8dd43a3a00>)
+
+tests/test_ai_trader_iter10.py:284: AssertionError
+________________________ TestAILearning.test_learn_run _________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_ai_trader_iter10.TestAILearning object at 0xf9a92a427990>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc4NjUxOTAyN30.NJ5DUoz7-j-QRgUY_1_pUcy_sYy8xqFqnLe5S4hb610', 'Content-Type': 'application/json'}
+
+    def test_learn_run(self, auth_headers):
+        r = requests.post(f"{BASE_URL}/api/ai/learn", headers=auth_headers, json={}, timeout=180)
+        # OpenRouter free tier may 429 — retry once
+        if r.status_code == 429 or (r.status_code == 200 and "rate" in r.text.lower()[:200]):
+            time.sleep(8)
+            r = requests.post(f"{BASE_URL}/api/ai/learn", headers=auth_headers, json={}, timeout=180)
+        assert r.status_code == 200, f"learn failed: {r.status_code} {r.text[:400]}"
+        data = r.json()
+>       assert data.get("status") == "ok", f"status not ok: {data}"
+E       AssertionError: status not ok: {'status': 'error', 'detail': "Error code: 402 - {'message': 'Payment required to access this resource. Visit your billing tab.', 'type': 'payment_required_error', 'param': 'quota', 'code': 'payment_required'}"}
+E       assert 'error' == 'ok'
+E         
+E         - ok
+E         + error
+
+tests/test_ai_trader_iter10.py:142: AssertionError
+__________________________ TestAuth.test_login_admin ___________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter4_export_import_autolev_equity.TestAuth object at 0xf9a925f4de10>
+api_client = <requests.sessions.Session object at 0xf9a914f2b510>
+
+    def test_login_admin(self, api_client):
+        r = api_client.post(f"{API}/auth/login",
+                            json={"username": ADMIN_USER, "password": ADMIN_PW}, timeout=15)
+>       assert r.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_iter4_export_import_autolev_equity.py:58: AssertionError
+___________ TestTradeGuardTransitionLock.test_lock_blocks_new_trades ___________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_iter4_regime_fundament.TestTradeGuardTransitionLock object at 0xf9a925d87a10>
+
+    def test_lock_blocks_new_trades(self):
+        from pymongo import MongoClient
+        from motor.motor_asyncio import AsyncIOMotorClient
+        import sys
+        sys.path.insert(0, "/app/backend")
+        from services import trade_guard
+    
+        mongo_url = _mongo_url()
+        dbname = _db_name()
+        sync_c = MongoClient(mongo_url)
+        sync_db = sync_c[dbname]
+    
+        symbol = f"TEST_{uuid.uuid4().hex[:6]}USDT"
+        locked_until = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        lock_doc = {"dynamic_id": "test", "name": "QA",
+                    "symbol": symbol,
+                    "locked_until": locked_until,
+                    "mode": "block_new"}
+        sync_db.dynamic_transition_locks.insert_one(dict(lock_doc))
+        try:
+            async_c = AsyncIOMotorClient(mongo_url)
+            async_db = async_c[dbname]
+            # Make sure kill switch is disabled to isolate the transition check
+            async def _run():
+                # Reset trade_guard cache to reflect config
+                trade_guard._cfg_cache = None
+                allowed, reason = await trade_guard.check_open_allowed(
+                    async_db, {"symbol": symbol, "type": "long"}, "1m")
+                return allowed, reason
+    
+>           allowed, reason = asyncio.get_event_loop().run_until_complete(_run())
+                              ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_iter4_regime_fundament.py:383: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.unix_events._UnixDefaultEventLoopPolicy object at 0xf9a9177746d0>
+
+    def get_event_loop(self):
+        """Get the event loop for the current context.
+    
+        Returns an instance of EventLoop or raises an exception.
+        """
+        if (self._local._loop is None and
+                not self._local._set_called and
+                threading.current_thread() is threading.main_thread()):
+            self.set_event_loop(self.new_event_loop())
+    
+        if self._local._loop is None:
+>           raise RuntimeError('There is no current event loop in thread %r.'
+                               % threading.current_thread().name)
+E           RuntimeError: There is no current event loop in thread 'MainThread'.
+
+/usr/local/lib/python3.11/asyncio/events.py:681: RuntimeError
+__________________________ TestAuth.test_admin_login ___________________________
+[gw1] linux -- Python 3.11.15 /root/.venv/bin/python
+
+self = <test_regime_reactive_and_worker.TestAuth object at 0xf9a925bcd5d0>
+session = <requests.sessions.Session object at 0xf9a914fb1890>
+
+    def test_admin_login(self, session: requests.Session):
+        r = session.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"username": "Admin", "password": "admin"},
+            timeout=15,
+        )
+>       assert r.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401]>.status_code
+
+tests/test_regime_reactive_and_worker.py:87: AssertionError
+=============================== warnings summary ===============================
+tests/test_fix_custom_ai_trades.py::test_delete_candidate_route_registered
+  /root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+tests/test_iter13_bugfixes_features.py::TestDynamicManagement::test_log_endpoint
+  /root/.venv/lib/python3.11/site-packages/_pytest/fixtures.py:1313: PytestRemovedIn10Warning: Class-scoped fixture defined as instance method is deprecated.
+  Instance attributes set in this fixture will NOT be visible to test methods,
+  as each test gets a new instance while the fixture runs only once per class.
+  Use @classmethod decorator and set attributes on cls instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#class-scoped-fixture-as-instance-method
+    fixturefunc = resolve_fixture_function(fixturedef, request)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_ai_lab.py::test_load_keeps_preset_when_user_never_configured
+FAILED tests/test_ai_lab.py::test_load_respects_user_choice - AssertionError:...
+FAILED tests/test_ai_lab.py::test_chain_appends_available_providers - Asserti...
+FAILED tests/test_ai_team_api.py::test_ai_status_shape - AssertionError: prov...
+FAILED tests/test_ai_governance_api.py::test_lesson_patch_requires_admin - Ke...
+FAILED tests/test_ai_governance_api.py::test_ai_insights_contains_lessons - K...
+FAILED tests/test_ai_governance_api.py::test_lesson_delete_requires_admin - K...
+FAILED tests/test_ai_governance_api.py::test_strategies_ghost_trades_empty - ...
+FAILED tests/test_ai_iter3_api.py::test_macro_requires_admin - KeyError: 'id'
+FAILED tests/test_ai_quality_fixes_integration.py::test_lessons_crud_regression
+FAILED tests/test_iter_chat_cmds_e2e.py::test_strategy_assist_without_key - A...
+FAILED tests/test_iter_rly28_review.py::test_admin_login_returns_jwt - assert...
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_poll_done
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_top0_checks
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_top0_rank_reason_and_fail
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_equity_fast_stored
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_export_trades_csv
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_export_equity_csv
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_history_checks
+FAILED tests/test_iter3_ai_improvements.py::test_ai_rewards_seed_data - Asser...
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_poll_dynamic
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_dynamic_shape
+FAILED tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_dynamic_list
+FAILED tests/test_iter9_e2e.py::test_worker_status - AssertionError: {'worker...
+FAILED tests/test_iter9_e2e.py::test_local_multicore_backtest - AssertionErro...
+FAILED tests/test_review_bugfix_e2e.py::test_ai_leverage_clamp - AssertionErr...
+FAILED tests/test_iter9_e2e.py::test_local_determinism_cores_1_vs_0 - Asserti...
+FAILED tests/test_iter9_e2e.py::test_local_multicore_optimizer - AssertionErr...
+FAILED tests/test_iter9_e2e.py::test_local_optimizer_cancel_then_new_job - As...
+FAILED tests/test_iter12_dynamic_optimizer.py::TestBacktesterRegression::test_poll_backtest
+FAILED tests/test_iter12_dynamic_optimizer.py::TestBacktesterRegression::test_backtest_equity
+FAILED tests/test_iter12_dynamic_optimizer.py::TestBacktesterRegression::test_backtest_export_trades
+FAILED tests/test_merge_ema_regime.py::TestHealthAuth::test_login_success - a...
+FAILED tests/test_ai_trader_iter10.py::TestAIProposals::test_proposals_listed
+FAILED tests/test_ai_lab_api.py::TestResearch::test_research_run_admin - Asse...
+FAILED tests/test_ai_lab_api.py::TestAITraderRegression::test_ai_analyze_run
+FAILED tests/test_iter2_open_trades_and_indicator_cache_api.py::TestIndicatorCacheAPI::test_clear_as_admin_returns_status_cleared
+FAILED tests/test_watchdog_api_review.py::TestAuth::test_login_success_returns_token
+FAILED tests/test_watchdog_api_review.py::TestWatchdog::test_status_returns_configured_false_and_settings
+FAILED tests/test_worker_package.py::TestWorkerPackageFiles::test_local_worker_not_gitignored
+FAILED tests/test_iter12_dynamic_optimizer.py::TestOptimizerApplyParams::test_strategy_configs_timeframe
+FAILED tests/test_iter13_bugfixes_features.py::TestOOMGuard::test_equity_big_run_400
+FAILED tests/test_iter13_bugfixes_features.py::TestOOMGuard::test_equity_dynamic_no_trades_400
+FAILED tests/test_ai_trader_iter10.py::TestAIAnalyzeChat::test_analyze_runs_and_history_updated
+FAILED tests/test_ai_trader_iter10.py::TestAIAnalyzeChat::test_chat_sse_platform_knowledge
+FAILED tests/test_ai_trader_iter10.py::TestAILearning::test_learn_run - Asser...
+FAILED tests/test_iter4_export_import_autolev_equity.py::TestAuth::test_login_admin
+FAILED tests/test_iter4_regime_fundament.py::TestTradeGuardTransitionLock::test_lock_blocks_new_trades
+FAILED tests/test_regime_reactive_and_worker.py::TestAuth::test_admin_login
+ERROR tests/test_ai_governance_api.py::test_master_prompt_post_admin_increments_version
+ERROR tests/test_ai_governance_api.py::test_master_prompt_restore - Assertion...
+ERROR tests/test_ai_governance_api.py::test_lesson_create_admin - AssertionEr...
+ERROR tests/test_ai_governance_api.py::test_lesson_patch_admin - AssertionErr...
+ERROR tests/test_ai_governance_api.py::test_lesson_delete_admin - AssertionEr...
+ERROR tests/test_ai_governance_api.py::test_validation_post_admin_and_persist
+ERROR tests/test_ai_governance_api.py::test_validation_restore_defaults - Ass...
+ERROR tests/test_ai_governance_api.py::test_strategies_create_admin - Asserti...
+ERROR tests/test_ai_governance_api.py::test_strategies_decide_approve - Asser...
+ERROR tests/test_ai_governance_api.py::test_strategies_decide_approve_live - ...
+ERROR tests/test_ai_governance_api.py::test_strategies_decide_reset - Asserti...
+ERROR tests/test_ai_governance_api.py::test_strategies_register_test_not_testable
+ERROR tests/test_ai_governance_api.py::test_strategies_settings_admin - Asser...
+ERROR tests/test_ai_governance_api.py::test_strategies_reject_cleanup - Asser...
+ERROR tests/test_ai_iter3_api.py::test_schedule_post_stores_and_filters_invalid
+ERROR tests/test_ai_iter3_api.py::test_schedule_cleanup - AssertionError: {"d...
+ERROR tests/test_ai_iter3_api.py::test_master_prompt_post_with_new_rules - As...
+ERROR tests/test_ai_iter3_api.py::test_master_prompt_reset - AssertionError: ...
+ERROR tests/test_ai_iter3_api.py::test_validation_post_macro_persists - Asser...
+ERROR tests/test_ai_iter3_api.py::test_validation_restore - AssertionError: {...
+ERROR tests/test_ai_iter3_api.py::test_notify_guard_set_and_persist - Asserti...
+ERROR tests/test_ai_iter3_api.py::test_notify_guard_invalid - AssertionError:...
+ERROR tests/test_ai_iter3_api.py::test_notify_guard_restore - AssertionError:...
+ERROR tests/test_ai_iter3_api.py::test_create_candidate - AssertionError: {"d...
+ERROR tests/test_ai_iter3_api.py::test_macro_set_and_ignore_unknown - Asserti...
+ERROR tests/test_ai_iter3_api.py::test_candidate_cleanup - AssertionError: {"...
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/coins] - As...
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/signals] - ...
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/settings]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/session/status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/strategies]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/strategies/builder-options]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/autotrade/config]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/autotrade/trades]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/autotrade/capital]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/autotrade/sync-status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/ai/lab/status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/ai/trade/status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/ai/closed_loop/status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/ai/ml/status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/ai/observer/status]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/ai/memory/stats]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/regime-lab/list]
+ERROR tests/test_merge_ema_regime.py::test_dean_smoke_no_500[/api/regime-lab/engine/defaults]
+ERROR tests/test_etappe1_kombi.py::test_engine_defaults_contains_kombi - Asse...
+ERROR tests/test_etappe1_kombi.py::test_kombi_calibrate_validates_symbols - A...
+ERROR tests/test_iteration_review.py::test_custom_strategy_default_params_populated
+ERROR tests/test_iteration_review.py::test_optimizer_run_custom_strategy - As...
+ERROR tests/test_iteration_review.py::test_backtest_run_custom - AssertionErr...
+ERROR tests/test_iteration_review.py::test_backtest_strategy_warnings_unknown_indicator
+ERROR tests/test_iter_rly28_review.py::test_builder_options - AssertionError:...
+ERROR tests/test_iter_rly28_review.py::test_rule_preview - AssertionError: lo...
+ERROR tests/test_iter_rly28_review.py::test_backtest_run_with_custom_strategy
+ERROR tests/test_iter_rly28_review.py::test_trade_guard_get_and_update - Asse...
+ERROR tests/test_iter_rly28_review.py::test_telegram_notify_config - Assertio...
+ERROR tests/test_iter_rly28_review.py::test_notifications_list_and_read - Ass...
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_admin_login
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDiscoveryOptimizer::test_start_discovery
+ERROR tests/test_iter3_ai_improvements.py::test_ai_models_watch_run_admin - A...
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_start_dynamic
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_dynamic_save
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_dynamic_refresh
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_dynamic_apply
+ERROR tests/test_iter12_dynamic_optimizer.py::TestDynamicOptimizer::test_dynamic_delete
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_segments_final_count_5_to_60
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_live_segments_under_200
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_validation_passed
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_live_segments_are_directional
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_live_segments_eth_are_directional
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_current_regime_shape
+ERROR tests/test_regime_iter3_live_fix.py::TestRegimeIter3LiveFix::test_corrections_block
+ERROR tests/backend_test.py::test_kombi_calibrate_auth_and_symbols_validation
+ERROR tests/backend_test.py::test_kombi_calibrate_e2e - Failed: Admin authent...
+ERROR tests/backend_test.py::test_analyze_detector_regression_e2e[kombi] - Fa...
+ERROR tests/backend_test.py::test_analyze_detector_regression_e2e[reactive]
+ERROR tests/backend_test.py::test_analyze_detector_regression_e2e[ema] - Fail...
+ERROR tests/test_iter11_robustness.py::test_discovery_with_all_robustness - A...
+ERROR tests/test_iter11_robustness.py::test_discovery_regression_no_robust_fields
+ERROR tests/test_iter11_robustness.py::test_params_mode_with_wf - AssertionEr...
+ERROR tests/test_iter11_robustness.py::test_days_clamp_5500 - AssertionError:...
+ERROR tests/test_iter11_robustness.py::test_apply_from_top5_definition - Asse...
+ERROR tests/test_iter11_robustness.py::test_localworker_use_gpu_persistence
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestLocalWorker::test_worker_status_online
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestLocalWorker::test_manifest
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestLocalWorker::test_local_analyze_5m_300d_worker_stays_online
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestLocalWorker::test_cancel_within_5s
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestLocalWorker::test_disconnect_detection_and_reconnect
+ERROR tests/test_regime_v2_integration.py::TestDynamic::test_apply_activates_nnfx_strategies
+ERROR tests/test_regime_v2_integration.py::TestDynamic::test_settings_require_confirmation
+ERROR tests/test_regime_v2_integration.py::TestDynamic::test_dismiss_returns_dismissed
+ERROR tests/test_iter12_dynamic_optimizer.py::TestBacktesterRegression::test_start_backtest
+ERROR tests/test_iter5_optimizer_equity.py::TestOptimizerEquity::test_scope_optimized_returns_points
+ERROR tests/test_iter5_optimizer_equity.py::TestOptimizerEquity::test_scope_all_includes_more_or_equal_symbols
+ERROR tests/test_iter5_optimizer_equity.py::TestOptimizerEquity::test_unknown_id_returns_404
+ERROR tests/test_iter5_optimizer_equity.py::TestOptimizerEquity::test_public_access
+ERROR tests/test_iter_rly29_review.py::TestStrategyValidation::test_invalid_indicator_returns_422_with_problems_and_fixes
+ERROR tests/test_iter_rly29_review.py::TestStrategyValidation::test_alias_ema_200_canonicalized_and_saved
+ERROR tests/test_iter_rly29_review.py::TestStrategyValidation::test_unsupported_timeframe_7m_returns_422
+ERROR tests/test_merge_ema_regime.py::TestHealthAuth::test_verify_token - Ass...
+ERROR tests/test_watchdog_api_review.py::TestAutotradeRegression::test_endpoint_reachable[/api/autotrade/config]
+ERROR tests/test_watchdog_api_review.py::TestAutotradeRegression::test_endpoint_reachable[/api/autotrade/trades]
+ERROR tests/test_watchdog_api_review.py::TestAutotradeRegression::test_endpoint_reachable[/api/autotrade/sync-status]
+ERROR tests/test_watchdog_api_review.py::TestAutotradeRegression::test_endpoint_reachable[/api/autotrade/balance]
+ERROR tests/test_iter13_bugfixes_features.py::TestWorkerGate::test_local_dynamic_gate_present
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestBacktestCloudExports::test_run
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestBacktestCloudExports::test_export_candles
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestBacktestCloudExports::test_export_trades
+ERROR tests/test_iter17_new_assets.py::TestBacktester::test_reject_unknown_symbol
+ERROR tests/test_iter17_new_assets.py::TestBacktester::test_regression_crypto_still_works
+ERROR tests/test_iter17_new_assets.py::TestBacktester::test_multi_asset_new_universe
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestBacktestAutoLevAndDays::test_backtest_auto_leverage_and_pnl_pct
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestBacktestAutoLevAndDays::test_backtest_days_cap_accepts_1440
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestBacktestAutoLevAndDays::test_backtest_date_range
+ERROR tests/test_iter4_regime_fundament.py::TestEngineDefaultsGroups::test_persist_days_default_and_clip
+ERROR tests/test_iter4_regime_fundament.py::TestDynamicTransitionSettings::test_persist_transition_fields
+ERROR tests/test_iter4_regime_fundament.py::TestDynamicTransitionSettings::test_lock_days_clip
+ERROR tests/test_iter4_regime_fundament.py::TestDynamicTransitionSettings::test_invalid_mode_ignored
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestRegimeCalibrate::test_calibrate_centered
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestRegimeCalibrate::test_calibrate_hmm
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestRegimeCalibrate::test_calibrate_invalid_truth_source
+ERROR tests/test_iter_rly29_review.py::TestStrategyRegression::test_rule_preview
+ERROR tests/test_regime_deep_update.py::TestRegimeModes::test_mode_3 - Assert...
+ERROR tests/test_regime_deep_update.py::TestRegimeModes::test_mode_5_default_adaptive
+ERROR tests/test_regime_deep_update.py::TestRegimeModes::test_mode_9_backcompat
+ERROR tests/test_regime_iter2_miniphase_mtf_volume.py::TestAnalyzeMiniPhaseAuto::test_segments_reasonable
+ERROR tests/test_regime_iter2_miniphase_mtf_volume.py::TestAnalyzeMiniPhaseAuto::test_corrections_min_phase_days_positive
+ERROR tests/test_regime_iter2_miniphase_mtf_volume.py::TestAnalyzeMiniPhaseAuto::test_live_segments_present
+ERROR tests/test_regime_reactive_and_worker.py::TestLocalWorkerPackage::test_manifest_complete
+ERROR tests/test_regime_reactive_and_worker.py::TestLocalWorkerPackage::test_package_zip_valid
+ERROR tests/test_regime_reactive_and_worker.py::TestLocalWorkerPackage::test_worker_status_online
+ERROR tests/test_watchdog_api_review.py::TestWatchdog::test_run_with_admin_returns_skipped
+ERROR tests/test_watchdog_api_review.py::TestWatchdog::test_config_update_persists_and_clamps
+ERROR tests/test_iter12_dynamic_optimizer.py::TestOptimizerApplyParams::test_apply_params_with_timeframe
+ERROR tests/test_iter13_bugfixes_features.py::TestDynamicManagement::test_settings_update
+ERROR tests/test_iter13_bugfixes_features.py::TestRegression::test_reset_available
+ERROR tests/test_iter15_refactor_candles.py::TestDynamicOptimizer::test_per_regime_true
+ERROR tests/test_iter15_refactor_candles.py::TestDynamicOptimizer::test_per_regime_false
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestOptimizerDiscoveryCombo::test_discovery
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestOptimizerDiscoveryCombo::test_combo
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestOptimizerDynamic::test_per_regime_true
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestOptimizerDynamic::test_per_regime_false
+ERROR tests/test_iter17_new_assets.py::TestAILessonsConfig::test_max_lessons_persists
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestStrategyBackup::test_export_custom_strategy
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestStrategyBackup::test_export_import_roundtrip_delete_restore
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestOptimizer::test_optimizer_params_with_new_groups
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestOptimizer::test_optimizer_discovery_trade_params
+ERROR tests/test_iter4_regime_fundament.py::TestRegression::test_login - Asse...
+ERROR tests/test_iter4_regime_fundament.py::TestRegimeLabRegression::test_cloud_ema_analyze
+ERROR tests/test_iter4_regime_fundament.py::TestRegimeLabRegression::test_optimize_accept_and_cancel
+ERROR tests/test_merge_ema_regime.py::TestEMARegimeAnalyze::test_analyze_with_ema_detector
+ERROR tests/test_merge_ema_regime.py::TestEMARegimeAnalyze::test_reactive_detector_regression
+ERROR tests/test_regime_deep_update.py::TestWorkerPackage::test_manifest_complete
+ERROR tests/test_regime_deep_update.py::TestWorkerPackage::test_package_zip_contents
+ERROR tests/test_regime_deep_update.py::TestOptimizerDeepTest::test_optimizer_with_deep_test
+ERROR tests/test_regime_deep_update.py::TestOptimizerDeepTest::test_optimizer_without_deep_test
+ERROR tests/test_regime_reactive_and_worker.py::TestHealthRegression::test_regime_lab_active_no_500
+ERROR tests/test_regime_v2_integration.py::TestAnalyzeValidation::test_engine_quatsch_400
+ERROR tests/test_regime_v2_integration.py::TestAnalyzeValidation::test_engine_v2_starts_and_completes
+ERROR tests/test_iter15_refactor_candles.py::TestCloudBacktestExport::test_run_and_export
+ERROR tests/test_iter15_refactor_candles.py::TestDynamicSaveSubStrategies::test_save_and_list
+ERROR tests/test_iter15_refactor_candles.py::TestLocalBacktest::test_local_365d
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestLocalWorkerStatus::test_required_version
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestCurrentRegime::test_btc_60d
+ERROR tests/test_iter16_optimizer_pool_regression.py::TestOptimizerParams::test_params_run
+ERROR tests/test_iter17_new_assets.py::TestOptimizer::test_optimizer_forex_and_index
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestBacktestDefinitionOverride::test_backtest_strategy_configs_definition_override
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestEquityEndpoint::test_equity_and_csv
+ERROR tests/test_iter4_regime_fundament.py::TestEmaCompare::test_ema_compare_endpoint
+ERROR tests/test_iter4_export_import_autolev_equity.py::TestAutotradeAutoLeverage::test_set_and_read_auto_leverage
+ERROR tests/test_iter5_optimizer_equity.py::TestBacktestEquityRegression::test_backtest_equity_still_works
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestAuth::test_login - Ass...
+ERROR tests/test_iter5_regime_calibrate_worker.py::TestRegimeAnalyzeCloud::test_analyze_cloud_ideal_segments
+ERROR tests/test_regime_deep_update.py::TestWorkerStatus::test_worker_online_and_current
+ERROR tests/test_regime_deep_update.py::TestRegimeEngineDefaults::test_defaults
+ERROR tests/test_regime_deep_update.py::TestLocalBacktest::test_local_backtest_runs
+ERROR tests/test_regime_deep_update.py::TestRegimeLabOptimizeDeep::test_regime_lab_optimize_deep
+ERROR tests/test_regime_iter2_miniphase_mtf_volume.py::TestEngineDefaultsIter2::test_defaults_expose_new_keys
+ERROR tests/test_regime_iter2_miniphase_mtf_volume.py::TestAnalyzeMiniPhaseFixed::test_more_min_phase_days_reduces_segments
+ERROR tests/test_regime_iter3_live_fix.py::TestEngineDefaultsRegression::test_defaults_still_have_iter2_keys
+ERROR tests/test_regime_reactive_and_worker.py::TestEngineDefaults::test_engine_defaults_reactive_keys
+ERROR tests/test_regime_reactive_and_worker.py::TestExistingAnalysis::test_reactive_analysis_payload
+ERROR tests/test_regime_reactive_and_worker.py::TestRegimeAnalyzeCloud::test_cloud_analyze_reactive
+ERROR tests/test_regime_reactive_and_worker.py::TestRegimeAnalyzeLocal::test_local_worker_analyze_reactive
+49 failed, 963 passed, 32 skipped, 2 warnings, 183 errors in 267.00s (0:04:27)

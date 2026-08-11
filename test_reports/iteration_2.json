@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 2 backend-only regression: 95 targeted unit tests (test_ai_trader_iter2_fixes, test_ai_trader_quality_fixes, test_position_watchdog, test_ai_lessons_merge, test_ai_governance) ALL PASS. E2E on localhost:8022 verified: /api/ai/status (config keys use_heatmap_data/use_liquidation_data/lean_prompt/smart_skip all present), /api/ai/lessons/conflicts 200, /api/autotrade/watchdog/status settings.manage_external=false (BUG2 fix confirmed), /api/ai/providers/health 200, /api/ai/schedule GET/POST persists model+provider per window (US-Open llama-3.3-70b-versatile/groq), /api/ai/token-usage returns {days:[], note}, /api/liquidity/heatmap/BTCUSDT returns clusters_measured + clusters_source ('model' fallback active, network to venues unreachable = environment-limited, not a bug).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/liquidity/heatmap", "issue": "Request specified query-param style ?symbol=BTCUSDT but router mounts /api/liquidity/heatmap/{symbol} (path param). Not a bug per code, but doc/consumer mismatch worth noting."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/krypto_trader/backend/tests/test_ai_trader_iter2_fixes.py",
+    "/app/krypto_trader/backend/tests/test_position_watchdog.py",
+    "/app/krypto_trader/backend/tests/test_ai_governance.py",
+    "/app/krypto_trader/backend/tests/test_ai_lessons_merge.py",
+    "/app/krypto_trader/backend/tests/test_ai_trader_quality_fixes.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Review-request mentions tests/test_backtester_*.py glob; only test_backtest_optimizer.py and test_iter3_system_ram_backtest_apply.py exist. test_backtest_optimizer.py is an E2E suite hardcoding external algo-refiner.preview URL and fails against local 8022 (404 on /api/auth/login and /api/strategies) - was NOT part of the requested iter2 fixes so excluded from regression. Consider parametrising BASE_URL or moving to skip-if-not-external.",
+    "/api/ai/schedule POST expects key 'schedule' (not 'windows' as suggested in feature description). Feature works but API contract worth aligning in docs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "n/a"},
+  "test_credentials": "Admin / Dean06Greif!/Admin against localhost:8022 (login returns token, len=124)",
+  "seed_data_creation": "POSTed a US-Open schedule window during test (persisted via /api/ai/schedule)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend runs on localhost:8022 (uvicorn from /app/krypto_trader/backend, DB crypto_scanner_test). Heatmap endpoint is /api/liquidity/heatmap/{symbol}. Schedule POST payload key is 'schedule' not 'windows'. Pre-existing unrelated failures (test_regime_engine, test_ai_team_regression, test_iter_ai_supervisor_auto, test_iter2_review_e2e, test_backtest_optimizer) are environment/scope-limited and were intentionally NOT run per main-agent guidance.",
+  "rca of the issue": "n/a - all iteration-2 targets pass"
+}
