@@ -1221,6 +1221,15 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                 }}
                 data-testid="ai-min-entry-distance-input" />
             </label>
+            <label title="Korrelations-Guard: BTC/ETH/SOL zählen als EIN Richtungs-Risiko. Ein zweiter gleichgerichteter Trade auf einem anderen Coin dieser Gruppe wird blockiert, damit korrelierte Coins das Richtungs-Limit nicht umgehen.">
+              <span>Korrelations-Guard</span>
+              <select value={cfg.correlation_guard === false ? 'off' : 'on'}
+                onChange={e => updateConfig({ correlation_guard: e.target.value === 'on' })}
+                data-testid="ai-correlation-guard-select">
+                <option value="on">an (BTC/ETH/SOL = 1 Risiko)</option>
+                <option value="off">aus</option>
+              </select>
+            </label>
             <label title="Max. Kapital (USDT Margin) pro KI-Trade. 0 = aus (Coin-Trade-Settings gelten). Wenn gesetzt, entscheidet die KI pro Trade selbst, wie viel Kapital (10-100% davon) sie einsetzt – nicht automatisch immer das Maximum.">
               <span><Coins size={13} /> Max. Kapital/Trade</span>
               <input type="number" min={0} step={1}

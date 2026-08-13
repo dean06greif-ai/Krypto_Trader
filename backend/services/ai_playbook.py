@@ -85,25 +85,59 @@ def verdict_for(trades: int, wins: int, pnl: float) -> str:
     return "neutral"
 
 
+# Korrelierte Coins zählen als EIN Richtungs-Risiko (Basis-Symbol, ohne USDT)
+CORRELATED_GROUPS = [("BTC", "ETH", "SOL")]
+
+
+def _corr_group(symbol) -> Optional[tuple]:
+    base = str(symbol or "").upper().replace("USDT", "").replace("USD", "").strip()
+    for g in CORRELATED_GROUPS:
+        if base in g:
+            return g
+    return None
+
+
 def diversification_check(open_trades: List[Dict], symbol: str, side: str,
                           price: float, max_same_direction: int = 3,
                           min_dist_pct: float = 0.5,
-                          setup: Optional[str] = None) -> Tuple[bool, str]:
-    """Guards gegen Richtungs-Klumpen und Entry-Cluster (rein, testbar).
+                          setup: Optional[str] = None,
+                          correlation_guard: bool = True) -> Tuple[bool, str]:
+    """Guards gegen Richtungs-Klumpen und Entry-Cluster (rein & testbar).
 
-    1. Richtungs-Guard: max. N gleichzeitig offene KI-Trades in DIESELBE
-       Richtung (0 = aus). Ein echter Hedge ist per Definition die Gegenrichtung
-       und wird dadurch nie blockiert.
-    2. Cluster-Guard: kein weiterer Einstieg auf demselben Symbol in dieselbe
-       Richtung, wenn ein offener Entry näher als `min_dist_pct` % liegt –
-       das war das beobachtete "mehrere Trades in derselben Zone"-Problem.
+    1. Korrelations-Guard: BTC/ETH/SOL zählen als EIN Richtungs-Risiko – ein
+       zweiter gleichgerichteter Trade auf einem anderen Coin derselben Gruppe
+       wird blockiert (verstecktes Klumpen-Risiko, umgeht sonst das Limit).
+    2. Richtungs-Guard: max. N gleichzeitig offene KI-Trades in DIESELBE
+       Richtung (0 = aus); korrelierte Coins zählen dabei zusammen nur 1x.
+       Ein echter Hedge ist per Definition die Gegenrichtung und wird nie blockiert.
+    3. Cluster-Guard: kein weiterer Einstieg auf demselben Symbol in dieselbe
+       Richtung, wenn ein offener Entry näher als `min_dist_pct` % liegt.
     """
     side = str(side or "").upper()
+    same = [t for t in open_trades
+            if str(t.get("side") or "").upper() == side]
+    if correlation_guard:
+        new_group = _corr_group(symbol)
+        if new_group:
+            for t in same:
+                t_sym = str(t.get("symbol") or "")
+                if t_sym != str(symbol) and _corr_group(t_sym) == new_group:
+                    return False, (f"Korrelations-Guard: {'/'.join(new_group)} zählen als "
+                                   f"EIN Richtungs-Risiko – offener {side} auf {t_sym} "
+                                   f"deckt dieses Risiko bereits ab")
     if max_same_direction:
-        same = [t for t in open_trades if str(t.get("side") or "").upper() == side]
-        if len(same) >= max_same_direction:
+        count = 0
+        seen_groups = set()
+        for t in same:
+            g = _corr_group(t.get("symbol")) if correlation_guard else None
+            if g:
+                if g in seen_groups:
+                    continue
+                seen_groups.add(g)
+            count += 1
+        if count >= max_same_direction:
             syms = ", ".join(sorted({str(t.get("symbol")) for t in same})[:6])
-            return False, (f"Richtungs-Guard: bereits {len(same)} offene {side}-Trades "
+            return False, (f"Richtungs-Guard: bereits {count} offene {side}-Risiken "
                            f"({syms}) – Limit {max_same_direction}, kein weiterer "
                            f"gleichgerichteter Trade")
     try:

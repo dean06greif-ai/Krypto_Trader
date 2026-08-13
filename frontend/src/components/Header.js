@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Gear, ChartLineUp, Wallet, TrendUp, TrendDown, Lock, LockOpen, Trophy, ClockCounterClockwise, MagicWand, ChartScatter, Drop, BellRinging, Flask } from '@phosphor-icons/react';
-import { toast } from '../lib/toast';
 import { authHeaders } from '../auth';
 import CapitalModal from './CapitalModal';
 import './Header.css';
@@ -212,7 +211,7 @@ const BalanceWidget = () => {
 const NotificationBell = () => {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
-  const seenRef = React.useRef(new Set());
+  const [view, setView] = useState('unread');
   const boxRef = React.useRef(null);
 
   useEffect(() => {
@@ -228,23 +227,10 @@ const NotificationBell = () => {
     let stop = false;
     const load = async () => {
       try {
-        const d = await fetch(`${API_URL}/api/notifications?unread_only=true&limit=100`).then(r => r.json());
+        const d = await fetch(`${API_URL}/api/notifications?filter=all&limit=100`).then(r => r.json());
         if (stop) return;
-        const rows = d.notifications || [];
-        // Popup nur EINMAL insgesamt: bereits gepoppte Meldungen (popped=true)
-        // erscheinen nie wieder als Toast, bleiben aber in der Glocke lesbar.
-        const fresh = rows.filter(n => !n.popped && !seenRef.current.has(n.id));
-        fresh.forEach(n => {
-          seenRef.current.add(n.id);
-          toast.warning(`${n.title}: ${n.message}`, { duration: 12000 });
-        });
-        if (fresh.length) {
-          fetch(`${API_URL}/api/notifications/popped`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: fresh.map(n => n.id) }),
-          }).catch(() => {});
-        }
-        setItems(rows);
+        // Keine Popups mehr: Meldungen sind ausschließlich über die Glocke einsehbar.
+        setItems(d.notifications || []);
       } catch (_) { /* ignore */ }
     };
     load();
@@ -252,35 +238,62 @@ const NotificationBell = () => {
     return () => { stop = true; clearInterval(iv); };
   }, []);
 
-  if (!items.length) return null;
+  const unread = items.filter(n => !n.read);
+  const read = items.filter(n => n.read);
+  const shown = view === 'unread' ? unread : read;
+
   const markRead = async () => {
+    if (!unread.length) return;
     try {
       await fetch(`${API_URL}/api/notifications/read`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ids: items.map(n => n.id) }),
+        body: JSON.stringify({ ids: unread.map(n => n.id) }),
       });
     } catch (_) { /* ignore */ }
-    setItems([]);
-    setOpen(false);
+    const ts = new Date().toISOString();
+    setItems(prev => prev.map(n => (n.read ? n : { ...n, read: true, read_at: ts })));
   };
+  const tabStyle = (active) => ({
+    background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+    border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+    color: 'inherit', cursor: 'pointer', fontSize: 11, padding: '2px 8px',
+  });
   return (
     <span style={{ position: 'relative', display: 'inline-flex' }} ref={boxRef}>
       <button className="icon-btn" onClick={() => setOpen(v => !v)} data-testid="header-notifications-btn"
         title="Benachrichtigungen anzeigen"
-        style={{ position: 'relative', color: '#FF3366' }}>
-        <BellRinging size={18} weight="fill" />
-        <span style={{ position: 'absolute', top: -4, right: -4, background: '#FF3366', color: '#fff', borderRadius: 8, fontSize: 10, padding: '0 4px' }}>{items.length}</span>
+        style={{ position: 'relative', color: unread.length ? '#FF3366' : undefined }}>
+        <BellRinging size={18} weight={unread.length ? 'fill' : 'regular'} />
+        {unread.length > 0 && (
+          <span style={{ position: 'absolute', top: -4, right: -4, background: '#FF3366', color: '#fff', borderRadius: 8, fontSize: 10, padding: '0 4px' }}>{unread.length}</span>
+        )}
       </button>
       {open && (
         <div className="notif-dropdown" data-testid="header-notifications-dropdown">
           <div className="notif-dd-head">
-            <span>Benachrichtigungen ({items.length})</span>
-            <button className="notif-dd-read" onClick={markRead} data-testid="header-notifications-mark-read">
-              Alle als gelesen
-            </button>
+            <span style={{ display: 'inline-flex', gap: 6 }}>
+              <button style={tabStyle(view === 'unread')} onClick={() => setView('unread')}
+                data-testid="header-notifications-tab-unread">
+                Ungelesen ({unread.length})
+              </button>
+              <button style={tabStyle(view === 'read')} onClick={() => setView('read')}
+                data-testid="header-notifications-tab-read">
+                Gelesen ({read.length})
+              </button>
+            </span>
+            {view === 'unread' && unread.length > 0 && (
+              <button className="notif-dd-read" onClick={markRead} data-testid="header-notifications-mark-read">
+                Alle als gelesen
+              </button>
+            )}
           </div>
           <div className="notif-dd-list">
-            {items.map(n => (
+            {!shown.length && (
+              <div className="notif-dd-item" data-testid="header-notifications-empty">
+                <span>{view === 'unread' ? 'Keine ungelesenen Mitteilungen.' : 'Keine gelesenen Mitteilungen.'}</span>
+              </div>
+            )}
+            {shown.map(n => (
               <div className="notif-dd-item" key={n.id}>
                 <b>{n.title}</b>
                 <span>{n.message}</span>
@@ -302,6 +315,12 @@ const NotificationBell = () => {
               </div>
             ))}
           </div>
+          {view === 'read' && (
+            <div style={{ fontSize: 10, opacity: 0.6, padding: '4px 10px 8px' }}
+              data-testid="header-notifications-retention-hint">
+              Gelesene Mitteilungen werden nach 7 Tagen automatisch gelöscht.
+            </div>
+          )}
         </div>
       )}
     </span>

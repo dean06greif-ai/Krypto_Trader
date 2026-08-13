@@ -145,6 +145,8 @@ DEFAULT_AI_CONFIG = {
     # Mindestabstand (%) zwischen Entries auf demselben Symbol + Richtung.
     "max_same_direction": 3,
     "min_entry_distance_pct": 0.5,
+    # BTC/ETH/SOL als EIN Richtungs-Risiko zählen (Korrelations-Guard)
+    "correlation_guard": True,
 }
 
 # Kataloge, Keys (inkl. Backup-Keys) & Modell-Gewichte leben zentral in
@@ -541,6 +543,8 @@ class AIEngine:
                 self.config["min_entry_distance_pct"] = max(0.0, min(5.0, float(updates["min_entry_distance_pct"])))
             except (TypeError, ValueError):
                 pass
+        if "correlation_guard" in updates:
+            self.config["correlation_guard"] = bool(updates["correlation_guard"])
         if "provider" in updates and "model" in updates:
             prov, mod = updates["provider"], updates["model"]
             if prov in ALLOWED_MODELS and mod in ALLOWED_MODELS[prov]:
@@ -1810,7 +1814,8 @@ class AIEngine:
             open_rows, sym, dec["action"], float(dec.get("price") or 0),
             max_same_direction=int(self.config.get("max_same_direction", 3) or 0),
             min_dist_pct=float(self.config.get("min_entry_distance_pct", 0.5) or 0),
-            setup=dec.get("setup"))
+            setup=dec.get("setup"),
+            correlation_guard=bool(self.config.get("correlation_guard", True)))
         if not allowed:
             return False, why
         blocked = ai_playbook.disabled_reason(dec.get("setup"))

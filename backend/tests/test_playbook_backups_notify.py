@@ -64,13 +64,13 @@ def _open(symbol, side, entry):
 
 
 def test_direction_guard_blocks_fourth_same_side():
-    trades = [_open("BTCUSDT", "LONG", 100), _open("ETHUSDT", "LONG", 50),
-              _open("SOLUSDT", "LONG", 20)]
-    ok, why = pb.diversification_check(trades, "XRPUSDT", "LONG", 2.0,
+    trades = [_open("XRPUSDT", "LONG", 2.0), _open("DOGEUSDT", "LONG", 0.1),
+              _open("ADAUSDT", "LONG", 0.5)]
+    ok, why = pb.diversification_check(trades, "LINKUSDT", "LONG", 15.0,
                                        max_same_direction=3)
     assert not ok and "Richtungs-Guard" in why
     # Gegenrichtung (Hedge) bleibt immer erlaubt
-    ok, _ = pb.diversification_check(trades, "XRPUSDT", "SHORT", 2.0,
+    ok, _ = pb.diversification_check(trades, "LINKUSDT", "SHORT", 15.0,
                                      max_same_direction=3)
     assert ok
 
@@ -91,13 +91,48 @@ def test_cluster_guard_blocks_same_zone_entry():
     ok, _ = pb.diversification_check(trades, "BTCUSDT", "LONG", 102.0,
                                      max_same_direction=0, min_dist_pct=0.5)
     assert ok
-    # Anderes Symbol oder Gegenrichtung -> erlaubt
-    ok, _ = pb.diversification_check(trades, "ETHUSDT", "LONG", 100.2,
+    # Anderes (nicht korreliertes) Symbol oder Gegenrichtung -> erlaubt
+    ok, _ = pb.diversification_check(trades, "XRPUSDT", "LONG", 100.2,
                                      max_same_direction=0, min_dist_pct=0.5)
     assert ok
     ok, _ = pb.diversification_check(trades, "BTCUSDT", "SHORT", 100.2,
                                      max_same_direction=0, min_dist_pct=0.5)
     assert ok
+
+
+# ---------------- Korrelations-Guard ----------------
+def test_correlation_guard_blocks_second_correlated_same_side():
+    trades = [_open("BTCUSDT", "LONG", 60000)]
+    ok, why = pb.diversification_check(trades, "ETHUSDT", "LONG", 3000,
+                                       max_same_direction=3, min_dist_pct=0.5)
+    assert not ok and "Korrelations-Guard" in why
+    # Gegenrichtung (Hedge) bleibt erlaubt
+    ok, _ = pb.diversification_check(trades, "ETHUSDT", "SHORT", 3000,
+                                     max_same_direction=3, min_dist_pct=0.5)
+    assert ok
+    # Nicht-korrelierter Coin bleibt erlaubt
+    ok, _ = pb.diversification_check(trades, "XRPUSDT", "LONG", 2.0,
+                                     max_same_direction=3, min_dist_pct=0.5)
+    assert ok
+    # Guard abschaltbar
+    ok, _ = pb.diversification_check(trades, "ETHUSDT", "LONG", 3000,
+                                     max_same_direction=3, min_dist_pct=0.5,
+                                     correlation_guard=False)
+    assert ok
+
+
+def test_correlated_trades_count_as_one_direction_risk():
+    # BTC+ETH+SOL LONG (Altbestand) = 1 Risiko-Einheit -> XRP LONG noch erlaubt
+    trades = [_open("BTCUSDT", "LONG", 60000), _open("ETHUSDT", "LONG", 3000),
+              _open("SOLUSDT", "LONG", 150)]
+    ok, _ = pb.diversification_check(trades, "XRPUSDT", "LONG", 2.0,
+                                     max_same_direction=2, min_dist_pct=0)
+    assert ok
+    # Ohne Korrelations-Guard zählen sie als 3 -> Limit 2 blockiert
+    ok, why = pb.diversification_check(trades, "XRPUSDT", "LONG", 2.0,
+                                       max_same_direction=2, min_dist_pct=0,
+                                       correlation_guard=False)
+    assert not ok and "Richtungs-Guard" in why
 
 
 # ---------------- Zusammengefasste Ausfall-Meldungen ----------------

@@ -1,6 +1,6 @@
-// Zentraler Toast-Wrapper (sonner) mit Dedupe für Fehler-Popups:
-// Dieselbe Fehlermeldung poppt nur EINMAL auf (5-min-Fenster). Unterdrückte
-// Wiederholungen landen stattdessen in den Website-Benachrichtigungen (Glocke).
+// Zentraler Toast-Wrapper (sonner). Fehler & Warnungen poppen NICHT mehr auf:
+// sie landen ausschließlich in der Benachrichtigungsglocke (app_notifications).
+// Erfolgs-/Info-Toasts (direktes Aktions-Feedback) bleiben unverändert.
 import { toast as base } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -15,12 +15,12 @@ const isDuplicate = (key) => {
   return dup;
 };
 
-const pushToBell = (message) => {
+const pushToBell = (title, message, kind) => {
   try {
     fetch(`${API_URL}/api/notifications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Wiederholter Fehler', message: String(message), kind: 'error' }),
+      body: JSON.stringify({ title, message: String(message), kind }),
     }).catch(() => {});
   } catch (e) { /* still */ }
 };
@@ -28,20 +28,16 @@ const pushToBell = (message) => {
 const toast = (...args) => base(...args);
 Object.assign(toast, base);
 
-toast.error = (message, opts) => {
-  if (typeof message === 'string' && isDuplicate(`err:${message}`)) {
-    pushToBell(message);
-    return undefined;
-  }
-  return base.error(message, opts);
+toast.error = (message) => {
+  const text = typeof message === 'string' ? message : String(message);
+  if (!isDuplicate(`err:${text}`)) pushToBell('Fehler', text, 'error');
+  return undefined;
 };
 
-toast.warning = (message, opts) => {
-  if (typeof message === 'string' && isDuplicate(`warn:${message}`)) {
-    pushToBell(message);
-    return undefined;
-  }
-  return base.warning(message, opts);
+toast.warning = (message) => {
+  const text = typeof message === 'string' ? message : String(message);
+  if (!isDuplicate(`warn:${text}`)) pushToBell('Warnung', text, 'warning');
+  return undefined;
 };
 
 export { toast };
