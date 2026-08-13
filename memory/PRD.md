@@ -22,6 +22,14 @@ Einzelner Admin-Trader (deutsch), der die Seite parallel zu manuellem Bitunix-Tr
 6. **KI-Trader**: neues Modul `services/session_levels.py` (Asia/London/NY Session-H/L + Umverteilungszonen via Volumen-Cluster); Snapshot enthält jetzt 5m-RSI (Headline-RSI = 5m statt 1m-„Gambling"), Session-Levels & Zonen; System-Prompts erweitert (Timeframe-Disziplin, Sweep-/Breakout-Trigger an Session-Levels/Zonen, Konfidenz-Kalibrierung 70–85 für A-Setups gegen Dauer-HOLD); Playbook sperrt schwache Setups weiterhin automatisch.
 7. **Regressionstests**: `tests/test_improvements_0_6.py` (13 Tests) + bestehende Watchdog/Backup-Tests grün (44/44 in den Zieldateien).
 
+## Umgesetzt (13.06.2026, Iteration 2)
+1. **Strategie-Vergleich Reiter-Reihenfolge**: Mode-Tabs jetzt ALLE → LIVE → PAPER, Zeit-Tabs Gesamt → 30 Tage → 7 Tage (`StrategyComparison.js`).
+2. **Watchdog raus aus dem Vergleich**: `strategy-comparison` filtert `strategy_id='external'`/`manual_trade` bereits in der Mongo-Query + doppelte Absicherung im Loop (auch alte 'Extern (Watchdog)'-Trades via `external_adopted`).
+3. **RAM-Reduktion (512-MB-Render, ohne Funktionsverlust)**:
+   - Mongo-Projektionen: `strategy_comparison` (nur 13 Felder statt kompletter Trade-Dokumente mit manage_log/KI-Feldern), `rebuild_performance` (200k-Signals-Query auf 6 Felder), `_aggregate_ai_stats` (5k-Signals auf 4 Felder) → große transienten RAM-Spitzen beseitigt.
+   - Candle-Cache-RAM-Budget: Default 2M → 500k Kerzen (~24 MB), env-übersteuerbar via `CANDLE_CACHE_MAX_CANDLES`; ältere Symbole liegen als `.npy` auf Disk (Reload in ms, kein Leistungsverlust). Lokaler Worker setzt sein Budget weiterhin selbst nach echtem RAM.
+4. **Tests**: `tests/test_comparison_and_ram_iter2.py` (4 Tests) + Testing-Agent-Verifikation (iteration_15.json, 100%).
+
 ## Env-Hinweise (lokale Preview vs. Render)
 - Lokal: `MONGO_URL=mongodb://localhost:27017`, Admin/admin123; Bitunix-Key vom User maskiert geliefert → `trade_client.configured()==false` lokal (erwartet)
 - Auf Render nutzt der User seine echte env (unverändert kompatibel)

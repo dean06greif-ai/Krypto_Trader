@@ -27,9 +27,12 @@ from services.candles import CandleArray
 logger = logging.getLogger(__name__)
 
 CACHE_DIR = os.environ.get("CANDLE_CACHE_DIR", "/tmp/candle_cache")
-# Kerzen sind jetzt spaltenbasiert -> ~48 Byte statt ~450 Byte pro Kerze.
-# 1 MB RAM-Budget entspricht also ~20.000 Kerzen (vorher 2.000).
-MAX_CANDLES_IN_MEMORY = int(os.environ.get("CANDLE_CACHE_MAX_CANDLES", "2000000"))
+# Kerzen sind spaltenbasiert -> ~48 Byte statt ~450 Byte pro Kerze.
+# Server-Default 500k Kerzen (~24 MB): passt auch auf 512-MB-Instanzen (Render).
+# Ältere Symbole werden auf Disk (.npy) ausgelagert und in Millisekunden
+# nachgeladen – kein Leistungsverlust. Der lokale Worker setzt sich sein
+# Budget selbst anhand des echten RAMs (siehe local_worker/worker.py).
+MAX_CANDLES_IN_MEMORY = int(os.environ.get("CANDLE_CACHE_MAX_CANDLES", "500000"))
 DISK_ENABLED = os.environ.get("CANDLE_CACHE_DISK", "1") != "0"
 TAIL_TTL_SEC = int(os.environ.get("CANDLE_CACHE_TAIL_TTL", "45"))
 

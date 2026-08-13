@@ -38,14 +38,14 @@ export default function StrategyComparison({ onClose }) {
 
         <div className="sc-filters">
           <div className="sc-seg" data-testid="comparison-mode-filter">
-            {['all', 'paper', 'live'].map(m => (
+            {['all', 'live', 'paper'].map(m => (
               <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)} data-testid={`comparison-mode-${m}`}>
                 {m === 'all' ? 'ALLE' : m.toUpperCase()}
               </button>
             ))}
           </div>
           <div className="sc-seg" data-testid="comparison-days-filter">
-            {[{ v: 0, l: 'Gesamt' }, { v: 7, l: '7 Tage' }, { v: 30, l: '30 Tage' }].map(o => (
+            {[{ v: 0, l: 'Gesamt' }, { v: 30, l: '30 Tage' }, { v: 7, l: '7 Tage' }].map(o => (
               <button key={o.v} className={days === o.v ? 'active' : ''} onClick={() => setDays(o.v)}>{o.l}</button>
             ))}
           </div>

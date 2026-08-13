@@ -88,7 +88,9 @@ async def get_daily_analytics(days: int = 30):
 async def rebuild_performance():
     """Recompute the cumulative performance collection from remaining signals."""
     await state.db.performance.delete_many({})
-    signals = await state.db.signals.find({}).to_list(200000)
+    signals = await state.db.signals.find(
+        {}, {"_id": 0, "signal_class": 1, "symbol": 1, "type": 1, "crv": 1,
+             "strategy_id": 1, "result": 1}).to_list(200000)
     perf_map: Dict[str, Dict] = {}
     for s in signals:
         if s.get("signal_class") == "PRE_SIGNAL":
@@ -303,7 +305,9 @@ async def clear_analytics(body: Dict, _: bool = Depends(require_admin)):
 async def _aggregate_ai_stats(strategy_id: str = None) -> Dict:
     """Aggregate signals, trades and strategy definitions for the AI review."""
     q = {"strategy_id": strategy_id} if strategy_id else {}
-    signals = await state.db.signals.find(q).sort("timestamp", -1).limit(5000).to_list(5000)
+    signals = await state.db.signals.find(
+        q, {"_id": 0, "result": 1, "crv": 1, "strategy_id": 1, "rules_met": 1}) \
+        .sort("timestamp", -1).limit(5000).to_list(5000)
     trades = await state.db.auto_trades.find({"status": "closed"}).sort("closed_at", -1).limit(500).to_list(500)
 
     total = len(signals)
@@ -731,17 +735,26 @@ async def get_time_based(symbol: str, strategy_id: str = None):
 async def strategy_comparison(mode: str = "all", days: int = 0):
     """Vergleicht alle Strategien anhand ihrer geschlossenen Trades:
     Trades, Win-Rate, PnL, Profit-Faktor, Max Drawdown, Ø Dauer, je Coin."""
-    q: Dict = {"status": "closed"}
+    q: Dict = {"status": "closed",
+               # Watchdog-Übernahmen (manuelle Bitunix-Trades) sind keine Strategie
+               "strategy_id": {"$ne": "external"}, "manual_trade": {"$ne": True}}
     if mode in ("paper", "live"):
         q["mode"] = mode
     if days and days > 0:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         q["opened_at"] = {"$gte": cutoff}
-    trades = await state.db.auto_trades.find(q).sort("opened_at", 1).to_list(10000)
+    # Projektion: nur benötigte Felder laden (Trades tragen sonst grosse
+    # manage_log/KI-Felder mit -> RAM-Spitzen auf kleinen Servern)
+    proj = {"_id": 0, "strategy_id": 1, "strategy_name": 1, "realized_pnl": 1,
+            "result": 1, "fees_paid": 1, "max_capital": 1, "side": 1, "mode": 1,
+            "symbol": 1, "opened_at": 1, "closed_at": 1, "external_adopted": 1}
+    trades = await state.db.auto_trades.find(q, proj).sort("opened_at", 1).to_list(10000)
     open_counts: Dict[str, int] = {}
-    async for t in state.db.auto_trades.find({"status": "open"}):
+    async for t in state.db.auto_trades.find(
+            {"status": "open"},
+            {"_id": 0, "strategy_id": 1, "manual_trade": 1, "external_adopted": 1}):
         sid = t.get("strategy_id") or "unknown"
-        if sid == "external":
+        if sid == "external" or t.get("manual_trade") or t.get("external_adopted"):
             continue  # Watchdog-Übernahmen sind keine Strategie
         open_counts[sid] = open_counts.get(sid, 0) + 1
 
@@ -756,8 +769,8 @@ async def strategy_comparison(mode: str = "all", days: int = 0):
     by_strat: Dict[str, Dict] = {}
     for t in trades:
         sid = t.get("strategy_id") or "unknown"
-        if sid == "external":
-            continue  # Extern (Watchdog) ist keine Strategie -> nicht vergleichen
+        if sid == "external" or t.get("external_adopted"):
+            continue  # Manuell (Bitunix) / Watchdog ist keine Strategie -> nicht vergleichen
         e = by_strat.setdefault(sid, {
             "strategy_id": sid,
             "strategy_name": t.get("strategy_name") or sid,
