@@ -97,7 +97,11 @@ async def process_signal(signal: Dict, candles: List[Dict]):
     signal["id"] = str(uuid.uuid4())
     notify = scanner.is_notify_enabled(symbol)
     signal["notify"] = notify
-    await state.db.signals.insert_one(dict(signal))
+    # Manuelle Website-Trades laufen zwar durch die Pipeline (Guards, Kapital,
+    # Ausführung), erzeugen aber KEIN sichtbares Signal (Bug-Report).
+    suppress = bool(signal.get("suppress_signal"))
+    if not suppress:
+        await state.db.signals.insert_one(dict(signal))
 
     # BUGFIX (win-rate): track this signal in-memory so evaluate_open_signals()
     # can later mark it as win/loss based on price hitting TP1 or SL.
@@ -105,7 +109,7 @@ async def process_signal(signal: Dict, candles: List[Dict]):
     # ohne den Fallback wurde NIE ein Signal ausgewertet -> Tages-Winrate blieb 0.
     _tp1 = signal.get("tp1") or signal.get("take_profit_1")
     _sl = signal.get("sl") or signal.get("stop_loss")
-    if signal.get("signal_class") != "PRE_SIGNAL" and _tp1 and _sl:
+    if not suppress and signal.get("signal_class") != "PRE_SIGNAL" and _tp1 and _sl:
         open_signal_evals.append({
             "id": signal["id"],
             "symbol": symbol,
@@ -150,7 +154,8 @@ async def process_signal(signal: Dict, candles: List[Dict]):
         # wirklich ein Trade eröffnet wurde – inkl. Ablehnungsgrund der Guards.
         signal["_trade_opened"] = bool(trade)
         if trade:
-            await update_performance(signal, opened=True)
+            if not signal.get("manual_trade"):
+                await update_performance(signal, opened=True)
             logger.info(f"Auto-trade opened for {symbol}: {trade['id']}")
     except Exception as e:
         logger.error(f"Auto-trade execution failed for {symbol}: {e}")
@@ -204,6 +209,7 @@ async def emit_ai_signal(signal: Dict) -> bool:
     candles = scanner.candle_buffer.get(symbol, [])
     await process_signal(signal, candles)
     if signal.get("id"):
-        await broadcast({"type": "signal", "data": _clean(signal)})
+        if not signal.get("suppress_signal"):
+            await broadcast({"type": "signal", "data": _clean(signal)})
         return True
     return False

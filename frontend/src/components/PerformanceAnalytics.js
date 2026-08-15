@@ -29,6 +29,17 @@ const fmtDur = (s) => {
 
 const fmtPct = (p) => (p == null ? '' : `${p > 0 ? '+' : ''}${p}%`);
 
+// Kompakte Uhrzeit für die Trade-Liste: "14.06. 13:42"
+const fmtTimeShort = (iso) => {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('de-DE', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+      timeZone: 'Europe/Berlin',
+    }).replace(',', '');
+  } catch { return ''; }
+};
+
 // One price level row in the ladder (Entry / SL / TP1 / Full-TP / Exit)
 const LevelRow = ({ label, value, pct, cls, hit }) => {
   if (value == null || value === 0) return null;
@@ -99,19 +110,28 @@ const TradeDetailCard = ({ t, stratName, getCoinName, onChanged, onShowChart }) 
       {isLive ? 'LIVE' : 'PAPER'}
     </span>
     <span className={`badge ${t.side === 'LONG' ? 'badge-long' : 'badge-short'}`}>{t.side}</span>
-    {t.horizon === 'swing' && <span className="badge badge-swing" data-testid={`trade-swing-badge-${t.id}`}>SWING{t.runner ? ' · RUNNER' : ''}</span>}
-    {t.data_collection && <span className="badge badge-collection" title="Datensammel-Modus: reiner Paper-Trade zum ML-Datensammeln (zählt nicht zur Live-Performance)" data-testid={`trade-collection-badge-${t.id}`}>DATEN</span>}
     <span className="mono text-secondary tdc-coin">{getCoinName(t.symbol)}</span>
     <span className={`tdc-result ${resultMeta.cls}`}>{resultMeta.label}</span>
     <span className={`mono tdc-pnl ${pnl >= 0 ? 'text-long' : 'text-short'}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
+    <CaretDown size={13} className={`tdc-caret ${open ? 'rot' : ''}`} />
+  </span>
+  <span className="tdc-sub">
+    <span className="tdc-sub-badges">
+      {t.horizon === 'swing' && <span className="badge badge-swing" data-testid={`trade-swing-badge-${t.id}`}>SWING{t.runner ? ' · RUNNER' : ''}</span>}
+      {t.data_collection && <span className="badge badge-collection" title="Datensammel-Modus: reiner Paper-Trade zum ML-Datensammeln (zählt nicht zur Live-Performance)" data-testid={`trade-collection-badge-${t.id}`}>DATEN</span>}
+    </span>
     {pnlPct != null && (
       <span className={`mono tdc-pnl-pct ${pnlPct >= 0 ? 'text-long' : 'text-short'}`} data-testid={`trade-pnl-pct-${t.id}`}>
         ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
       </span>
     )}
-    <CaretDown size={13} className={`tdc-caret ${open ? 'rot' : ''}`} />
   </span>
-  <span className="tdc-strat-line" title={stratName(t)}>{stratName(t)}</span>
+  <span className="tdc-strat-line">
+    <span className="tdc-strat-name" title={stratName(t)}>{stratName(t)}</span>
+    <span className="tdc-times mono" title={closed ? 'Eröffnet → Geschlossen (Berlin-Zeit)' : 'Eröffnet (Berlin-Zeit)'} data-testid={`trade-times-${t.id}`}>
+      {fmtTimeShort(t.opened_at)}{closed ? ` → ${fmtTimeShort(t.closed_at)}` : ''}
+    </span>
+  </span>
 </button>
 
       {open && (
@@ -220,7 +240,6 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
   const [view, setView] = useState('overview');
   const [timeAnalytics, setTimeAnalytics] = useState(null);
   const [trades, setTrades] = useState([]);
-  const [tradeStratFilter, setTradeStratFilter] = useState('');
   const [tradeOnlyCoin, setTradeOnlyCoin] = useState(false);
   const [showNewTrade, setShowNewTrade] = useState(false);
   const [balance, setBalance] = useState(null);
@@ -325,22 +344,8 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
   const openTrades = trades.filter(t => t.status === 'open' && filterFn(t));
   const closedTrades = trades.filter(t => t.status === 'closed' && filterFn(t));
 
-  // Zusätzlicher Listen-Filter (nur Anzeige der Trade-Listen, nicht die Statistik):
-  // Strategie-Auswahl + optional nur der aktuell ausgewählte Coin
-  const tradeStratOptions = [];
-  {
-    const seen = new Set();
-    trades.forEach(t => {
-      const sid = t.strategy_id || 'unknown';
-      if (seen.has(sid)) return;
-      seen.add(sid);
-      tradeStratOptions.push({ id: sid, name: stratName(t) });
-    });
-    tradeStratOptions.sort((a, b) => a.name.localeCompare(b.name));
-  }
-  const listFilterFn = (t) =>
-    (!tradeStratFilter || (t.strategy_id || 'unknown') === tradeStratFilter) &&
-    (!tradeOnlyCoin || t.symbol === selectedCoin);
+  // Listen-Filter: optional nur der aktuell ausgewählte Coin (nur Anzeige)
+  const listFilterFn = (t) => !tradeOnlyCoin || t.symbol === selectedCoin;
   const openList = openTrades.filter(listFilterFn);
   const closedList = closedTrades.filter(listFilterFn);
 
@@ -573,24 +578,6 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
             <button className={`pnl-filter-btn paper ${pnlFilter === 'paper' ? 'active' : ''}`} onClick={() => setPnlFilter('paper')} data-testid="pnl-filter-paper">Paper</button>
           </div>
 
-          <div className="trade-list-filter" data-testid="trade-list-filter">
-            <select className="trade-filter-select" value={tradeStratFilter}
-              onChange={(e) => setTradeStratFilter(e.target.value)}
-              title="Trade-Listen nach Strategie filtern (z.B. 'Manuell (Bitunix)')"
-              data-testid="trade-filter-strategy">
-              <option value="">Alle Strategien</option>
-              {tradeStratOptions.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-            <button className={`trade-filter-coin ${tradeOnlyCoin ? 'active' : ''}`}
-              onClick={() => setTradeOnlyCoin(v => !v)}
-              title={`Nur Trades des aktuell ausgewählten Coins (${getCoinName(selectedCoin)}) anzeigen`}
-              data-testid="trade-filter-coin-toggle">
-              {tradeOnlyCoin ? '☑' : '☐'} Nur {getCoinName(selectedCoin)}
-            </button>
-          </div>
-
           <div className="analytics-section">
             <div className="stats-grid">
               <div className="stat-card" data-testid="pnl-total-card">
@@ -646,6 +633,12 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
 
           <div className="analytics-section">
             <div className="section-title">OFFENE TRADES <span className="sec-count">{openList.length}{openList.length !== openTrades.length ? `/${openTrades.length}` : ''}</span>
+              <button className={`trade-filter-coin ${tradeOnlyCoin ? 'active' : ''}`}
+                onClick={() => setTradeOnlyCoin(v => !v)}
+                title={`Nur Trades des aktuell ausgewählten Coins (${getCoinName(selectedCoin)}) anzeigen – gilt für offene UND geschlossene Trades`}
+                data-testid="trade-filter-coin-toggle">
+                {tradeOnlyCoin ? '☑' : '☐'} Nur {getCoinName(selectedCoin)}
+              </button>
               <button className="new-trade-plus" title="Neuen Trade eröffnen (Live/Paper)"
                 onClick={() => (isAdmin ? setShowNewTrade(true) : (onNeedAdmin && onNeedAdmin()))}
                 data-testid="open-new-trade-btn">
@@ -656,7 +649,7 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
               <NewTradeModal defaultSymbol={selectedCoin}
                 onClose={() => setShowNewTrade(false)} onOpened={loadTrades} />
             )}
-            {openList.length === 0 && <div className="no-data">Keine offenen Trades{(tradeStratFilter || tradeOnlyCoin) ? ' (Filter aktiv)' : ''}</div>}
+            {openList.length === 0 && <div className="no-data">Keine offenen Trades{tradeOnlyCoin ? ' (Coin-Filter aktiv)' : ''}</div>}
             {openList.map(t => (
               <TradeDetailCard key={t.id} t={t} stratName={stratName} getCoinName={getCoinName}
                 onChanged={loadTrades} onShowChart={onShowChart} />
@@ -665,7 +658,7 @@ const PerformanceAnalytics = ({ performance, strategies = [], enabledIds = [], s
 
           <div className="analytics-section">
             <div className="section-title">GESCHLOSSENE TRADES <span className="sec-count">{closedList.length}{closedList.length !== closedTrades.length ? `/${closedTrades.length}` : ''}</span></div>
-            {closedList.length === 0 && <div className="no-data">Keine{(tradeStratFilter || tradeOnlyCoin) ? ' (Filter aktiv)' : ''}</div>}
+            {closedList.length === 0 && <div className="no-data">Keine{tradeOnlyCoin ? ' (Coin-Filter aktiv)' : ''}</div>}
             {closedList.slice(0, 30).map(t => (
               <TradeDetailCard key={t.id} t={t} stratName={stratName} getCoinName={getCoinName} onShowChart={onShowChart} />
             ))}

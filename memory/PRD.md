@@ -193,3 +193,11 @@ Detailplan/Design: **/app/MULTI_TIMEFRAME_PLAN.md** (vom User gewünschte „Pla
 - TRADE-FILTER: Analyse>Trades: Strategie-Dropdown (inkl. 'Manuell (Bitunix)') + 'Nur <ausgewählter Coin>'-Toggle, nur Listen-Anzeige (Statistik unverändert).
 - REGEL-TF UI-LÜCKEN (User-Bug): TF-Dropdown pro Regel jetzt auch im SettingsPanel-Regel-Editor (def-rule-long/short-tf-*) und 'Regel-Timeframes optimieren'-Chip im Optimizer-Dynamik-Modus; Backend: rule_timeframes → _run_dynamic → discover_regime_strategy/optimize_regime_rules → build_candidates(tf_options).
 - Tests: test_exchange_close_truth.py (7), test_playbook_tf.py (3); test_qqq_range_chart_fixes auf asyncio.run umgestellt. Kombi-Lauf 90 Tests grün. Testing-Agent iteration_29.json: 100% grün, keine Issues.
+
+## Iteration (Juni 2026, #30): Trade-Zeiten, Karten-Layout, Coin-Toggle, manuelle Website-Trades, Chart-Aufräumen
+- Uhrzeiten in Trade-Karten: fmtTimeShort ('TT.MM. HH:MM', Berlin-Zeit) rechts in .tdc-strat-line, geschlossene mit '→' (testid trade-times-<id>).
+- Karten-Layout 3-zeilig: Z1 Mode/Side/Coin/Result/$PnL/Caret · Z2 SWING/DATEN links + %-PnL rechts unter $PnL (.tdc-sub, padding-right 20px) · Z3 Strategie + Zeiten.
+- Coin-Toggle 'Nur <Coin>' jetzt in Titelzeile OFFENE TRADES (filtert offen+geschlossen); Strategie-Dropdown entfernt.
+- Chart: permanente Entry-Preislinien rechts entfernt (doppelt zu Badges + Klick-Pin); useTradeMarkers apply() ohne addLine-Block.
+- BUG-FIX manuelle Website-Trades: source!='ki' → suppress_signal (kein db.signals-Insert, kein Eval/Telegram/Broadcast, keine update_performance) + Trade als strategy_id 'external' / 'Manuell (Website)' / manual_trade=true (core/pipeline.py, ai_trade_manager.open_trade, bitunix_trade._open_trade). Getrennt von 'Manuell (Bitunix)' (Watchdog-Adopt).
+- Tests: tests/test_manual_web_trades.py (3); test_iter26 crv_max-Assertions entpinnt (Nutzer-Setting). Testing-Agent iteration_30.json: 100% grün (E2E inkl. echtem Paper-Manuell-Trade, sofort wieder geschlossen).

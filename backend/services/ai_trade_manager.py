@@ -598,7 +598,8 @@ class AITradeManager:
             "strategy_id": "ai_trader", "strategy_name": "KI Trader",
             "status": "active",
             "ai_confidence": _f("confidence", 70, 0, 100),
-            "ai_reasoning": str(spec.get("reason") or "KI-Custom-Trade")[:600],
+            "ai_reasoning": str(spec.get("reason")
+                                or ("" if source != "ki" else "KI-Custom-Trade"))[:600],
             "use_ai_levels": True,
             # Hebel hart auf das Trade-Manager-Limit begrenzen (0 = Coin-Config)
             "ai_leverage": _f("leverage", 0, 0,
@@ -611,6 +612,11 @@ class AITradeManager:
         # Manuelle Trades: expliziter Modus (Live/Paper) und absolute Margin in
         # USDT erlaubt – für die KI bleiben Modus & Kapital unantastbar.
         if source != "ki":
+            # Bug-Report: manuelle Website-Trades erschienen als Signal und als
+            # "KI Trader"-Trade. Ab jetzt: kein Signal-Eintrag, Trade zählt als
+            # 'Manuell (Website)' (strategy_id external, manual_trade=True).
+            signal["manual_trade"] = True
+            signal["suppress_signal"] = True
             req_mode = str(spec.get("mode") or "").lower()
             if req_mode in ("live", "paper"):
                 signal["force_mode"] = req_mode

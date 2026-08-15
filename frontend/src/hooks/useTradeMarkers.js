@@ -142,22 +142,8 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
         if (data.length) { first = data[0].time; last = data[data.length - 1].time + barSec; }
       } catch (_) { /* noop */ }
 
-      const addLine = (price, color, style, title) => {
-        if (!price) return;
-        try {
-          linesRef.current.push(series.createPriceLine({
-            price, color, lineWidth: 1, lineStyle: style,
-            axisLabelVisible: true, title,
-          }));
-        } catch (_) { /* noop */ }
-      };
-
-      open.forEach(t => {
-        const sideColor = t.side === 'LONG' ? '#00FF66' : '#FF3366';
-        const lev = t.leverage ? `${Number(t.leverage)}x` : '';
-        // dezente gestrichelte Entry-Linie mit Trade-Nummer + Hebel
-        addLine(t.entry, sideColor, 2, `${numbered[t.id] || t.side} · ${lev}`.trim());
-      });
+      // Keine permanenten Entry-Preislinien mehr am rechten Rand – Trades sind
+      // oben links als Badges sichtbar, Details per Klick (Pin) bzw. Hover.
       openRef.current = open.map(t => ({ time: toBar(t.opened_at),
                                          trade: { ...t, label: numbered[t.id] } }));
       // angepinnte Linien mit den frischen Werten (aktueller SL/TP) neu zeichnen

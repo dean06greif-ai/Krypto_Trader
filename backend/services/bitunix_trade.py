@@ -1278,8 +1278,11 @@ class AutoTradeManager:
             "profit_secure_trigger_pct": float(cfg.get("profit_secure_trigger_pct", 30.0)),
             "profit_lock_pct": float(cfg.get("profit_lock_pct", 50.0)),
             "profit_secured": False,
-            "strategy_id": signal.get("strategy_id"),
-            "strategy_name": signal.get("strategy_name"),
+            "strategy_id": ("external" if signal.get("manual_trade")
+                            else signal.get("strategy_id")),
+            "strategy_name": ("Manuell (Website)" if signal.get("manual_trade")
+                              else signal.get("strategy_name")),
+            "manual_trade": bool(signal.get("manual_trade")),
             "timeframe": tf,
             "horizon": signal.get("ai_horizon") or "scalp",
             "runner": bool(signal.get("ai_runner")),
