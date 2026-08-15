@@ -24,6 +24,53 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey(k => k + 1), []);
 
+  // Angepinnter Trade (Klick auf Badge/Entry-Pfeil): Entry + aktuelle SL/TP1/TP
+  // fest im Chart (nur Preislinien – RAM-schonend, keine zusätzlichen Serien)
+  const pinnedIdRef = useRef(null);
+  const pinnedLinesRef = useRef([]);
+  const [pinnedId, setPinnedId] = useState(null);
+
+  const renderPinned = useCallback(() => {
+    const series = seriesRef.current;
+    pinnedLinesRef.current.forEach(l => {
+      try { series && series.removePriceLine(l); } catch (_) { /* noop */ }
+    });
+    pinnedLinesRef.current = [];
+    const id = pinnedIdRef.current;
+    if (!id || !series) return;
+    const hit = openRef.current.find(o => o.trade.id === id);
+    if (!hit) { pinnedIdRef.current = null; setPinnedId(null); return; }
+    const t = hit.trade;
+    const add = (price, color, style, width, title) => {
+      if (!price) return;
+      try {
+        pinnedLinesRef.current.push(series.createPriceLine({
+          price, color, lineWidth: width, lineStyle: style,
+          axisLabelVisible: true, title,
+        }));
+      } catch (_) { /* noop */ }
+    };
+    add(t.entry, t.side === 'LONG' ? '#00FF66' : '#FF3366', 0, 2,
+        `⦿ ENTRY ${t.label || t.side}`);
+    add(t.sl, '#FF3366', 2, 1, 'SL');
+    if (!t.tp1_hit) add(t.tp1, '#00C77F', 2, 1, 'TP1');
+    add(t.tpf, '#00FF66', 2, 1, 'TP');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const togglePin = useCallback((tradeId) => {
+    pinnedIdRef.current = pinnedIdRef.current === tradeId ? null : tradeId;
+    setPinnedId(pinnedIdRef.current);
+    renderPinned();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pinAtTime = useCallback((time) => {
+    const hit = openRef.current.find(o => o.time === time);
+    if (hit) togglePin(hit.trade.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // SL/TP der Position nur beim Hover über den Entry-Punkt einblenden
   const hoverDetail = useCallback((time) => {
     const series = seriesRef.current;
@@ -32,7 +79,9 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
     });
     detailLinesRef.current = [];
     if (time == null || !series) return;
-    openRef.current.filter(o => o.time === time).forEach(({ trade: t }) => {
+    openRef.current
+      .filter(o => o.time === time && o.trade.id !== pinnedIdRef.current)
+      .forEach(({ trade: t }) => {
       const add = (price, color, style, title) => {
         if (!price) return;
         try {
@@ -109,7 +158,10 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
         // dezente gestrichelte Entry-Linie mit Trade-Nummer + Hebel
         addLine(t.entry, sideColor, 2, `${numbered[t.id] || t.side} · ${lev}`.trim());
       });
-      openRef.current = open.map(t => ({ time: toBar(t.opened_at), trade: t }));
+      openRef.current = open.map(t => ({ time: toBar(t.opened_at),
+                                         trade: { ...t, label: numbered[t.id] } }));
+      // angepinnte Linien mit den frischen Werten (aktueller SL/TP) neu zeichnen
+      renderPinned();
       setOpenTrades(open.map(t => ({ ...t, barTime: toBar(t.opened_at),
                                      label: numbered[t.id] || t.side })));
 
@@ -194,11 +246,17 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
     };
 
     load();
-    const iv = setInterval(load, 30000);
+    const iv = setInterval(load, 15000);
     return () => {
       cancelled = true;
       clearInterval(iv);
       hoverDetail(null);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const series = seriesRef.current;
+      pinnedLinesRef.current.forEach(l => {
+        try { series && series.removePriceLine(l); } catch (_) { /* noop */ }
+      });
+      pinnedLinesRef.current = [];
       openRef.current = [];
       clearLines();
       clearMarkers();
@@ -207,5 +265,6 @@ export default function useTradeMarkers(seriesRef, symbol, showClosed, barSec, b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, showClosed, barSec, barsLoaded, reloadKey]);
 
-  return { tradeMapRef, counts, hoverDetail, openTrades, refresh };
+  return { tradeMapRef, counts, hoverDetail, openTrades, refresh,
+           togglePin, pinAtTime, pinnedId };
 }

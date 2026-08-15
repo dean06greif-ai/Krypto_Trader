@@ -194,6 +194,49 @@ async def setup_stats(db, days: int = LOOKBACK_DAYS) -> Dict[str, Dict]:
     return out
 
 
+async def tf_stats(db, days: int = LOOKBACK_DAYS) -> List[Dict]:
+    """Performance je Setup × Timeframe (echte geschlossene KI-Trades)."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = await db.auto_trades.aggregate([
+        {"$match": {"strategy_id": "ai_trader", "status": "closed",
+                    "opened_at": {"$gte": cutoff}, "setup": {"$nin": [None, ""]},
+                    "timeframe": {"$nin": [None, ""]}}},
+        {"$group": {"_id": {"setup": "$setup", "tf": "$timeframe"},
+                    "trades": {"$sum": 1},
+                    "wins": {"$sum": {"$cond": [{"$gt": ["$realized_pnl", 0]}, 1, 0]}},
+                    "pnl": {"$sum": "$realized_pnl"}}},
+    ]).to_list(200)
+    return [{"setup": str(r["_id"].get("setup")), "timeframe": str(r["_id"].get("tf")),
+             "trades": int(r["trades"]), "wins": int(r["wins"]),
+             "pnl": round(float(r.get("pnl") or 0), 2)} for r in rows]
+
+
+def best_tf_per_setup(rows: List[Dict], min_trades: int = 3) -> Dict[str, Dict]:
+    """Pro Setup den historisch besten Timeframe (höchster PnL, mind.
+    min_trades Trades) bestimmen – rein & testbar."""
+    best: Dict[str, Dict] = {}
+    for r in rows:
+        if int(r.get("trades") or 0) < min_trades:
+            continue
+        cur = best.get(r["setup"])
+        if cur is None or float(r.get("pnl") or 0) > float(cur.get("pnl") or 0):
+            best[r["setup"]] = r
+    return best
+
+
+def tf_context_lines(rows: List[Dict]) -> List[str]:
+    """Kompakter Prompt-/UI-Block: bester Timeframe pro Setup (rein & testbar)."""
+    best = best_tf_per_setup(rows)
+    if not best:
+        return []
+    lines = ["TIMEFRAME-PERFORMANCE PRO SETUP (bester TF nach echtem PnL):"]
+    for sid, r in sorted(best.items(), key=lambda x: -float(x[1].get("pnl") or 0)):
+        wr = round(r["wins"] / r["trades"] * 100) if r.get("trades") else 0
+        lines.append(f"- {sid}: bester TF {r['timeframe']} ({r['trades']} Trades, "
+                     f"WR {wr}%, PnL {r['pnl']:+.2f} USDT)")
+    return lines
+
+
 async def refresh(db) -> Dict:
     """Statistik neu berechnen, schwache Setups sperren, Re-Tests freigeben.
 
@@ -253,6 +296,10 @@ async def context_text(db) -> str:
                          f"PnL {st['pnl']:+.2f} USDT → {mark}")
     else:
         lines.append("- (noch keine Setup-Daten – Statistik entsteht mit jedem Trade)")
+    try:
+        lines.extend(tf_context_lines(await tf_stats(db)))
+    except Exception as e:
+        logger.debug(f"Playbook TF-Statistik übersprungen: {e}")
     if disabled:
         lines.append("GESPERRTE SETUPS (technisch blockiert): "
                      + ", ".join(f"{s} (Re-Test ab {str(d.get('retest_at', ''))[:10]})"
@@ -267,5 +314,7 @@ async def context_text(db) -> str:
 async def status(db) -> Dict:
     """Für API/UI: Playbook, Statistik und Sperren."""
     data = await refresh(db)
+    tf_rows = await tf_stats(db)
     return {"setups": SETUPS, "stats": data["stats"], "disabled": data["disabled"],
+            "tf_stats": tf_rows, "best_tf": best_tf_per_setup(tf_rows),
             "lookback_days": LOOKBACK_DAYS, "retest_days": RETEST_DAYS}

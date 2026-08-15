@@ -343,7 +343,7 @@ export default function Optimizer({ onClose }) {
           indicators: (mode === 'params' || (mode === 'dynamic' && !dynRuleVariants && !dynPerRegime)) ? undefined : indicators,
           optimize: optFlags,
           include_trade_params: !!optFlags.tpsl,
-          rule_timeframes: ruleTf.enabled && ((mode === 'params') || ['discovery', 'combo', 'explore'].includes(mode))
+          rule_timeframes: ruleTf.enabled && ((mode === 'params') || ['discovery', 'combo', 'explore', 'dynamic'].includes(mode))
             ? { enabled: true, min: ruleTf.min, max: ruleTf.max }
             : undefined,
           algorithm,
@@ -728,7 +728,7 @@ export default function Optimizer({ onClose }) {
               </button>
             ))}
           </div>
-          {((mode === 'params' && selIsCustom) || ['discovery', 'combo', 'explore'].includes(mode)) && (
+          {((mode === 'params' && selIsCustom) || ['discovery', 'combo', 'explore', 'dynamic'].includes(mode)) && (
             <div className="opt-chips" style={{ marginTop: 6, alignItems: 'center' }}>
               <button className={`opt-chip ${ruleTf.enabled ? 'on' : ''}`}
                 onClick={() => setRuleTf(v => ({ ...v, enabled: !v.enabled }))}

@@ -200,6 +200,8 @@
   transition: border-color 0.15s, transform 0.15s;
 }
 .chart-open-badge:hover { transform: translateX(2px); }
+.chart-open-badge { cursor: pointer; }
+.chart-open-badge.pinned { outline: 1px solid #F5C518; box-shadow: 0 0 8px rgba(245,197,24,0.35); }
 .chart-open-badge.long { border-left-color: #00FF66; }
 .chart-open-badge.short { border-left-color: #FF3366; }
 .chart-open-badge.long .cob-side { color: #00FF66; }

@@ -84,20 +84,19 @@ class TestRejectCooldown:
     def test_same_reason_suppressed_30min(self):
         at = BitunixAutoTrader(client=None)
         at.telegram = _FakeTelegram()
-        asyncio.get_event_loop().run_until_complete(
-            at._notify_reject("QQQUSDT", "SHORT", "not supported via OpenAPI"))
-        asyncio.get_event_loop().run_until_complete(
-            at._notify_reject("QQQUSDT", "SHORT", "not supported via OpenAPI"))
-        assert len(at.telegram.sent) == 1
-        # andere Meldung geht weiterhin durch
-        asyncio.get_event_loop().run_until_complete(
-            at._notify_reject("BTCUSDT", "LONG", "anderer Grund"))
-        assert len(at.telegram.sent) == 2
-        # nach Ablauf des Cooldowns wieder erlaubt
-        key = "QQQUSDT:SHORT:not supported via OpenAPI"
-        at._reject_sent[key] = time.time() - 1801
-        asyncio.get_event_loop().run_until_complete(
-            at._notify_reject("QQQUSDT", "SHORT", "not supported via OpenAPI"))
+
+        async def _flow():
+            await at._notify_reject("QQQUSDT", "SHORT", "not supported via OpenAPI")
+            await at._notify_reject("QQQUSDT", "SHORT", "not supported via OpenAPI")
+            assert len(at.telegram.sent) == 1
+            # andere Meldung geht weiterhin durch
+            await at._notify_reject("BTCUSDT", "LONG", "anderer Grund")
+            assert len(at.telegram.sent) == 2
+            # nach Ablauf des Cooldowns wieder erlaubt
+            key = "QQQUSDT:SHORT:not supported via OpenAPI"
+            at._reject_sent[key] = time.time() - 1801
+            await at._notify_reject("QQQUSDT", "SHORT", "not supported via OpenAPI")
+        asyncio.run(_flow())
         assert len(at.telegram.sent) == 3
 
 
@@ -120,7 +119,7 @@ class TestManualTradeGuard:
         from types import SimpleNamespace
         mgr = AITradeManager()
         mgr.engine = SimpleNamespace(db=_FakeDb(doc))
-        return asyncio.get_event_loop().run_until_complete(
+        return asyncio.run(
             mgr.apply_action("x", "close", reason="test"))
 
     def test_manual_trade_blocked(self):
@@ -138,7 +137,7 @@ class TestManualTradeGuard:
         mgr = AITradeManager()
         from types import SimpleNamespace
         mgr.engine = SimpleNamespace(db=_FakeDb(doc))
-        res = asyncio.get_event_loop().run_until_complete(
+        res = asyncio.run(
             mgr.apply_action("x", "hold", reason="test"))
         assert res == {"status": "ok", "action": "hold"}
 

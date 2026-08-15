@@ -839,6 +839,13 @@ async def _run_dynamic(job, body, registry, settings, cfg, robust, full_historie
     per_regime_strategies = bool(dcfg.get("per_regime_strategies"))
     max_rules_regime = int(min(max(int(dcfg.get("max_rules_per_regime") or 4), 1), 8))
     variant_indicators = [i for i in (body.get("indicators") or []) if isinstance(i, str)]
+    # Pro-Regel-Timeframes auch für Discovery/Regel-Varianten im Dynamik-Modus
+    rtf = body.get("rule_timeframes") or {}
+    tf_options: List[str] = []
+    if isinstance(rtf, dict) and rtf.get("enabled"):
+        tf_options = [t for t in rule_tf_options(tf, rtf.get("min") or "1m",
+                                                 rtf.get("max") or "4h")
+                      if TIMEFRAMES.get(t) != TIMEFRAMES.get(tf)]
     train_pct = robust["train_pct"] if robust["wf_enabled"] else 75.0
     if not trade_space:
         trade_space = build_trade_space({"tpsl": True, "leverage": True})
@@ -908,7 +915,7 @@ async def _run_dynamic(job, body, registry, settings, cfg, robust, full_historie
             labels_full, split_idx, train_segs, test_segs, full_segs, stat_test_segs,
             inner_train, inner_val, static_keys, max_regimes, lookback_days, conf_min,
             min_hold_days, min_share, train_pct, rule_variants, per_regime_strategies,
-            max_rules_regime, variant_indicators)
+            max_rules_regime, variant_indicators, tf_options)
     finally:
         dyn.set_pool(None)
         b = job.setdefault("_bench", {})
@@ -929,7 +936,7 @@ async def _run_dynamic_inner(job, dcfg, strategy, sid, settings, cfg, tf, days,
                              max_regimes, lookback_days, conf_min, min_hold_days,
                              min_share, train_pct, rule_variants,
                              per_regime_strategies, max_rules_regime,
-                             variant_indicators) -> Dict:
+                             variant_indicators, tf_options=None) -> Dict:
     from services import dynamic_strategy as dyn
     job["phase"] = "Signal-Vorberechnung je Regime-Abschnitt"
     dyn.prepare_providers(strategy, train_segs, settings)
@@ -937,7 +944,7 @@ async def _run_dynamic_inner(job, dcfg, strategy, sid, settings, cfg, tf, days,
 
     n_regimes = len(model["regimes"])
     min_tr_regime = max(int(min_trades * dyn.MIN_TRADES_PER_REGIME_FACTOR), 3)
-    n_cands = len(build_candidates(variant_indicators or None))
+    n_cands = len(build_candidates(variant_indicators or None, tf_options or None))
     disc_work = (n_cands * max_rules_regime * n_regimes) if per_regime_strategies else 0
     total_work = (n_regimes + 1) * iterations + disc_work
     done_work = [0]
@@ -977,7 +984,8 @@ async def _run_dynamic_inner(job, dcfg, strategy, sid, settings, cfg, tf, days,
                 inner_train, r["id"], settings, cfg, variant_indicators,
                 base_def_for_discovery, objective, min_tr_regime,
                 max_rules_regime, learn_weights, prog, should_stop,
-                val_segments=inner_val, phase_cb=set_phase)
+                val_segments=inner_val, phase_cb=set_phase,
+                tf_options=tf_options or None)
             if disc["rules"] and disc.get("definition"):
                 strat_r = _mk_strategy(disc["definition"])
                 strategies_by_regime[r["id"]] = strat_r
@@ -1028,7 +1036,7 @@ async def _run_dynamic_inner(job, dcfg, strategy, sid, settings, cfg, tf, days,
             var = await dyn.optimize_regime_rules(
                 strategy, train_segs, r["regime"], settings, cfg, r["config"],
                 variant_indicators, min_tr_regime, r["metrics"], objective,
-                weights, 25, None, should_stop)
+                weights, 25, None, should_stop, tf_options=tf_options or None)
             if var:
                 r["rule_variant"] = {k: var[k] for k in
                                      ("rule_label", "metrics", "score", "improvement_pct")}

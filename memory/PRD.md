@@ -184,3 +184,12 @@ Detailplan/Design: **/app/MULTI_TIMEFRAME_PLAN.md** (vom User gewünschte „Pla
 - BUG 2 (Coins fehlten in Trade-Karten, PnL/Caret rechts abgeschnitten): `PerformanceAnalytics.css` – `.tdc-main` flex-wrap:wrap + row-gap, `.tdc-coin` min-width:48px (kollabiert nie mehr auf 0).
 - FEATURE Multi-Timeframe pro Regel: war in 0.77 bereits vollständig umgesetzt (siehe MULTI_TIMEFRAME_PLAN.md) – per Tests + E2E verifiziert (StrategyBuilder-Dropdown, Optimizer rule_timeframes, Discovery/Combo/Explore, 422 bei ungültigem TF).
 - Neue Regressionstests: tests/test_trades_visibility.py (3), tests/test_watchdog_sync_only.py (3); test_improvements_0_6.py auf asyncio.run umgestellt (Loop-Robustheit). Testing-Agent iteration_28.json: alles grün.
+
+## Iteration (Juni 2026): PnL-Sync, Chart-Pin, exakte Bitunix-Verbuchung, TF-Statistik, Filter
+- PnL-SYNC: Chart-Badge + Trade-Verlauf-Header (offene Trades) zeigen jetzt EINE Quelle: computed.upnl_pct_margin (Live = echter Bitunix-uPnL, 15s-Poll). MainChart.js/PerformanceAnalytics.js.
+- EXAKTE VERBUCHUNG: _book_external_close nutzt jetzt Bitunix GET get_history_positions (closePrice/realizedPNL/fee/funding) → echter Netto-PnL statt Mark-Preis-Schätzung; Flag pnl_exchange_exact; Schutz bei manuell aufgestockten Positionen (>5% qty-Abweichung → Schätzung). parse_closed_position pure + Tests (test_exchange_close_truth.py).
+- CHART-PIN: Klick auf Trade-Badge oder Entry-Pfeil pinnt Entry/SL/TP1/TP als Preislinien (nur Preislinien, RAM-schonend; aktualisieren alle 15s). useTradeMarkers.js renderPinned/togglePin/pinAtTime, MainChart subscribeClick, CSS .chart-open-badge.pinned.
+- PLAYBOOK TF-STATISTIK: ai_playbook.tf_stats/best_tf_per_setup/tf_context_lines – bester Timeframe pro Setup (echte KI-Trades) in GET /api/ai/playbook (tf_stats+best_tf) und im KI-Prompt-Kontext.
+- TRADE-FILTER: Analyse>Trades: Strategie-Dropdown (inkl. 'Manuell (Bitunix)') + 'Nur <ausgewählter Coin>'-Toggle, nur Listen-Anzeige (Statistik unverändert).
+- REGEL-TF UI-LÜCKEN (User-Bug): TF-Dropdown pro Regel jetzt auch im SettingsPanel-Regel-Editor (def-rule-long/short-tf-*) und 'Regel-Timeframes optimieren'-Chip im Optimizer-Dynamik-Modus; Backend: rule_timeframes → _run_dynamic → discover_regime_strategy/optimize_regime_rules → build_candidates(tf_options).
+- Tests: test_exchange_close_truth.py (7), test_playbook_tf.py (3); test_qqq_range_chart_fixes auf asyncio.run umgestellt. Kombi-Lauf 90 Tests grün. Testing-Agent iteration_29.json: 100% grün, keine Issues.

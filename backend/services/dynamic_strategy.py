@@ -349,7 +349,8 @@ async def discover_regime_strategy(segments: Dict[str, List[Dict]], rid: int,
                                    max_rules: int = 4, weights: Dict = None,
                                    progress=None, should_stop=None,
                                    val_segments: Dict[str, List[Dict]] = None,
-                                   phase_cb=None, deep: bool = False) -> Dict:
+                                   phase_cb=None, deep: bool = False,
+                                   tf_options: List[str] = None) -> Dict:
     """Vollständige eigene Strategie für EIN Regime entdecken.
 
     Gleicher Greedy-Algorithmus wie die globale Discovery, aber ausschließlich
@@ -364,7 +365,7 @@ async def discover_regime_strategy(segments: Dict[str, List[Dict]], rid: int,
     """
     from services.optimizer import _mk_strategy, build_candidates
 
-    cands = build_candidates(indicators or None)
+    cands = build_candidates(indicators or None, tf_options or None)
     w = weights or {}
     cands.sort(key=lambda c: -w.get(c["ind"], 1.0))
     if base_definition:
@@ -763,7 +764,8 @@ async def optimize_regime_rules(strategy, segments, rid: int, settings, base_cfg
                                 min_trades: int, base_metrics: Dict,
                                 objective: str, weights: Dict[str, float] = None,
                                 max_candidates: int = 25, progress=None,
-                                should_stop=None) -> Optional[Dict]:
+                                should_stop=None,
+                                tf_options: List[str] = None) -> Optional[Dict]:
     """Regel-Variante je Regime (nur Custom-Strategien): testet, ob EINE
     zusätzliche Regel aus den gewählten Indikatoren die Performance in DIESEM
     Regime deutlich verbessert (>10%). Kandidaten werden nach dem
@@ -771,7 +773,7 @@ async def optimize_regime_rules(strategy, segments, rid: int, settings, base_cfg
     if not getattr(strategy, "IS_CUSTOM", False):
         return None
     from services.optimizer import build_candidates, _mk_strategy
-    cands = build_candidates(indicators or None)
+    cands = build_candidates(indicators or None, tf_options or None)
     w = weights or {}
     cands.sort(key=lambda c: -w.get(c["ind"], 1.0))
     cands = cands[:max_candidates]

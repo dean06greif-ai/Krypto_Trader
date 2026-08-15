@@ -4,7 +4,7 @@ import { X, TelegramLogo, Lightning, ChartLineUp, Plus, Trash, Sliders, PauseCir
 import { toast } from '../lib/toast';
 import { authHeaders, isAdmin } from '../auth';
 import useInstruments, { assetLabel } from '../hooks/useInstruments';
-import TIMEFRAMES from '../constants/timeframes';
+import TIMEFRAMES, { RULE_TIMEFRAMES, TF_MINUTES } from '../constants/timeframes';
 import './SettingsPanel.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -282,6 +282,25 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
       ...def,
       [side]: (def[side] || []).map((r, i) => (i === idx ? { ...r, value } : r)),
     }));
+
+  // Timeframe-Override pro Regel (Multi-Timeframe): '' = Strategie-TF
+  const updateDefRuleTf = (strategyId, side, idx, tf) =>
+    updateDefinition(strategyId, def => ({
+      ...def,
+      [side]: (def[side] || []).map((r, i) => {
+        if (i !== idx) return r;
+        const nr = { ...r, label: '' };
+        if (tf) nr.timeframe = tf; else delete nr.timeframe;
+        return nr;
+      }),
+    }));
+
+  // Regel-TF muss ≥ Strategie-TF und ein Vielfaches davon sein (wie Backend)
+  const ruleTfValid = (tf, baseTf) => {
+    const base = TF_MINUTES[baseTf] || 1;
+    const mins = TF_MINUTES[tf] || 0;
+    return mins >= base && mins % base === 0;
+  };
 
   const updateDefIndicator = (strategyId, key, value) =>
     updateDefinition(strategyId, def => ({
@@ -626,9 +645,10 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
                             <div className="param-info">
                               <div className="param-label" style={{ color: '#30D158' }}>
                                 LONG: {r.label || `${r.indicator} ${r.op}`}
+                                {r.timeframe && <span className="param-custom-badge" style={{ marginLeft: 6 }}>@{r.timeframe}</span>}
                               </div>
                             </div>
-                            <div className="param-input-wrapper">
+                            <div className="param-input-wrapper" style={{ display: 'flex', gap: 6 }}>
                               {typeof r.value === 'number' ? (
                                 <input type="number" step="any" className="param-input" value={r.value}
                                   onChange={e => updateDefRuleValue(activeStrategy.id, 'long_rules', i,
@@ -638,6 +658,19 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
                                 <input type="text" className="param-input" value={String(r.value)} disabled
                                   title="Indikator-Vergleich – im Strategie-Builder änderbar" />
                               )}
+                              <select className="param-input" value={r.timeframe || ''}
+                                onChange={e => updateDefRuleTf(activeStrategy.id, 'long_rules', i, e.target.value)}
+                                title={`Timeframe nur für diese Regel (Multi-Timeframe). Standard = Strategie-TF (${activeStrategy.definition.timeframe || '1m'}). Nur Vielfache des Strategie-TF wählbar.`}
+                                data-testid={`def-rule-long-tf-${i}`}
+                                style={{ minWidth: 92 }}>
+                                <option value="">TF: Strategie</option>
+                                {RULE_TIMEFRAMES.map(t => (
+                                  <option key={t.v} value={t.v}
+                                    disabled={!ruleTfValid(t.v, activeStrategy.definition.timeframe || '1m')}>
+                                    TF: {t.l}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
                         ))}
@@ -646,9 +679,10 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
                             <div className="param-info">
                               <div className="param-label" style={{ color: '#FF6482' }}>
                                 SHORT: {r.label || `${r.indicator} ${r.op}`}
+                                {r.timeframe && <span className="param-custom-badge" style={{ marginLeft: 6 }}>@{r.timeframe}</span>}
                               </div>
                             </div>
-                            <div className="param-input-wrapper">
+                            <div className="param-input-wrapper" style={{ display: 'flex', gap: 6 }}>
                               {typeof r.value === 'number' ? (
                                 <input type="number" step="any" className="param-input" value={r.value}
                                   onChange={e => updateDefRuleValue(activeStrategy.id, 'short_rules', i,
@@ -658,6 +692,19 @@ const SettingsPanel = ({ onClose, focusStrategy, mode = 'all', controlState, onC
                                 <input type="text" className="param-input" value={String(r.value)} disabled
                                   title="Indikator-Vergleich – im Strategie-Builder änderbar" />
                               )}
+                              <select className="param-input" value={r.timeframe || ''}
+                                onChange={e => updateDefRuleTf(activeStrategy.id, 'short_rules', i, e.target.value)}
+                                title={`Timeframe nur für diese Regel (Multi-Timeframe). Standard = Strategie-TF (${activeStrategy.definition.timeframe || '1m'}). Nur Vielfache des Strategie-TF wählbar.`}
+                                data-testid={`def-rule-short-tf-${i}`}
+                                style={{ minWidth: 92 }}>
+                                <option value="">TF: Strategie</option>
+                                {RULE_TIMEFRAMES.map(t => (
+                                  <option key={t.v} value={t.v}
+                                    disabled={!ruleTfValid(t.v, activeStrategy.definition.timeframe || '1m')}>
+                                    TF: {t.l}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
                         ))}

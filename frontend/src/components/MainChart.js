@@ -103,7 +103,8 @@ const MainChart = ({ symbol, candleData, signal, onClearSignal }) => {
   const rangeDdRef = useRef(null);
   const [showClosed, setShowClosed] = useState(false);
   const [tradeTip, setTradeTip] = useState(null);
-  const { tradeMapRef, counts: tradeCounts, hoverDetail, openTrades, refresh: refreshTrades } = useTradeMarkers(
+  const { tradeMapRef, counts: tradeCounts, hoverDetail, openTrades, refresh: refreshTrades,
+          togglePin, pinAtTime, pinnedId } = useTradeMarkers(
     candleSeriesRef, symbol, showClosed, RANGES[range].barSec, `${range}:${bars}`);
 
   // Signal-Overlay: Entry/SL/TP-Linien + Regel-Panel beim Klick auf ein Signal
@@ -395,6 +396,20 @@ const MainChart = ({ symbol, candleData, signal, onClearSignal }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Klick auf einen Entry-Pfeil im Chart: Trade anpinnen (Entry/SL/TP1/TP fest sichtbar)
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return undefined;
+    const handler = (param) => {
+      if (!param || !param.time) return;
+      const infos = tradeMapRef.current[param.time];
+      if (infos && infos.some(i => i.hasDetail)) pinAtTime(param.time);
+    };
+    chart.subscribeClick(handler);
+    return () => { try { chart.unsubscribeClick(handler); } catch (_) { /* noop */ } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="main-chart" data-testid="main-chart">
       <div className="chart-header">
@@ -563,15 +578,15 @@ const MainChart = ({ symbol, candleData, signal, onClearSignal }) => {
               const px = Number(candleData?.close) || Number(t.entry) || 0;
               const sign = t.side === 'LONG' ? 1 : -1;
               const lev = Number(t.leverage || 1);
-              // Chart-Badge = exakt die Bitunix-Basis: unrealisierter PnL der
-              // Restposition in % der gebundenen Margin (ohne realisierte Anteile).
+              // EINE Quelle für alle Anzeigen: der Server-berechnete uPnL % auf
+              // Margin (für Live-Trades der ECHTE Bitunix-uPnL) – identisch mit
+              // dem Trade-Verlauf. Lokale Rechnung nur noch als Fallback.
               const qtyRem = Number(t.qty_remaining ?? t.qty) || 0;
               const margin = Number(t.margin_used) > 0
                 ? Number(t.margin_used)
                 : (t.entry && qtyRem ? (Number(t.entry) * qtyRem) / Math.max(lev, 0.01) : 0);
-              const hasPx = Number(candleData?.close) > 0;
               const gross = t.entry && qtyRem ? (px - t.entry) * sign * qtyRem : 0;
-              const pnlPct = !hasPx && t.computed?.upnl_pct_margin != null
+              const pnlPct = t.computed?.upnl_pct_margin != null
                 ? Number(t.computed.upnl_pct_margin)
                 : (margin > 0
                   ? (gross / margin) * 100
@@ -579,10 +594,11 @@ const MainChart = ({ symbol, candleData, signal, onClearSignal }) => {
               return (
                 <div
                   key={t.id}
-                  className={`chart-open-badge ${t.side === 'LONG' ? 'long' : 'short'}`}
+                  className={`chart-open-badge ${t.side === 'LONG' ? 'long' : 'short'} ${pinnedId === t.id ? 'pinned' : ''}`}
+                  onClick={() => togglePin(t.id)}
                   onMouseEnter={() => hoverDetail(t.barTime)}
                   onMouseLeave={() => hoverDetail(null)}
-                  title={`${t.strategy_name || t.strategy_id || ''} · Entry ${fmtPrice(t.entry)} · SL ${fmtPrice(t.sl)} · TP ${fmtPrice(t.tpf)} (Hover zeigt SL/TP im Chart)`}
+                  title={`${t.strategy_name || t.strategy_id || ''} · Entry ${fmtPrice(t.entry)} · SL ${fmtPrice(t.sl)} · TP ${fmtPrice(t.tpf)} – Klick: Entry/SL/TP1/TP im Chart anpinnen (nochmal Klick = lösen)`}
                   data-testid={`chart-open-badge-${t.id}`}
                 >
                   <span className="cob-side">{t.side === 'LONG' ? '▲' : '▼'} {t.label || t.side}</span>

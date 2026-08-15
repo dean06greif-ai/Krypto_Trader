@@ -420,6 +420,15 @@ class BitunixTradeClient:
         q = {"symbol": self.to_bitunix_symbol(symbol)} if symbol else {}
         return await self._get("/api/v1/futures/position/get_pending_positions", q)
 
+    async def get_history_positions(self, symbol=None, position_id=None, limit=20):
+        """Geschlossene Positionen (echter closePrice/realizedPNL der Börse)."""
+        q = {"limit": int(limit)}
+        if symbol:
+            q["symbol"] = self.to_bitunix_symbol(symbol)
+        if position_id:
+            q["positionId"] = str(position_id)
+        return await self._get("/api/v1/futures/position/get_history_positions", q)
+
     async def resolve_position_id(self, symbol: str, side: str) -> Optional[str]:
         """Poll get_positions to find the positionId matching an open position.
         Bitunix's place_order response only returns orderId, not positionId,
@@ -539,6 +548,31 @@ DEFAULT_COIN_CFG = {
     # --- Liquidation (Isolated Margin) ---
     "maintenance_margin_rate": 0.5,  # % - bestimmt Liquidationspreis (~1/Hebel - MMR)
 }
+
+
+def parse_closed_position(res, position_id) -> Optional[Dict]:
+    """Echten Abschluss einer Position aus get_history_positions ziehen (rein, testbar).
+    Netto-PnL = realizedPNL (ohne Gebühren/Funding) − fee + funding (funding signiert)."""
+    if not isinstance(res, dict) or res.get("code") != 0:
+        return None
+    data = res.get("data") or {}
+    items = data.get("positionList") if isinstance(data, dict) else data
+    for p in items or []:
+        if not isinstance(p, dict) or str(p.get("positionId")) != str(position_id):
+            continue
+        try:
+            gross = float(p["realizedPNL"])
+            fee = abs(float(p.get("fee") or 0))
+            funding = float(p.get("funding") or 0)
+            close = float(p.get("closePrice") or 0)
+            max_qty = float(p.get("maxQty") or 0)
+        except (KeyError, TypeError, ValueError):
+            return None
+        return {"exit_price": close if close > 0 else None,
+                "net_pnl": round(gross - fee + funding, 6),
+                "gross_pnl": round(gross, 6), "fee": round(fee, 6),
+                "funding": round(funding, 6), "max_qty": max_qty}
+    return None
 
 
 def _extract_order_id(res) -> Optional[str]:
@@ -1418,27 +1452,62 @@ class AutoTradeManager:
         logger.error(f"{symbol}: Stop-Loss konnte NICHT gesetzt werden: {last}")
         return False
 
-    async def _book_external_close(self, t: Dict) -> Optional[Dict]:
-        """Trade lokal als extern (an der Börse) geschlossen verbuchen."""
-        price = float(await self._current_mark(t["symbol"]) or t.get("entry") or 0)
-        if price <= 0:
+    async def _exchange_close_truth(self, t: Dict) -> Optional[Dict]:
+        """ECHTEN Bitunix-Abschluss (closePrice/realizedPNL) für einen Live-Trade
+        holen. None bei Paper-Trades, fehlender Position-ID oder wenn die Position
+        manuell aufgestockt war (dann wäre der Positions-PnL mehr als der Trade)."""
+        pid = t.get("bitunix_position_id")
+        if t.get("mode") != "live" or not pid or not self.client.configured():
             return None
-        qty_rem = float(t.get("qty_remaining", t["qty"]) or 0)
-        fee_pct = float(t.get("fee_percent", 0.06)) / 100
-        fee = qty_rem * price * fee_pct
-        pnl = ((price - t["entry"]) if t["side"] == "LONG"
-               else (t["entry"] - price)) * qty_rem
-        realized = round(float(t.get("realized_pnl", 0.0)) + pnl - fee, 6)
+        try:
+            res = await self.client.get_history_positions(position_id=pid)
+        except Exception as e:
+            logger.debug(f"Positions-Historie nicht abrufbar ({t.get('symbol')}): {e}")
+            return None
+        exact = parse_closed_position(res, pid)
+        if not exact:
+            return None
+        qty = float(t.get("qty") or 0)
+        if not t.get("external_adopted") and exact.get("max_qty") and qty > 0 \
+                and abs(exact["max_qty"] - qty) / exact["max_qty"] > 0.05:
+            return None
+        return exact
+
+    async def _book_external_close(self, t: Dict) -> Optional[Dict]:
+        """Trade lokal als extern (an der Börse) geschlossen verbuchen.
+        Für Live-Trades (inkl. manueller Bitunix-Trades) wird der ECHTE
+        Börsen-Abschluss übernommen (Positions-Historie), statt ihn per
+        Mark-Preis zu schätzen – Schätzung nur noch als Fallback."""
+        exact = await self._exchange_close_truth(t)
+        if exact:
+            price = exact["exit_price"] or float(
+                await self._current_mark(t["symbol"]) or t.get("entry") or 0)
+            realized = exact["net_pnl"]
+            fees_total = exact["fee"]
+            event = (f"EXTERN GESCHLOSSEN (Bitunix-Sync) @ {price} – echter "
+                     f"Börsen-PnL {realized:+} (inkl. Fees/Funding)")
+        else:
+            price = float(await self._current_mark(t["symbol"]) or t.get("entry") or 0)
+            if price <= 0:
+                return None
+            qty_rem = float(t.get("qty_remaining", t["qty"]) or 0)
+            fee_pct = float(t.get("fee_percent", 0.06)) / 100
+            fee = qty_rem * price * fee_pct
+            pnl = ((price - t["entry"]) if t["side"] == "LONG"
+                   else (t["entry"] - price)) * qty_rem
+            realized = round(float(t.get("realized_pnl", 0.0)) + pnl - fee, 6)
+            fees_total = round(float(t.get("fees_paid", 0.0)) + fee, 6)
+            event = f"EXTERN GESCHLOSSEN (Bitunix-Sync) @ {price}"
         result = "win" if realized > 0 else ("breakeven" if realized == 0 else "loss")
         closed_at = datetime.now(timezone.utc).isoformat()
         await self.db.auto_trades.update_one({"id": t["id"]}, {"$set": {
             "status": "closed", "exit_price": price, "result": result,
             "realized_pnl": realized, "qty_remaining": 0,
-            "fees_paid": round(float(t.get("fees_paid", 0.0)) + fee, 6),
+            "fees_paid": fees_total,
+            "pnl_exchange_exact": bool(exact),
             "closed_by": "bitunix_sync", "live_close_failed": False,
             "closed_at": closed_at,
-            "events": (t.get("events", []) +
-                       [f"EXTERN GESCHLOSSEN (Bitunix-Sync) @ {price}"])[-20:]}})
+            "events": (t.get("events", []) + [event])[-20:]}})
         await self._after_close({**t, "status": "closed", "result": result,
                                  "realized_pnl": realized, "exit_price": price,
                                  "closed_at": closed_at})
