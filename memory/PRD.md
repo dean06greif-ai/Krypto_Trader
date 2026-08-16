@@ -237,3 +237,8 @@ Detailplan/Design: **/app/MULTI_TIMEFRAME_PLAN.md** (vom User gewünschte „Pla
 - Loesch-Dialog Analyse (PerformanceAnalytics): .clear-modal max-height 88vh + overflow-y auto -> nicht mehr abgeschnitten, Buttons erreichbar.
 - Frage Prompt~14215>Budget erklaert (Groq Free-Tier TPM, App skippt automatisch zu anderen Anbietern) – kein Codefix noetig.
 - Testing-Agent iteration_37: alles gruen; neuer Regressionstest tests/test_ai_status_grouping.py.
+
+## Iteration 38 (Settings-Review, nur Analyse/Doku)
+- Read-only-Analyse der PROD-Settings (Atlas) + 48 geschlossener KI-Trades: Paper-Winrate 8% (1/12), DC 43% (15/35), Oe-Hebel 44,9x, Oe-PnL -4,18/Trade.
+- Befunde: use_heatmap_data AN / use_liquidation_data AUS (invertiert vs. Code-RCA!), Hebel viel zu hoch (lev_mode coin, TM max_leverage 125), Learner-Rolle auf gpt-oss-20b:free (zu schwach), research_analyst auf gemini flash-lite, smart_skip_move_pct 0.02 wirkungslos.
+- Empfehlungen dokumentiert in /app/KI_TRADER_SETTINGS_CHECK.md (keine Code-/DB-Aenderungen, User stellt im UI um).
