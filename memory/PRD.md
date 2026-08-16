@@ -245,3 +245,6 @@ Detailplan/Design: **/app/MULTI_TIMEFRAME_PLAN.md** (vom User gewünschte „Pla
 
 ## Iteration 39 (Prod-Settings-Flip)
 - Auf ausdruecklichen User-Wunsch NUR die Liquiditaets-Schalter live in der Produktion umgedreht: use_liquidation_data=true, use_heatmap_data=false. Ausgefuehrt ueber offizielles Admin-API POST /api/ai/config auf crypto-scanner-backend-hil2.onrender.com (Engine hat es sofort im Speicher) und in Atlas verifiziert. Keine Code-Aenderungen.
+
+## Iteration 40
+- Learner-Rolle live in Produktion umgestellt (POST /api/ai/roles): openrouter/gpt-oss-20b:free -> groq/openai/gpt-oss-120b (Fallback-Kette cerebras gpt-oss-120b -> gemini flash-lite blieb erhalten). In Atlas verifiziert.
