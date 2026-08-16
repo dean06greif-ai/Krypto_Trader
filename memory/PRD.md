@@ -242,3 +242,6 @@ Detailplan/Design: **/app/MULTI_TIMEFRAME_PLAN.md** (vom User gewünschte „Pla
 - Read-only-Analyse der PROD-Settings (Atlas) + 48 geschlossener KI-Trades: Paper-Winrate 8% (1/12), DC 43% (15/35), Oe-Hebel 44,9x, Oe-PnL -4,18/Trade.
 - Befunde: use_heatmap_data AN / use_liquidation_data AUS (invertiert vs. Code-RCA!), Hebel viel zu hoch (lev_mode coin, TM max_leverage 125), Learner-Rolle auf gpt-oss-20b:free (zu schwach), research_analyst auf gemini flash-lite, smart_skip_move_pct 0.02 wirkungslos.
 - Empfehlungen dokumentiert in /app/KI_TRADER_SETTINGS_CHECK.md (keine Code-/DB-Aenderungen, User stellt im UI um).
+
+## Iteration 39 (Prod-Settings-Flip)
+- Auf ausdruecklichen User-Wunsch NUR die Liquiditaets-Schalter live in der Produktion umgedreht: use_liquidation_data=true, use_heatmap_data=false. Ausgefuehrt ueber offizielles Admin-API POST /api/ai/config auf crypto-scanner-backend-hil2.onrender.com (Engine hat es sofort im Speicher) und in Atlas verifiziert. Keine Code-Aenderungen.
