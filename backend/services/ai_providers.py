@@ -404,11 +404,43 @@ def health_status() -> Dict:
     last = dict(_last_call)
     if last.get("ts"):
         last["age_s"] = int(now - last["ts"])
+
+    # Gruppierung pro Anbieter (User-Wunsch): Ursache ist fast immer das
+    # Key-Kontingent des Anbieters, nicht das einzelne Modell. Statt N Zeilen
+    # (eine je Modell) EINE Warnung je Anbieter inkl. betroffener Assistenten.
+    def _group_by_provider(entries: List[Dict]) -> List[Dict]:
+        groups: Dict[str, Dict] = {}
+        for e in entries:
+            g = groups.setdefault(e["provider"], {
+                "provider": e["provider"], "models": [], "roles": [],
+                "count": 0, "detail": e.get("detail") or "",
+                "cooldown_left_s": 0, "key_index": e.get("key_index", 0),
+            })
+            g["count"] += 1
+            if e["model"] not in g["models"]:
+                g["models"].append(e["model"])
+            if e.get("role") and e["role"] not in g["roles"]:
+                g["roles"].append(e["role"])
+            g["cooldown_left_s"] = max(g["cooldown_left_s"],
+                                       int(e.get("cooldown_left_s") or 0))
+            g["key_index"] = max(g["key_index"], e.get("key_index", 0))
+        # Betroffene Rollen zusätzlich aus dem Ausfall-Verlauf ergänzen
+        # (ein _health-Eintrag merkt sich nur die LETZTE Rolle pro Modell).
+        for f in _recent_failures:
+            if now - float(f.get("ts", 0)) > RATE_LIMIT_COOLDOWN_S:
+                continue
+            g = groups.get(f.get("provider"))
+            if g and f.get("role") and f["role"] not in g["roles"]:
+                g["roles"].append(f["role"])
+        return list(groups.values())
+
     return {
         "models": models,
         "rate_limited": limited,
         "errors": errors,
         "skipped_too_large": skipped,
+        "rate_limited_grouped": _group_by_provider(limited),
+        "skipped_grouped": _group_by_provider(skipped),
         "last_call": last,
         "recent_failures": recent,
         "active_fallbacks": active_fb,

@@ -231,3 +231,9 @@ Detailplan/Design: **/app/MULTI_TIMEFRAME_PLAN.md** (vom User gewünschte „Pla
 - watchdog/run liefert bei enabled=false zusaetzlich reason-Feld.
 - Test tests/test_qqq_range_chart_fixes.py an neue Guard-Semantik angepasst; tests/test_guard_external_adopted.py neu (Testing-Agent). E2E test_partial_exit_e2e.py 6/6 + Testing-Agent 8/8 gruen.
 - Doku: /app/KI_MODELL_GUIDE.md – Preis/Leistungs-Ranking + Fallback-Empfehlung fuer Haupt-Modell und alle 9 KI-Team-Rollen (nur Anleitung, keine Code-Defaults geaendert, User-Wahl).
+
+## Iteration 37
+- Rate-Limit-/Uebersprungen-Warnungen im Modell-Status jetzt PRO ANBIETER zusammengefasst (ai_providers.health_status: rate_limited_grouped/skipped_grouped inkl. betroffener Rollen aus _recent_failures; UI AITradingPanel gruppierte Zeilen + PROVIDER_LABEL, alte Felder bleiben fuer Rueckwaertskompatibilitaet).
+- Loesch-Dialog Analyse (PerformanceAnalytics): .clear-modal max-height 88vh + overflow-y auto -> nicht mehr abgeschnitten, Buttons erreichbar.
+- Frage Prompt~14215>Budget erklaert (Groq Free-Tier TPM, App skippt automatisch zu anderen Anbietern) – kein Codefix noetig.
+- Testing-Agent iteration_37: alles gruen; neuer Regressionstest tests/test_ai_status_grouping.py.

@@ -1,0 +1,22 @@
+{
+  "summary": "Verified iteration 37 changes: (a) providers_health grouping in /api/ai/status (new rate_limited_grouped / skipped_grouped keys) plus in-process unit test of _group_by_provider using record_result; (b) PerformanceAnalytics clear-modal scroll fix on small viewport (760x800); (c) AITradingPanel renders cleanly without JS errors. All targeted tests pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_ai_status_grouping.py",
+    "/app/test_reports/pytest/iter37_grouping.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ai_providers.py _group_by_provider correctly merges duplicate roles via _recent_failures fallback (only last role per model kept in _health). Grouping logic is O(N*M) but with maxlen=40 deque this is negligible.",
+    "clear-modal max-height:88vh + overflow-y:auto verified via computed styles (704px ≈ 88vh of 800vh viewport) and cancel button reachable via scroll (scrollHeight 970 > clientHeight 702)."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_status_grouping.py"],
+  "success_rate": {"backend": "100% (2/2)", "frontend": "100% (modal fix + AI panel render OK)"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (used only to reach clear-analytics modal & AITradingPanel)",
+  "seed_data_creation": "None – used in-process record_result() calls for unit test; NO trades opened, NO clear-confirm-btn clicked (only clear-cancel-btn as required).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 37 grouped provider warnings + clear-modal scroll fix verified end-to-end. Backend unit test in test_ai_status_grouping.py exercises _group_by_provider directly by seeding _health via record_result – safe to rerun as regression. Live ai-health-badge was hidden because no active provider warnings existed; that path can only be tested by seeding failures – covered by the unit test.",
+  "rca of the issue": "N/A – regression verification, no bugs found."
+}

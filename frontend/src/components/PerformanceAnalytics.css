@@ -285,7 +285,9 @@
 .clear-data-btn { background: #FF336618; border: 1px solid #FF336640; color: #FF3366; border-radius: 8px; padding: 7px 9px; cursor: pointer; display: inline-flex; align-items: center; transition: background-color 0.15s ease; }
 .clear-data-btn:hover { background: #FF336633; }
 .clear-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
-.clear-modal { background: #12141C; border: 1px solid #2A2D3A; border-radius: 14px; padding: 22px; width: 380px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+.clear-modal { background: #12141C; border: 1px solid #2A2D3A; border-radius: 14px; padding: 22px; width: 380px; max-width: 92vw; max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+.clear-modal::-webkit-scrollbar { width: 8px; }
+.clear-modal::-webkit-scrollbar-thumb { background: #2A2D3A; border-radius: 4px; }
 .clear-modal-header { display: flex; align-items: center; gap: 9px; color: #FF3366; }
 .clear-modal-header h4 { margin: 0; font-size: 15px; letter-spacing: 0.5px; color: #fff; }
 .clear-modal-sub { font-size: 12px; color: #A1A4B0; margin: 10px 0 14px; line-height: 1.5; }

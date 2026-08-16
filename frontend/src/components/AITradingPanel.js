@@ -39,6 +39,11 @@ const FAIL_REASON = {
   skipped_too_large: 'Prompt zu groß fürs Token-Budget',
 };
 const roleLabelOf = (r) => (ROLE_DEFS.find(d => d.key === r)?.label || r || 'unbekannte Rolle');
+// Anbieter-Klartext für zusammengefasste Warnungen (eine Zeile pro Anbieter)
+const PROVIDER_LABEL = {
+  groq: 'Groq', cerebras: 'Cerebras', openrouter: 'OpenRouter',
+  mistral: 'Mistral', gemini: 'Gemini',
+};
 
 const AUTONOMY_OPTIONS = [
   { value: 'off', label: 'Aus – KI ändert nichts' },
@@ -794,20 +799,20 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
             <div className={`ai-robot-badge ${cfg.enabled ? 'on' : ''}`}><Robot size={20} weight="fill" /></div>
             <div>
               <h2>KI TRADER
-                {((status?.providers_health?.rate_limited?.length || 0)
+                {(((status?.providers_health?.rate_limited_grouped || status?.providers_health?.rate_limited)?.length || 0)
                   + (status?.providers_health?.errors?.length || 0)
-                  + (status?.providers_health?.skipped_too_large?.length || 0)
+                  + ((status?.providers_health?.skipped_grouped || status?.providers_health?.skipped_too_large)?.length || 0)
                   + (status?.providers_health?.active_fallbacks?.length || 0)) > 0 && (
                   <span
                     className="ai-health-badge clickable"
                     data-testid="ai-health-badge"
                     onClick={() => setShowHealth(v => !v)}
-                    title="Klicken für Details: welche KI-Modelle sind rate-limited, ausgefallen oder wegen zu großem Prompt übersprungen – und welche Assistenten gerade auf einem Fallback-Modell laufen"
+                    title="Klicken für Details: welche Anbieter rate-limited sind, welche Modelle ausgefallen oder wegen zu großem Prompt übersprungen wurden – und welche Assistenten gerade auf einem Fallback-Modell laufen"
                   >
                     <Warning size={13} weight="fill" />
-                    {(status?.providers_health?.rate_limited?.length || 0)
+                    {((status?.providers_health?.rate_limited_grouped || status?.providers_health?.rate_limited)?.length || 0)
                       + (status?.providers_health?.errors?.length || 0)
-                      + (status?.providers_health?.skipped_too_large?.length || 0)
+                      + ((status?.providers_health?.skipped_grouped || status?.providers_health?.skipped_too_large)?.length || 0)
                       + (status?.providers_health?.active_fallbacks?.length || 0)}
                     {showHealth ? <CaretUp size={11} /> : <CaretDown size={11} />}
                   </span>
@@ -816,12 +821,19 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
               {showHealth && (
                 <div className="ai-health-dropdown" data-testid="ai-health-dropdown">
                   <div className="ai-health-dd-title">Modell-Status</div>
-                  {(status?.providers_health?.rate_limited || []).map(m => (
-                    <div className="ai-health-dd-row limited" key={`rl-${m.provider}/${m.model}`}>
-                      <span className="ai-health-dd-model">{m.provider}/{m.model}</span>
+                  {(status?.providers_health?.rate_limited_grouped
+                    || status?.providers_health?.rate_limited || []).map(m => (
+                    <div className="ai-health-dd-row limited" key={`rl-${m.provider}${m.model ? `/${m.model}` : ''}`}
+                      data-testid={`ai-ratelimit-${m.provider}`}
+                      title={(m.models || []).length ? `Modelle: ${(m.models || []).join(', ')}` : undefined}>
+                      <span className="ai-health-dd-model">
+                        {m.models ? `${PROVIDER_LABEL[m.provider] || m.provider}` : `${m.provider}/${m.model}`}
+                      </span>
                       <span>
-                        Rate-Limit – frei in ca. {Math.ceil((m.cooldown_left_s || 0) / 60)} min
-                        {m.role && ` · betroffen: ${roleLabelOf(m.role)}`}
+                        Rate-Limit{m.models ? ` (Key-Kontingent · ${m.count > 1 ? `${m.count} Modelle` : m.models[0]})` : ''}
+                        {' '}– frei in ca. {Math.ceil((m.cooldown_left_s || 0) / 60)} min
+                        {(m.roles || (m.role ? [m.role] : [])).length > 0
+                          && ` · betroffen: ${(m.roles || [m.role]).map(roleLabelOf).join(', ')}`}
                       </span>
                     </div>
                   ))}
@@ -831,11 +843,19 @@ const AITradingPanel = ({ onClose, selectedCoin = 'BTCUSDT' }) => {
                       <span>{m.detail || 'Fehler/Timeout'}{m.role && ` · betroffen: ${roleLabelOf(m.role)}`}</span>
                     </div>
                   ))}
-                  {(status?.providers_health?.skipped_too_large || []).map(m => (
-                    <div className="ai-health-dd-row skipped" key={`sk-${m.provider}/${m.model}`}
-                      data-testid={`ai-skip-${m.provider}-${String(m.model).replace(/[^a-z0-9]/gi, '-')}`}>
-                      <span className="ai-health-dd-model">{m.provider}/{m.model}</span>
-                      <span>übersprungen – {m.detail || 'Prompt zu groß fürs Token-Budget'}</span>
+                  {(status?.providers_health?.skipped_grouped
+                    || status?.providers_health?.skipped_too_large || []).map(m => (
+                    <div className="ai-health-dd-row skipped" key={`sk-${m.provider}${m.model ? `/${m.model}` : ''}`}
+                      data-testid={`ai-skip-${m.provider}${m.model ? `-${String(m.model).replace(/[^a-z0-9]/gi, '-')}` : ''}`}
+                      title={(m.models || []).length ? `Übersprungene Modelle: ${(m.models || []).join(', ')}` : undefined}>
+                      <span className="ai-health-dd-model">
+                        {m.models ? `${PROVIDER_LABEL[m.provider] || m.provider}` : `${m.provider}/${m.model}`}
+                      </span>
+                      <span>
+                        {m.models && m.count > 1 ? `${m.count} Modelle übersprungen` : 'übersprungen'}
+                        {' '}– {m.detail || 'Prompt zu groß fürs Token-Budget'}
+                        {(m.roles || []).length > 0 && ` · betroffen: ${m.roles.map(roleLabelOf).join(', ')}`}
+                      </span>
                     </div>
                   ))}
                   {status?.providers_health?.fallback_active && (
