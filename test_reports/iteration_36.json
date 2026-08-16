@@ -1,0 +1,25 @@
+{
+  "summary": "Backend-only verification of manual_trade partial_close guard fix. Ran existing E2E (test_partial_exit_e2e.py, 6 tests) and new guard/HTTP-semantics tests (test_guard_external_adopted.py, 2 tests). All 8/8 PASSED. Confirmed: (a) website-manual paper trades (source='manuell') can execute 2x partial_close returning HTTP 200 with events 'TEIL-EXIT Stufe 1/2 (TP-Staffel|Teil-Absicherung)' and qty_remaining reduced; (b) external_adopted=True trades return HTTP 409 with detail mentioning 'extern/bitunix' (NOT 502, NOT 200); (c) nonexistent trade_id returns HTTP 404. Prior 502-bug regression fixed and holds.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_partial_exit_e2e.py",
+    "/app/backend/tests/test_guard_external_adopted.py",
+    "/app/test_reports/pytest/iter36_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Anti-Stacking-Detection nutzt anscheinend opened_at auch für geschlossene Trades im 30-Min-Fenster, was Retries des E2E-Tests ohne Cleanup blockiert. Kein Bug, aber Test-Setup-Fußangel (mitigiert durch cleanup vor Reruns).",
+    "routers/autotrade.py:397 nutzt Substring-Match auf 'nicht gefunden' zur 404-Ableitung. Robuster wäre ein dediziertes status='not_found' vom trade_manager."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_guard_external_adopted.py (neu)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a"},
+  "test_credentials": "Admin / Dean06Greif!/Admin (aus /app/memory/test_credentials.md)",
+  "seed_data_creation": "test_guard_external_adopted inserts and removes a synthetic auto_trades doc (id=TEST_EXTERNAL_<uuid>, external_adopted=True). Verified 0 leftovers post-run. E2E-Trade wurde per POST /api/autotrade/close geschlossen.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Guard-Fix (manual_trade blocked→allowed for source=manual, external_adopted still blocked for all sources) plus HTTP 409/400/404-Semantik in routers/autotrade.py:397-403 sind verifiziert. Vor Neuausführung von test_partial_exit_e2e.py ggf. offene BTCUSDT paper manual trades bereinigen (Anti-Stacking-Fenster 30 Min).",
+  "rca of the issue": "N/A – Fix bereits vom Main Agent implementiert, hier nur unabhängig verifiziert."
+}
